@@ -1,0 +1,23 @@
+# Feature registry (BR2). Consumed by YamlFeatureRegistry. TODO: complete definitions.
+groups:
+  - name: learner_longterm
+    entity: learner
+    version: 1
+    branch: batch
+    freshness_sla: 24h
+    features:
+      - { name: completion_rate_30d, dtype: float }
+      - { name: avg_pass_rate_30d,   dtype: float }
+      - { name: active_days_30d,     dtype: int }
+      - { name: preferred_platform,  dtype: string }
+      - { name: skill_mastery,       dtype: float_list }
+  - name: learner_session
+    entity: learner
+    version: 1
+    branch: streaming
+    freshness_sla: 30s
+    features:
+      - { name: active_minutes,     dtype: float }
+      - { name: events_in_session,  dtype: int }
+      - { name: struggle_score,     dtype: float }
+      - { name: current_course_id,  dtype: string }

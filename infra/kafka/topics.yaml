@@ -1,0 +1,45 @@
+# Topic catalogue. Names mirror src/edu_platform/platform/messaging/topics.py.
+# Applied by `edu infra create-topics infra/kafka/topics.yaml` (TODO). Replication factor is
+# overridden per environment (1 local, 3 prod).
+defaults:
+  partitions: 6
+  replication_factor: 1
+  config:
+    cleanup.policy: delete
+    retention.ms: 604800000   # 7 days
+
+topics:
+  # --- ingestion -------------------------------------------------------------
+  - name: telemetry.events.raw.v1
+    partitions: 24               # high velocity; key = learner_id
+    config: { retention.ms: 259200000 }  # 3 days, bronze is the durable copy
+  - name: telemetry.events.dlq.v1
+    partitions: 3
+  # --- CDC (created by Debezium; declared here for ACLs/retention) -----------
+  - name: cdc.lms.public.enrollments
+    config: { cleanup.policy: compact }
+  - name: cdc.lms.public.lesson_progress
+  - name: cdc.lms.public.submissions
+  - name: cdc.lms.public.grades
+  - name: cdc.lms.public.course_content
+    config: { cleanup.policy: compact }
+  # --- grading (BR3) ---------------------------------------------------------
+  - name: grading.submission_received.v1
+    partitions: 12
+  - name: grading.sandbox_result.raw.v1
+    partitions: 12
+  - name: grading.submission_graded.v1
+  # --- risk (BR5) ------------------------------------------------------------
+  - name: risk.dropout_alert.v1
+  # --- LMS business events (BR1) --------------------------------------------
+  - name: lms.assignment_created.v1
+  - name: lms.deadline_approaching.v1
+  - name: lms.course_updated.v1
+  - name: notification.dispatched.v1
+  # --- content (BR8) ---------------------------------------------------------
+  - name: content.updated.v1
+  - name: content.indexed.v1
+  # --- features (BR2) --------------------------------------------------------
+  - name: features.session.v1
+    partitions: 12
+    config: { cleanup.policy: compact, retention.ms: 3600000 }

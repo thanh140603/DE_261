@@ -1,0 +1,12 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://edu-platform/schemas/events/v1/course_updated.schema.json",
+  "title": "lms.course_updated.v1",
+  "type": "object",
+  "required": ["event_id", "occurred_at", "course_id", "content_id", "change_type"],
+  "properties": {
+    "event_id": { "type": "string" },
+    "occurred_at": { "type": "string", "format": "date-time" },
+    "course_id": { "type": "string" },\n    "content_id": { "type": "string" },\n    "change_type": { "type": "string" },\n    "_todo": { "type": "string", "description": "TODO: refine field types (due_at date-time, hours_to_deadline number)" }
+  }
+}

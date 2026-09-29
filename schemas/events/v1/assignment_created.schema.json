@@ -1,0 +1,12 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://edu-platform/schemas/events/v1/assignment_created.schema.json",
+  "title": "lms.assignment_created.v1",
+  "type": "object",
+  "required": ["event_id", "occurred_at", "assignment_id", "course_id", "due_at", "title"],
+  "properties": {
+    "event_id": { "type": "string" },
+    "occurred_at": { "type": "string", "format": "date-time" },
+    "assignment_id": { "type": "string" },\n    "course_id": { "type": "string" },\n    "due_at": { "type": "string" },\n    "title": { "type": "string" },\n    "_todo": { "type": "string", "description": "TODO: refine field types (due_at date-time, hours_to_deadline number)" }
+  }
+}

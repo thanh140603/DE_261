@@ -1,0 +1,15 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://edu-platform/schemas/cdc/v1/row_change.schema.json",
+  "title": "Unwrapped Debezium row change (ExtractNewRecordState + added fields)",
+  "type": "object",
+  "required": ["__op", "__ts_ms", "__source_lsn"],
+  "properties": {
+    "__op": { "type": "string", "enum": ["c", "u", "d", "r"] },
+    "__ts_ms": { "type": "integer" },
+    "__source_lsn": { "type": "integer", "description": "ordering key per table" },
+    "__source_txId": { "type": ["integer", "null"] },
+    "__deleted": { "type": ["string", "boolean", "null"] }
+  },
+  "additionalProperties": true
+}

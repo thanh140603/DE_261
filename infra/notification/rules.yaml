@@ -1,0 +1,33 @@
+# Notification rules (BR1). Loaded by YamlRuleRepository; hot-reloadable.
+# condition: tiny safe expression DSL over the event payload (no arbitrary code).
+rules:
+  - rule_id: assignment-created
+    event_type: lms.assignment_created.v1
+    channels: [in_app, push]
+    priority: normal
+    template_id: assignment_created
+
+  - rule_id: deadline-24h
+    event_type: lms.deadline_approaching.v1
+    condition: "hours_to_deadline <= 24"
+    channels: [push, email]
+    priority: high
+    template_id: deadline_soon
+
+  - rule_id: course-updated
+    event_type: lms.course_updated.v1
+    channels: [in_app]
+    priority: low
+    template_id: course_updated
+
+  - rule_id: submission-feedback
+    event_type: grading.submission_graded.v1
+    channels: [in_app, push]
+    priority: normal
+    template_id: submission_feedback
+
+  - rule_id: dropout-risk-advisor
+    event_type: risk.dropout_risk_detected.v1
+    channels: [email]        # audience = advisor of the learner, resolved by AudienceResolver
+    priority: high
+    template_id: advisor_risk_alert

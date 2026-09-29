@@ -1,0 +1,31 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://edu-platform/schemas/grading/v1/sandbox_result.schema.json",
+  "title": "Raw sandbox execution worker output",
+  "type": "object",
+  "required": ["submission_id", "worker_run_id", "exit_code", "exec_time_ms", "max_rss_kb", "assertions"],
+  "properties": {
+    "submission_id": { "type": "string" },
+    "worker_run_id": { "type": "string" },
+    "stdout": { "type": "string" },
+    "stderr": { "type": "string" },
+    "exit_code": { "type": "integer" },
+    "exec_time_ms": { "type": "integer", "minimum": 0 },
+    "max_rss_kb": { "type": "integer", "minimum": 0 },
+    "timed_out": { "type": "boolean", "default": false },
+    "assertions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["test_case_id", "status"],
+        "properties": {
+          "test_case_id": { "type": "string" },
+          "status": { "type": "string", "enum": ["passed", "failed", "error", "timeout"] },
+          "expected": { "type": ["string", "null"] },
+          "actual": { "type": ["string", "null"] },
+          "duration_ms": { "type": "integer", "minimum": 0 }
+        }
+      }
+    }
+  }
+}

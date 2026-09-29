@@ -1,0 +1,17 @@
+.git
+.venv
+venv
+**/__pycache__
+.mypy_cache
+.ruff_cache
+.pytest_cache
+.playwright-mcp
+apps/web/node_modules
+apps/web/dist
+tests
+orchestration
+docker-compose.yml
+infra/k8s
+infra/terraform
+docs/*.pdf
+.env

@@ -1,0 +1,21 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://edu-platform/schemas/telemetry/v1/learning_event.schema.json",
+  "title": "LearningEvent (client payload, xAPI-inspired)",
+  "type": "object",
+  "required": ["event_id", "schema_version", "learner_id", "course_id", "session_id", "verb", "platform", "occurred_at"],
+  "properties": {
+    "event_id": { "type": "string", "format": "uuid" },
+    "schema_version": { "type": "string", "pattern": "^[0-9]+\.[0-9]+$" },
+    "learner_id": { "type": "string", "description": "RAW id - pseudonymised before silver" },
+    "course_id": { "type": "string" },
+    "content_id": { "type": ["string", "null"] },
+    "session_id": { "type": "string" },
+    "verb": { "type": "string", "enum": ["logged_in", "viewed", "played", "paused", "seeked", "completed", "attempted", "submitted", "posted"] },
+    "platform": { "type": "string", "enum": ["web", "android", "ios"] },
+    "occurred_at": { "type": "string", "format": "date-time", "description": "device event time" },
+    "video_position_sec": { "type": ["integer", "null"], "minimum": 0 },
+    "extensions": { "type": "object", "additionalProperties": true }
+  },
+  "additionalProperties": false
+}
