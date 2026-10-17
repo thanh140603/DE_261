@@ -1,0 +1,26 @@
+{
+  "name": "br45-postgres-cdc",
+  "config": {
+    "connector.class": "io.debezium.connector.postgresql.PostgresConnector",
+    "database.hostname": "postgres",
+    "database.port": "5432",
+    "database.user": "lms",
+    "database.password": "lms",
+    "database.dbname": "lms",
+    "plugin.name": "pgoutput",
+    "slot.name": "br45_cdc_slot",
+    "publication.name": "br45_cdc_pub",
+    "publication.autocreate.mode": "filtered",
+    "topic.prefix": "br45.cdc",
+    "table.include.list": "br45.courses,br45.assignments,br45.questions,br45.test_cases,br45.enrollments,br45.submissions,br45.evaluations,br45.activity_events,br45.clocks",
+    "snapshot.mode": "initial",
+    "tombstones.on.delete": "true",
+    "decimal.handling.mode": "double",
+    "time.precision.mode": "connect",
+    "key.converter": "org.apache.kafka.connect.json.JsonConverter",
+    "value.converter": "org.apache.kafka.connect.json.JsonConverter",
+    "key.converter.schemas.enable": "false",
+    "value.converter.schemas.enable": "false",
+    "heartbeat.interval.ms": "10000"
+  }
+}

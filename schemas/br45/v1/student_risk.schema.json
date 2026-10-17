@@ -1,0 +1,92 @@
+{
+  "$defs": {
+    "RiskReason": {
+      "additionalProperties": true,
+      "properties": {
+        "signal": {
+          "title": "Signal",
+          "type": "string"
+        },
+        "points": {
+          "title": "Points",
+          "type": "integer"
+        },
+        "reason": {
+          "title": "Reason",
+          "type": "string"
+        }
+      },
+      "required": [
+        "signal",
+        "points",
+        "reason"
+      ],
+      "title": "RiskReason",
+      "type": "object"
+    }
+  },
+  "additionalProperties": true,
+  "properties": {
+    "student_id": {
+      "title": "Student Id",
+      "type": "string"
+    },
+    "course_id": {
+      "title": "Course Id",
+      "type": "string"
+    },
+    "score": {
+      "title": "Score",
+      "type": "integer"
+    },
+    "level": {
+      "enum": [
+        "LOW",
+        "MEDIUM",
+        "HIGH",
+        "CRITICAL"
+      ],
+      "title": "Level",
+      "type": "string"
+    },
+    "eligible": {
+      "title": "Eligible",
+      "type": "boolean"
+    },
+    "evaluated_at": {
+      "format": "date-time",
+      "title": "Evaluated At",
+      "type": "string"
+    },
+    "reasons": {
+      "items": {
+        "$ref": "#/$defs/RiskReason"
+      },
+      "title": "Reasons",
+      "type": "array"
+    },
+    "features": {
+      "additionalProperties": true,
+      "title": "Features",
+      "type": "object"
+    },
+    "policy": {
+      "additionalProperties": true,
+      "title": "Policy",
+      "type": "object"
+    }
+  },
+  "required": [
+    "student_id",
+    "course_id",
+    "score",
+    "level",
+    "eligible",
+    "evaluated_at",
+    "reasons",
+    "features",
+    "policy"
+  ],
+  "title": "Risk",
+  "type": "object"
+}

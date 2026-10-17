@@ -44,9 +44,20 @@ code, pre, textarea.code, .mono { font-family: var(--mono); font-size: 12.5px; }
 .num { font-variant-numeric: tabular-nums; }
 .muted { color: var(--muted); }
 .small { font-size: 12.5px; }
+.analytics-table { overflow-x: auto; margin-block: 12px; }
+.assessment-span { grid-column: 1 / -1; min-width: 0; }
+.analytics-table table { min-width: 640px; }
+.analytics-table td { overflow-wrap: anywhere; }
+.analytics-access { align-items: end; }
+.analytics-access input { max-width: 100%; }
+.analytics-summary { display: flex; flex-wrap: wrap; gap: 16px; margin-block: 16px; }
+.analytics-detail { padding-block: 16px; border-top: 1px solid var(--border); margin-top: 16px; }
+.risk-trend { margin: 16px 0; max-width: 760px; }
+.risk-trend svg { display: block; width: 100%; }
+.sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0; }
 
 /* --- app shell ------------------------------------------------------------- */
-.shell { display: grid; grid-template-rows: var(--topbar-h) auto 1fr; min-height: 100%; }
+.shell { display: grid; grid-template-columns: minmax(0, 1fr); grid-template-rows: var(--topbar-h) auto 1fr; min-height: 100%; }
 .topbar {
   display: flex; align-items: center; gap: 12px; padding: 0 20px;
   background: var(--surface); border-bottom: 1px solid var(--border);
@@ -195,7 +206,7 @@ svg text { font-family: var(--font); }
 /* --- responsive ------------------------------------------------------------ */
 @media (max-width: 860px) {
   :root { --strip-h: 84px; }
-  .body { grid-template-columns: 1fr; }
+  .body { grid-template-columns: minmax(0, 1fr); }
   .rail { position: static; height: auto; border-right: 0; border-bottom: 1px solid var(--border); padding: 8px 12px; }
   .rail nav { flex-direction: row; overflow-x: auto; }
   .rail a { border-left: 0; border-bottom: 3px solid transparent; white-space: nowrap; }
@@ -207,6 +218,11 @@ svg text { font-family: var(--font); }
   .stage .box { min-width: 96px; padding: 6px 10px; }
   .stage .box .value { font-size: 16px; }
   .drawer { width: calc(100vw - 32px); }
+  .topbar .brand { font-size: 13px; }
+  .strip .stage { flex-shrink: 0; }
+  .analytics-detail.kv { grid-template-columns: 1fr; }
+  .analytics-detail.kv dd { margin-bottom: 8px; }
+  .analytics-access input, .analytics-access button { font-size: 16px; }
 }
 @media (prefers-reduced-motion: reduce) {
   .stage .box.bump .value { animation: none; }

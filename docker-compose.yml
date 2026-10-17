@@ -9,16 +9,36 @@
 #   kafka-ui        browse topics / messages                 http://localhost:8090
 #   schema-registry Avro/JSON contracts                      http://localhost:8081
 #   connect         Debezium CDC (register: see README 'Developer commands')  :8083
-#   postgres        LMS OLTP source, wal_level=logical        localhost:5432
+#   postgres        LMS OLTP source, wal_level=logical        localhost:5433 (POSTGRES_PORT)
 #   redis           online features / risk scores / notif state    localhost:6379
 #   minio           object storage: lakehouse + corpus       http://localhost:9001
 #   flink-*         streaming engine                         http://localhost:8082
 #   spark, spark-worker  batch engine                        http://localhost:8080
 #
-# The demo container runs the pipelines in-process (ADR 0008) and does not yet
-# consume the Kafka/Redis/Postgres services; they are the production path whose
-# adapters are TODO stubs under src/edu_platform. Set DEMO_PORT to change :8000.
+# Other BRs retain the in-process demo (ADR 0008). The opt-in br45 profile runs
+# real CDC, persistent marts and Spark windows (ADR 0009). Set DEMO_PORT for :8000.
 name: de261
+
+x-br45-environment: &br45-environment
+  EDU_BR45_DSN: postgresql://lms:lms@postgres:5432/lms
+  EDU_BR45_KAFKA: kafka:29092
+  EDU_BR45_CLOCK_MODE: ${EDU_BR45_CLOCK_MODE:-wall}
+  EDU_BR45_SLIDE_SECONDS: ${EDU_BR45_SLIDE_SECONDS:-3600}
+  EDU_BR45_LATENESS_DAYS: ${EDU_BR45_LATENESS_DAYS:-21}
+  EDU_BR45_MIN_STUDENTS: ${EDU_BR45_MIN_STUDENTS:-20}
+  EDU_BR45_QUESTION_THRESHOLD: ${EDU_BR45_QUESTION_THRESHOLD:-0.30}
+  EDU_BR45_CASE_THRESHOLD: ${EDU_BR45_CASE_THRESHOLD:-0.20}
+  EDU_BR45_PEER_GAP: ${EDU_BR45_PEER_GAP:-0.50}
+  EDU_BR45_DROP_THRESHOLD: ${EDU_BR45_DROP_THRESHOLD:-0.30}
+  EDU_BR45_INACTIVITY_POINTS: ${EDU_BR45_INACTIVITY_POINTS:-35}
+  EDU_BR45_MISSED_POINTS: ${EDU_BR45_MISSED_POINTS:-30}
+  EDU_BR45_COMPLETION_POINTS: ${EDU_BR45_COMPLETION_POINTS:-20}
+  EDU_BR45_DECLINE_POINTS: ${EDU_BR45_DECLINE_POINTS:-15}
+  EDU_BR45_MEDIUM_THRESHOLD: ${EDU_BR45_MEDIUM_THRESHOLD:-30}
+  EDU_BR45_HIGH_THRESHOLD: ${EDU_BR45_HIGH_THRESHOLD:-60}
+  EDU_BR45_CRITICAL_THRESHOLD: ${EDU_BR45_CRITICAL_THRESHOLD:-80}
+  EDU_BR45_ALERT_THRESHOLD: ${EDU_BR45_ALERT_THRESHOLD:-60}
+  EDU_BR45_COOLDOWN_HOURS: ${EDU_BR45_COOLDOWN_HOURS:-72}
 
 services:
   # --- demo (web + server) ---------------------------------------------------------
@@ -31,12 +51,16 @@ services:
     ports:
       - "${DEMO_PORT:-8000}:8000"
     environment:
+      <<: *br45-environment
       EDU_ENV: docker
       EDU_PII_HMAC_SECRET: ${EDU_PII_HMAC_SECRET:-demo-secret}
       EDU_KAFKA_BOOTSTRAP_SERVERS: kafka:29092
       EDU_SCHEMA_REGISTRY_URL: http://schema-registry:8081
       EDU_REDIS_URL: redis://redis:6379/0
       EDU_POSTGRES_DSN: postgresql://lms:lms@postgres:5432/lms
+      EDU_BR45_DSN: postgresql://lms:lms@postgres:5432/lms
+      # Public local demonstration tokens only. Set EDU_BR45_AUTH for any shared deployment.
+      EDU_BR45_AUTH: '${EDU_BR45_AUTH:-{"instructor-demo":{"id":"instructor-local","role":"instructor","courses":["c-py-201","c-sql-101","c-de-301"]},"advisor-demo":{"id":"advisor-local","role":"advisor","courses":["c-py-201"]},"learner-demo":{"id":"br45-demo-at-risk","role":"learner","courses":["c-py-201"]}}}'
       EDU_S3_ENDPOINT: http://minio:9000
       EDU_S3_ACCESS_KEY: minioadmin
       EDU_S3_SECRET_KEY: minioadmin
@@ -123,13 +147,18 @@ services:
       STATUS_STORAGE_TOPIC: _connect_status
       KEY_CONVERTER: org.apache.kafka.connect.json.JsonConverter
       VALUE_CONVERTER: org.apache.kafka.connect.json.JsonConverter
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://localhost:8083/connectors >/dev/null"]
+      interval: 5s
+      timeout: 3s
+      retries: 30
 
   # --- OLTP source ---------------------------------------------------------------------
   postgres:
     # LMS source of truth. wal_level=logical lets Debezium read the WAL without query load.
     image: postgres:16
     container_name: de261-postgres
-    ports: ["5432:5432"]
+    ports: ["${POSTGRES_PORT:-5433}:5432"]
     command: ["postgres", "-c", "wal_level=logical", "-c", "max_replication_slots=4", "-c", "max_wal_senders=4"]
     environment:
       POSTGRES_USER: lms
@@ -155,7 +184,10 @@ services:
 
   # --- object storage (lakehouse + corpus) ---------------------------------------------------
   minio:
-    image: minio/minio:latest
+    build: &minio-build
+      context: ./infra/minio
+    image: de261/minio:local
+    pull_policy: build
     container_name: de261-minio
     ports: ["9000:9000", "9001:9001"]
     command: server /data --console-address ":9001"
@@ -165,13 +197,15 @@ services:
     volumes:
       - minio-data:/data
     healthcheck:
-      test: ["CMD", "mc", "ready", "local"]
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:9000/minio/health/ready"]
       interval: 5s
       timeout: 3s
       retries: 10
 
   minio-init:
-    image: minio/mc:latest
+    build: *minio-build
+    image: de261/minio:local
+    pull_policy: build
     container_name: de261-minio-init
     depends_on:
       minio:
@@ -225,6 +259,53 @@ services:
     environment:
       SPARK_NO_DAEMONIZE: "true"
 
+  # BR4/BR5 production data path; opt in with --profile br45.
+  br45-init:
+    profiles: ["br45"]
+    image: de261/demo:local
+    build:
+      context: .
+      dockerfile: Dockerfile
+    environment: *br45-environment
+    depends_on:
+      connect:
+        condition: service_healthy
+    command: ["sh", "-c", "python -m edu_platform.br45.cli migrate && python -m edu_platform.br45.cli register --connect-url http://connect:8083"]
+    healthcheck:
+      disable: true
+
+  br45-cdc:
+    profiles: ["br45"]
+    image: de261/demo:local
+    environment: *br45-environment
+    depends_on:
+      br45-init:
+        condition: service_completed_successfully
+    command: ["python", "-m", "edu_platform.br45.cli", "cdc"]
+    healthcheck:
+      test: ["CMD", "python", "-c", "from edu_platform.br45.db import connect\nwith connect() as c:\n c.execute('SELECT 1')"]
+      interval: 15s
+      timeout: 5s
+      start_period: 30s
+      retries: 3
+    restart: on-failure:5
+
+  br45-stream:
+    profiles: ["br45"]
+    build:
+      context: .
+      dockerfile: infra/br45/Dockerfile
+    image: de261/br45-spark:local
+    environment:
+      <<: *br45-environment
+      EDU_BR45_CHECKPOINT: /checkpoints/br45-v1
+    volumes:
+      - br45-checkpoints:/checkpoints
+    depends_on:
+      br45-init:
+        condition: service_completed_successfully
+    restart: on-failure:5
+
   # TODO: opensearch (content search/vector index), airflow (webserver + scheduler),
   #       prometheus/grafana for consumer-lag and checkpoint metrics.
 
@@ -232,3 +313,4 @@ volumes:
   postgres-data:
   redis-data:
   minio-data:
+  br45-checkpoints:

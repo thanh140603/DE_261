@@ -11,7 +11,7 @@ from edu_platform.entrypoints.api.deps import platform
 router = APIRouter(prefix="/advisor", tags=["advisor"])
 
 
-@router.get("/alerts")
+@router.get("/demo-alerts", deprecated=True)
 async def alerts(p: DemoPlatform = Depends(platform)) -> list[dict[str, Any]]:
     return list(reversed(p.risk_alerts))
 

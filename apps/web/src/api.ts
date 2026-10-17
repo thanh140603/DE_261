@@ -75,7 +75,7 @@ export const api = {
   },
 
   advisor: {
-    alerts: () => get<T.RiskAlert[]>("/advisor/alerts"),
+    alerts: () => get<T.RiskAlert[]>("/advisor/demo-alerts"),
     risk: (learnerId: string) => get<T.RiskDetail>(`/advisor/learners/${learnerId}/risk`),
   },
 

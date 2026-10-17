@@ -1,7 +1,7 @@
 """Demo API server: FastAPI app exposing every pipeline outcome (docs/api.md)
 and serving the built web client from apps/web/dist.
 
-Run:  docker compose up -d --build  (or locally: uvicorn edu_platform.entrypoints.api.main:app --port 8000)
+Run with Docker Compose or uvicorn edu_platform.entrypoints.api.main:app --port 8000.
 """
 
 from __future__ import annotations
@@ -16,6 +16,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
+from edu_platform.br45.api import router as analytics_router
 from edu_platform.demo import handlers
 from edu_platform.demo.container import DemoPlatform
 from edu_platform.demo.simulator import Simulator
@@ -61,6 +62,7 @@ def create_app() -> FastAPI:
         allow_methods=["*"],
         allow_headers=["*"],
     )
+    app.include_router(analytics_router, prefix="/api")
     for router in (reference, simulate, pipeline, learner, instructor, advisor, admin, events):
         app.include_router(router.router, prefix="/api")
 

@@ -19,11 +19,15 @@ WORKDIR /app
 
 # Install the package first so source edits do not invalidate the dependency layer.
 COPY pyproject.toml README.md ./
+RUN python -c "import tomllib,subprocess; p=tomllib.load(open('pyproject.toml','rb'))['project']; subprocess.check_call(['pip','install','--no-cache-dir','hatchling',*p['dependencies'],*p['optional-dependencies']['demo']])"
+RUN pip install --no-cache-dir editables
 COPY src ./src
-RUN pip install --no-cache-dir -e ".[demo]"
+RUN pip install --no-deps --no-build-isolation -e ".[demo]"
 
 # Runtime assets the server reads from the repo layout (rules, contracts, docs).
 COPY infra/notification ./infra/notification
+COPY infra/postgres/br45.sql ./infra/postgres/br45.sql
+COPY infra/debezium/br45-connector.json ./infra/debezium/br45-connector.json
 COPY schemas ./schemas
 COPY docs/api.md ./docs/api.md
 COPY --from=web /web/dist ./apps/web/dist

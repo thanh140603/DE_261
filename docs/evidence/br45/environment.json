@@ -1,0 +1,25 @@
+{
+  "measured_at": "2026-10-16T15:30:41.794729+00:00",
+  "python": "3.12.3",
+  "platform": "Linux-7.0.0-38-generic-x86_64-with-glibc2.39",
+  "logical_cpus": 6,
+  "processor": "x86_64",
+  "postgres": {
+    "version": "PostgreSQL 16.15 (Debian 16.15-1.pgdg13+2) on x86_64-pc-linux-gnu, compiled by gcc (Debian 14.2.0-19) 14.2.0, 64-bit"
+  },
+  "repetitions": 3,
+  "dataset": "SYNTHETIC; 3 tests/question, repeated students, test 1 mostly failing",
+  "sizes": [
+    1000,
+    10000,
+    100000
+  ],
+  "stream_runtime": {
+    "python": "3.11.17",
+    "java": "openjdk version \"17.0.20.1\" 2026-08-18",
+    "spark": "3.5.1",
+    "master": "local[2]",
+    "driver_memory": "1g"
+  },
+  "memory_bytes": 19766140928
+}

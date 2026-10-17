@@ -1,0 +1,151 @@
+{
+  "measured_at": "2026-10-16T16:04:07.686438+00:00",
+  "synthetic": true,
+  "student_id": "br45-e2e-2c2a00a69d",
+  "checks": [
+    "Actual PostgreSQL inserts traversed Debezium and Spark; previous window=4, recent=0, score=100",
+    "Instructor API returned persisted 2/24 question rate and suspicious test-case reason; advisor acknowledged the real alert",
+    "BR4 evaluation correction propagated automatically into persisted statistics and API",
+    "Replayed CDC and normalized Kafka records produced no duplicate features or alerts",
+    "Real CDC UPDATE and DELETE correctly retracted event-time window contributions",
+    "Spark restarted from persistent checkpoint, preserved prior-window count and processed recovery; alert auto-resolved"
+  ],
+  "cdc_to_alert_ms": 8114.231259998633,
+  "restart_to_recovery_ms": 20313.10812299489,
+  "duplicate_alert_count": 0,
+  "initial_risk": {
+    "level": "CRITICAL",
+    "score": 100,
+    "policy": {
+      "window_days": 7,
+      "slide_seconds": 3600,
+      "alert_threshold": 60,
+      "allowed_lateness_days": 21,
+      "minimum_reference_events": 3
+    },
+    "reasons": [
+      {
+        "points": 35,
+        "reason": "No meaningful learning activity for at least 7 days",
+        "signal": "inactivity"
+      },
+      {
+        "points": 30,
+        "reason": "1 required assignments remain unsubmitted after their deadlines",
+        "signal": "missed_deadlines"
+      },
+      {
+        "points": 20,
+        "reason": "Recent due-assignment submission rate 0% is below 50%",
+        "signal": "low_completion"
+      },
+      {
+        "points": 15,
+        "reason": "Learning activity decreased by 100% from the preceding 7-day window",
+        "signal": "activity_decline"
+      }
+    ],
+    "eligible": true,
+    "features": {
+      "activity_7d": 0,
+      "activity_14d": 4,
+      "inactivity_days": 8.0,
+      "activity_decline": 1.0,
+      "last_activity_at": "2026-10-08T16:00:00+00:00",
+      "due_assignments_14d": 1,
+      "submission_rate_14d": 0.0,
+      "telemetry_available": true,
+      "activity_previous_7d": 4,
+      "missed_deadlines_14d": 1
+    },
+    "course_id": "c-py-201",
+    "student_id": "br45-e2e-2c2a00a69d",
+    "evaluated_at": "2026-10-16T16:00:00+00:00",
+    "eligibility_reason": "At least 7 days of active enrollment"
+  },
+  "final_risk": {
+    "level": "MEDIUM",
+    "score": 50,
+    "policy": {
+      "window_days": 7,
+      "slide_seconds": 3600,
+      "alert_threshold": 60,
+      "allowed_lateness_days": 21,
+      "minimum_reference_events": 3
+    },
+    "reasons": [
+      {
+        "points": 30,
+        "reason": "1 required assignments remain unsubmitted after their deadlines",
+        "signal": "missed_deadlines"
+      },
+      {
+        "points": 20,
+        "reason": "Recent due-assignment submission rate 0% is below 50%",
+        "signal": "low_completion"
+      }
+    ],
+    "eligible": true,
+    "features": {
+      "activity_7d": 4,
+      "activity_14d": 8,
+      "inactivity_days": 0.001388888888888889,
+      "activity_decline": 0.0,
+      "last_activity_at": "2026-10-16T15:58:00+00:00",
+      "due_assignments_14d": 1,
+      "submission_rate_14d": 0.0,
+      "telemetry_available": true,
+      "activity_previous_7d": 4,
+      "missed_deadlines_14d": 1
+    },
+    "course_id": "c-py-201",
+    "student_id": "br45-e2e-2c2a00a69d",
+    "evaluated_at": "2026-10-16T16:00:00+00:00",
+    "eligibility_reason": "At least 7 days of active enrollment"
+  },
+  "replay_recovery_risk": {
+    "level": "HIGH",
+    "score": 65,
+    "policy": {
+      "window_days": 7,
+      "slide_seconds": 3600,
+      "alert_threshold": 60,
+      "allowed_lateness_days": 21,
+      "minimum_reference_events": 3
+    },
+    "reasons": [
+      {
+        "points": 30,
+        "reason": "1 required assignments remain unsubmitted after their deadlines",
+        "signal": "missed_deadlines"
+      },
+      {
+        "points": 20,
+        "reason": "Recent due-assignment submission rate 0% is below 50%",
+        "signal": "low_completion"
+      },
+      {
+        "points": 15,
+        "reason": "Learning activity decreased by 75% from the preceding 7-day window",
+        "signal": "activity_decline"
+      }
+    ],
+    "eligible": true,
+    "features": {
+      "activity_7d": 1,
+      "activity_14d": 5,
+      "inactivity_days": 0.0006944444444444445,
+      "activity_decline": 0.75,
+      "last_activity_at": "2026-10-16T15:59:00+00:00",
+      "due_assignments_14d": 1,
+      "submission_rate_14d": 0.0,
+      "telemetry_available": true,
+      "activity_previous_7d": 4,
+      "missed_deadlines_14d": 1
+    },
+    "course_id": "c-py-201",
+    "student_id": "br45-e2e-2c2a00a69d",
+    "evaluated_at": "2026-10-16T16:00:00+00:00",
+    "eligibility_reason": "At least 7 days of active enrollment"
+  }
+}

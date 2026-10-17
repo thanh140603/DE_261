@@ -1,0 +1,128 @@
+{
+  "additionalProperties": true,
+  "properties": {
+    "id": {
+      "title": "Id",
+      "type": "string"
+    },
+    "course_id": {
+      "title": "Course Id",
+      "type": "string"
+    },
+    "assignment_id": {
+      "title": "Assignment Id",
+      "type": "string"
+    },
+    "question_id": {
+      "title": "Question Id",
+      "type": "string"
+    },
+    "question_version": {
+      "title": "Question Version",
+      "type": "integer"
+    },
+    "total_valid_evaluations": {
+      "title": "Total Valid Evaluations",
+      "type": "integer"
+    },
+    "passed_evaluations": {
+      "title": "Passed Evaluations",
+      "type": "integer"
+    },
+    "failed_evaluations": {
+      "title": "Failed Evaluations",
+      "type": "integer"
+    },
+    "unique_students": {
+      "title": "Unique Students",
+      "type": "integer"
+    },
+    "invalid_evaluations": {
+      "title": "Invalid Evaluations",
+      "type": "integer"
+    },
+    "infrastructure_errors": {
+      "title": "Infrastructure Errors",
+      "type": "integer"
+    },
+    "pass_rate": {
+      "anyOf": [
+        {
+          "type": "number"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Pass Rate"
+    },
+    "state": {
+      "enum": [
+        "NORMAL",
+        "INSUFFICIENT_DATA",
+        "LOW_PASS_RATE",
+        "SUSPICIOUS_TEST_CASE",
+        "NEEDS_REVIEW"
+      ],
+      "title": "State",
+      "type": "string"
+    },
+    "severity": {
+      "enum": [
+        "INFO",
+        "MEDIUM",
+        "HIGH"
+      ],
+      "title": "Severity",
+      "type": "string"
+    },
+    "reasons": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Reasons",
+      "type": "array"
+    },
+    "threshold": {
+      "title": "Threshold",
+      "type": "number"
+    },
+    "minimum_students": {
+      "title": "Minimum Students",
+      "type": "integer"
+    },
+    "window_start": {
+      "format": "date-time",
+      "title": "Window Start",
+      "type": "string"
+    },
+    "window_end": {
+      "format": "date-time",
+      "title": "Window End",
+      "type": "string"
+    }
+  },
+  "required": [
+    "id",
+    "course_id",
+    "assignment_id",
+    "question_id",
+    "question_version",
+    "total_valid_evaluations",
+    "passed_evaluations",
+    "failed_evaluations",
+    "unique_students",
+    "invalid_evaluations",
+    "infrastructure_errors",
+    "pass_rate",
+    "state",
+    "severity",
+    "reasons",
+    "threshold",
+    "minimum_students",
+    "window_start",
+    "window_end"
+  ],
+  "title": "Metric",
+  "type": "object"
+}
