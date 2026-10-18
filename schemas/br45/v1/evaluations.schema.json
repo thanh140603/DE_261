@@ -1,0 +1,55 @@
+{
+  "properties": {
+    "id": {
+      "maxLength": 200,
+      "minLength": 1,
+      "title": "Id",
+      "type": "string"
+    },
+    "submission_id": {
+      "title": "Submission Id",
+      "type": "string"
+    },
+    "test_case_id": {
+      "title": "Test Case Id",
+      "type": "string"
+    },
+    "test_case_version": {
+      "exclusiveMinimum": 0,
+      "title": "Test Case Version",
+      "type": "integer"
+    },
+    "status": {
+      "enum": [
+        "passed",
+        "failed",
+        "error",
+        "timeout",
+        "skipped",
+        "infra_error"
+      ],
+      "title": "Status",
+      "type": "string"
+    },
+    "is_valid_evaluation": {
+      "title": "Is Valid Evaluation",
+      "type": "boolean"
+    },
+    "evaluated_at": {
+      "format": "date-time",
+      "title": "Evaluated At",
+      "type": "string"
+    }
+  },
+  "required": [
+    "id",
+    "submission_id",
+    "test_case_id",
+    "test_case_version",
+    "status",
+    "is_valid_evaluation",
+    "evaluated_at"
+  ],
+  "title": "Evaluation",
+  "type": "object"
+}

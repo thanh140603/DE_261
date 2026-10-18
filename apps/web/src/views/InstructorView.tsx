@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
 import { api } from "../api";
 import { useStore } from "../store";
-import { formatDate, formatTime, pct, useAction, useFetch } from "../hooks";
+import { formatDate, formatTime, useAction, useFetch } from "../hooks";
 import { Btn, Panel, Select, Status, Tag, ViewHead } from "../components/ui";
+import { AssessmentHealth } from "../components/AssessmentHealth";
 import type { PublishResult } from "../types";
 
 export function InstructorView() {
@@ -22,50 +23,13 @@ export function InstructorView() {
       </div>
       {course && (
         <div className="grid">
-          <Assessments courseId={course.id} tick={lastEventAt} />
+          <div className="assessment-span"><AssessmentHealth /></div>
           <Heatmap course={course} tick={lastEventAt} />
           <EngagementPanel courseId={course.id} tick={lastEventAt} />
           <ContentSync course={course} />
         </div>
       )}
     </>
-  );
-}
-
-function Assessments({ courseId, tick }: { courseId: string; tick: number }) {
-  const q = useFetch(() => api.instructor.assessments(courseId), [courseId]);
-  useEffect(() => { void q.reload(); }, [tick]); // eslint-disable-line react-hooks/exhaustive-deps
-  const scenario = useAction(async () => { const r = await api.simulate.scenario("broken_test_case"); await q.reload(); return r; });
-  return (
-    <Panel title="Assessment health" br="BR4">
-      <div className="actions">
-        <Btn onClick={() => void scenario.run()} pending={scenario.pending}>Run scenario: broken test case</Btn>
-      </div>
-      {scenario.error && <div className="error">{scenario.error}</div>}
-      {scenario.result && <div className="notice">{scenario.result.steps.map((s) => s.message).join(" ")}</div>}
-      <Status loading={q.loading && !q.data} error={q.error} empty={q.data && q.data.length === 0 ? "No graded submissions for this course yet. Submit code as a learner or run the scenario." : false}>
-        <table>
-          <thead><tr><th>Assignment</th><th>Item</th><th className="num">Attempts</th><th>Pass rate</th><th className="num">Median</th><th></th></tr></thead>
-          <tbody>
-            {q.data?.map((r) => (
-              <tr key={`${r.assignment_id}-${r.item_id}`} className={r.is_anomalous ? "anomalous" : undefined}>
-                <td>{r.assignment_title}</td>
-                <td>{r.item_id}</td>
-                <td className="num">{r.attempts}</td>
-                <td>
-                  <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-                    <div className={`bar${r.is_anomalous ? " warn" : ""}`}><i style={{ width: `${r.pass_rate * 100}%` }} /></div>
-                    <span className="num small">{pct(r.pass_rate)}</span>
-                  </div>
-                </td>
-                <td className="num">{pct(r.assignment_median_pass_rate)}</td>
-                <td>{r.is_anomalous && <Tag kind="warn">Far below the assignment median, check the test case</Tag>}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </Status>
-    </Panel>
   );
 }
 

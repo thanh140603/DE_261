@@ -1,0 +1,43 @@
+{
+  "properties": {
+    "id": {
+      "maxLength": 200,
+      "minLength": 1,
+      "title": "Id",
+      "type": "string"
+    },
+    "version": {
+      "exclusiveMinimum": 0,
+      "title": "Version",
+      "type": "integer"
+    },
+    "question_id": {
+      "title": "Question Id",
+      "type": "string"
+    },
+    "question_version": {
+      "exclusiveMinimum": 0,
+      "title": "Question Version",
+      "type": "integer"
+    },
+    "required": {
+      "default": true,
+      "title": "Required",
+      "type": "boolean"
+    },
+    "created_at": {
+      "format": "date-time",
+      "title": "Created At",
+      "type": "string"
+    }
+  },
+  "required": [
+    "id",
+    "version",
+    "question_id",
+    "question_version",
+    "created_at"
+  ],
+  "title": "TestCase",
+  "type": "object"
+}

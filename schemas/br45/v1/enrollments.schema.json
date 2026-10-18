@@ -1,0 +1,41 @@
+{
+  "properties": {
+    "id": {
+      "maxLength": 200,
+      "minLength": 1,
+      "title": "Id",
+      "type": "string"
+    },
+    "student_id": {
+      "title": "Student Id",
+      "type": "string"
+    },
+    "course_id": {
+      "title": "Course Id",
+      "type": "string"
+    },
+    "status": {
+      "enum": [
+        "active",
+        "completed",
+        "withdrawn"
+      ],
+      "title": "Status",
+      "type": "string"
+    },
+    "enrolled_at": {
+      "format": "date-time",
+      "title": "Enrolled At",
+      "type": "string"
+    }
+  },
+  "required": [
+    "id",
+    "student_id",
+    "course_id",
+    "status",
+    "enrolled_at"
+  ],
+  "title": "Enrollment",
+  "type": "object"
+}

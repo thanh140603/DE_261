@@ -42,3 +42,5 @@ apps/web/node_modules/
 
 # Playwright MCP screenshots
 .playwright-mcp/
+apps/web/test-results/
+apps/web/playwright-report/

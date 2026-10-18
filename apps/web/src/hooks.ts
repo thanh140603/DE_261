@@ -40,6 +40,7 @@ export function useFetch<D>(fn: (() => Promise<D>) | null, deps: unknown[]): Fet
 
   useEffect(() => {
     void run(false);
+    return () => { seq.current += 1; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, deps);
 

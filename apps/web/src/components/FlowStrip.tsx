@@ -46,7 +46,7 @@ export function FlowStrip() {
       <div className="stage">
         <div className="fan">
           <Box label="Feature rows" value={stats?.feature_rows} kind="out" />
-          <Box label="Risk alerts" value={stats?.risk_alerts} kind={stats && stats.risk_alerts > 0 ? "warn" : "out"} />
+          <Box label="Demo alerts" value={stats?.risk_alerts} kind={stats && stats.risk_alerts > 0 ? "warn" : "out"} />
           <Box label="Graded" value={stats?.submissions_graded} kind="out" />
           <Box label="Notifications" value={stats?.notifications_sent} sub={stats ? `${stats.notifications_suppressed} suppressed` : undefined} kind="out" />
         </div>
