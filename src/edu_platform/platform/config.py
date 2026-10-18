@@ -27,14 +27,26 @@ class LakehouseSettings(BaseSettings):
     s3_access_key: str | None = None
     s3_secret_key: SecretStr | None = None
 
-    def layer_path(self, layer: Literal["bronze", "silver", "gold"], table: str) -> str:
+    def layer_path(
+        self, layer: Literal["bronze", "silver", "gold", "mart", "features", "ops"], table: str
+    ) -> str:
         return f"{self.lakehouse_root}/{layer}/{table}"
+
+
+class SparkSettings(BaseSettings):
+    model_config = SettingsConfigDict(env_prefix="EDU_")
+    spark_master: str = "local[*]"
+    spark_shuffle_partitions: int = 8
+    # Shared lakehouse catalog (ADR 0010). None = Spark's embedded catalog (unit/local runs).
+    hive_metastore_uri: str | None = None
+    # Folder with ddl/, transform/, quality/ and models.yaml (repo `warehouse/`).
+    warehouse_dir: str = "warehouse"
 
 
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", env_prefix="EDU_", extra="ignore")
 
-    env: Literal["local", "dev", "staging", "prod"] = "local"
+    env: Literal["local", "docker", "dev", "staging", "prod"] = "local"
     schema_registry_url: str = "http://localhost:8081"
     postgres_dsn: SecretStr = SecretStr("postgresql://lms:lms@localhost:5432/lms")
     redis_url: str = "redis://localhost:6379/0"
@@ -45,6 +57,7 @@ class Settings(BaseSettings):
 
     kafka: KafkaSettings = Field(default_factory=KafkaSettings)
     lakehouse: LakehouseSettings = Field(default_factory=LakehouseSettings)
+    spark: SparkSettings = Field(default_factory=SparkSettings)
 
 
 @lru_cache(maxsize=1)

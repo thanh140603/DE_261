@@ -1,0 +1,88 @@
+# Warehouse model registry - read by edu_platform.platform.warehouse (the runner).
+#
+# Models run top to bottom inside a layer; layers run silver -> gold -> mart -> features.
+# Every model is idempotent, so a retry or a backfill (`--start-date`) is always safe.
+#
+# kind      sql     transform/<sql>, rendered with ${run_date}, ${window_start}, ${window_end}
+#                   and the policy parameters (see entrypoints/batch/warehouse_job.py)
+#           python  a function registered by the entrypoint (domain code in a Spark adapter)
+# strategy  incremental  silver: MERGE the bronze rows of the window / streaming micro-batch
+#                        (exposed as view `_src`, from `source` filtered by `source_filter`)
+#           full         rebuild the whole table (dimensions, accumulating snapshots)
+#           scd2         incremental slowly-changing-dimension MERGE (history kept)
+#           window       replace the date partitions [run_date - lookback_days, run_date];
+#                        `late_data` pulls the start back to the oldest date of driver rows
+#                        silver received since the model last succeeded (late mobile events)
+#           snapshot     replace the as_of_date = run_date partition (marts, features)
+defaults:
+  lookback_days: 3
+
+layers:
+  silver:
+    - name: silver.learning_events
+      kind: python
+      strategy: incremental
+      source: bronze.telemetry_raw
+      requirements: [BR6]
+      description: NormalizeEvents (validate, migrate schema, pseudonymise, dedup) on raw telemetry
+    - {name: silver.organisations,  sql: silver/organisations.sql,    strategy: incremental, source: bronze.cdc_events, source_filter: "source_table = 'organisations'", requirements: [BR6]}
+    - {name: silver.learners,       sql: silver/learners.sql,         strategy: incremental, source: bronze.cdc_events, source_filter: "source_table = 'learners'", requirements: [BR6]}
+    - {name: silver.courses,        sql: silver/courses.sql,          strategy: incremental, source: bronze.cdc_events, source_filter: "source_table = 'courses'", requirements: [BR6, BR2]}
+    - {name: silver.lessons,        sql: silver/lessons.sql,          strategy: incremental, source: bronze.cdc_events, source_filter: "source_table = 'lessons'", requirements: [BR6]}
+    - {name: silver.content_versions, sql: silver/content_versions.sql, strategy: incremental, source: bronze.cdc_events, source_filter: "source_table = 'course_content'", requirements: [BR7, BR8]}
+    - {name: silver.assignments,    sql: silver/assignments.sql,      strategy: incremental, source: bronze.cdc_events, source_filter: "source_table = 'assignments'", requirements: [BR4]}
+    - {name: silver.test_cases,     sql: silver/test_cases.sql,       strategy: incremental, source: bronze.cdc_events, source_filter: "source_table = 'test_cases'", requirements: [BR4]}
+    - {name: silver.enrollments,    sql: silver/enrollments.sql,      strategy: incremental, source: bronze.cdc_events, source_filter: "source_table = 'enrollments'", requirements: [BR5, BR6]}
+    - {name: silver.lesson_progress, sql: silver/lesson_progress.sql, strategy: incremental, source: bronze.cdc_events, source_filter: "source_table = 'lesson_progress'", requirements: [BR5, BR6]}
+    - {name: silver.submissions,    sql: silver/submissions.sql,      strategy: incremental, source: bronze.cdc_events, source_filter: "source_table = 'submissions'", requirements: [BR3, BR4]}
+    - {name: silver.grades,         sql: silver/grades.sql,           strategy: incremental, source: bronze.cdc_events, source_filter: "source_table = 'grades'", requirements: [BR3, BR4]}
+    - {name: silver.submission_executions, sql: silver/submission_executions.sql, strategy: incremental, source: bronze.domain_events, source_filter: "topic = 'grading.sandbox_result.raw.v1'", requirements: [BR3]}
+    - {name: silver.test_case_results, sql: silver/test_case_results.sql, strategy: incremental, source: bronze.domain_events, source_filter: "topic = 'grading.sandbox_result.raw.v1'", requirements: [BR4]}
+    - {name: silver.risk_scores,    sql: silver/risk_scores.sql,      strategy: incremental, source: bronze.domain_events, source_filter: "topic = 'risk.learner_score.v1'", requirements: [BR5]}
+    - {name: silver.dropout_alerts, sql: silver/dropout_alerts.sql,   strategy: incremental, source: bronze.domain_events, source_filter: "topic = 'risk.dropout_alert.v1'", requirements: [BR5]}
+    - {name: silver.notifications,  sql: silver/notifications.sql,    strategy: incremental, source: bronze.domain_events, source_filter: "topic IN ('notification.dispatched.v1', 'notification.suppressed.v1')", requirements: [BR1]}
+    - {name: silver.content_sync_events, sql: silver/content_sync_events.sql, strategy: incremental, source: bronze.domain_events, source_filter: "topic IN ('content.updated.v1', 'content.indexed.v1')", requirements: [BR8]}
+
+  gold:
+    # conformed dimensions first: facts resolve keys against them
+    - {name: gold.dim_date,         sql: gold/dim_date.sql,         strategy: full}
+    - {name: gold.dim_activity,     sql: gold/dim_activity.sql,     strategy: full, requirements: [BR7, BR8]}
+    - {name: gold.dim_organisation, sql: gold/dim_organisation.sql, strategy: full, requirements: [BR6]}
+    - {name: gold.dim_course,       sql: gold/dim_course.sql,       strategy: full, late_data: {table: silver.learning_events, date: event_date}}
+    - {name: gold.dim_lesson,       sql: gold/dim_lesson.sql,       strategy: full}
+    - {name: gold.dim_content,      sql: gold/dim_content.sql,      strategy: full, late_data: {table: silver.learning_events, date: event_date}, requirements: [BR7, BR8]}
+    - {name: gold.dim_assignment,   sql: gold/dim_assignment.sql,   strategy: full, requirements: [BR4]}
+    - {name: gold.dim_test_case,    sql: gold/dim_test_case.sql,    strategy: full, requirements: [BR4]}
+    - {name: gold.dim_learner,      sql: gold/dim_learner.sql,      strategy: scd2, late_data: {table: silver.learning_events, date: event_date}}
+    # facts
+    - {name: gold.fct_learning_event,         sql: gold/fct_learning_event.sql,         strategy: window, late_data: {table: silver.learning_events, date: event_date}, requirements: [BR6, BR7, BR8]}
+    - {name: gold.fct_learner_daily_activity, sql: gold/fct_learner_daily_activity.sql, strategy: window, late_data: {table: silver.learning_events, date: event_date}, requirements: [BR2, BR8]}
+    - {name: gold.fct_video_second_activity,  sql: gold/fct_video_second_activity.sql,  strategy: window, late_data: {table: silver.learning_events, date: event_date}, requirements: [BR7]}
+    - {name: gold.fct_submission,             sql: gold/fct_submission.sql,             strategy: window, late_data: {table: silver.submissions, date: CAST(submitted_at AS DATE)}, lookback_days: 7, requirements: [BR3, BR4]}
+    - {name: gold.fct_test_case_result,       sql: gold/fct_test_case_result.sql,       strategy: window, late_data: {table: silver.submissions, date: CAST(submitted_at AS DATE)}, lookback_days: 7, requirements: [BR4]}
+    - {name: gold.fct_lesson_progress,        sql: gold/fct_lesson_progress.sql,        strategy: full, requirements: [BR6]}
+    - {name: gold.fct_enrollment,             sql: gold/fct_enrollment.sql,             strategy: full, requirements: [BR5, BR6]}
+    - {name: gold.fct_risk_score_daily,       sql: gold/fct_risk_score_daily.sql,       strategy: window, late_data: {table: silver.risk_scores, date: score_date}, requirements: [BR5]}
+    - {name: gold.fct_dropout_alert,          sql: gold/fct_dropout_alert.sql,          strategy: full, requirements: [BR5]}
+    - {name: gold.fct_notification,           sql: gold/fct_notification.sql,           strategy: window, late_data: {table: silver.notifications, date: event_date}, requirements: [BR1]}
+    - {name: gold.fct_content_sync,           sql: gold/fct_content_sync.sql,           strategy: full, requirements: [BR8]}
+
+  mart:
+    - {name: mart.assessment_item_stats, sql: mart/assessment_item_stats.sql, strategy: snapshot, requirements: [BR4]}
+    - {name: mart.org_progress,          sql: mart/org_progress.sql,          strategy: snapshot, requirements: [BR6]}
+    - {name: mart.video_heatmap,         sql: mart/video_heatmap.sql,         strategy: full,     requirements: [BR7]}
+    - {name: mart.engagement_trend,      sql: mart/engagement_trend.sql,      strategy: snapshot, requirements: [BR8]}
+
+  features:
+    - {name: features.learner_longterm, sql: features/learner_longterm.sql, strategy: snapshot, requirements: [BR2]}
+
+# Data-quality gates, evaluated after the layer of `model`. error = fail the run, warn = record.
+quality:
+  - {name: silver_event_id_unique,        model: silver.learning_events, severity: error, sql: silver_event_id_unique.sql}
+  - {name: silver_no_raw_identifiers,     model: silver.learners,        severity: error, sql: silver_no_raw_identifiers.sql}
+  - {name: bronze_dlq_rate,               model: silver.learning_events, severity: warn,  sql: bronze_dlq_rate.sql}
+  - {name: gold_dim_learner_scd2,         model: gold.dim_learner,       severity: error, sql: gold_dim_learner_scd2.sql}
+  - {name: gold_orphan_keys,              model: gold.fct_learning_event, severity: error, sql: gold_orphan_keys.sql}
+  - {name: gold_unresolved_learners,      model: gold.fct_learning_event, severity: warn,  sql: gold_unresolved_learners.sql}
+  - {name: mart_org_progress_k_anonymity, model: mart.org_progress,      severity: error, sql: mart_org_progress_k_anonymity.sql}
+  - {name: mart_rates_in_range,           model: features.learner_longterm, severity: error, sql: mart_rates_in_range.sql}

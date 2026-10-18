@@ -13,6 +13,9 @@ class Topic(StrEnum):
     # Raw ingestion
     TELEMETRY_RAW = "telemetry.events.raw.v1"
     TELEMETRY_DLQ = "telemetry.events.dlq.v1"
+    # Normalised, pseudonymised events from the Flink fast path; consumed by the other Flink
+    # jobs (session features, risk, live heatmap). The lakehouse normalises bronze itself.
+    LEARNING_EVENTS = "telemetry.learning_events.v1"
     # Debezium CDC (prefix configured in infra/debezium/postgres-connector.json)
     CDC_ENROLLMENTS = "cdc.lms.public.enrollments"
     CDC_PROGRESS = "cdc.lms.public.lesson_progress"
@@ -25,11 +28,13 @@ class Topic(StrEnum):
     SUBMISSION_GRADED = "grading.submission_graded.v1"
     # Risk (BR5)
     DROPOUT_RISK_ALERT = "risk.dropout_alert.v1"
+    LEARNER_RISK_SCORE = "risk.learner_score.v1"  # every rescore; daily snapshot in the DWH
     # LMS business events (BR1)
     ASSIGNMENT_CREATED = "lms.assignment_created.v1"
     DEADLINE_APPROACHING = "lms.deadline_approaching.v1"
     COURSE_UPDATED = "lms.course_updated.v1"
     NOTIFICATION_DISPATCHED = "notification.dispatched.v1"
+    NOTIFICATION_SUPPRESSED = "notification.suppressed.v1"
     # Content (BR8)
     CONTENT_UPDATED = "content.updated.v1"
     CONTENT_INDEXED = "content.indexed.v1"
