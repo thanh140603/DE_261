@@ -1,4 +1,4 @@
-"""Spark Structured Streaming: Kafka -> bronze -> silver (ADR 0010: Spark owns Delta writes).
+"""Spark Structured Streaming: Kafka -> bronze -> silver (ADR 0011: Spark owns Delta writes).
 
 Two hops, each its own checkpointed query so raw capture never waits for transformation:
 

@@ -1,0 +1,31 @@
+{
+  "properties": {
+    "id": {
+      "maxLength": 200,
+      "minLength": 1,
+      "title": "Id",
+      "type": "string"
+    },
+    "title": {
+      "title": "Title",
+      "type": "string"
+    },
+    "telemetry_enabled": {
+      "title": "Telemetry Enabled",
+      "type": "boolean"
+    },
+    "created_at": {
+      "format": "date-time",
+      "title": "Created At",
+      "type": "string"
+    }
+  },
+  "required": [
+    "id",
+    "title",
+    "telemetry_enabled",
+    "created_at"
+  ],
+  "title": "Course",
+  "type": "object"
+}

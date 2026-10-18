@@ -1,0 +1,17 @@
+{
+  "detector": {
+    "ignoreRules": [],
+    "ignoreFiles": [],
+    "ignoreValues": [
+      {
+        "rule": "side-tab",
+        "value": "*",
+        "files": [
+          "apps/web/src/styles/global.css"
+        ],
+        "createdAt": "2026-10-16T16:05:40.509Z",
+        "reason": "Agent: git HEAD already contains both .stage .box and .item.high accent borders as existing demo stage/severity cues; preserved within the requested BR4/BR5 scope."
+      }
+    ]
+  }
+}

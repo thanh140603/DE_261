@@ -1,152 +1,114 @@
-import { useEffect, useState } from "react";
-import { api } from "../api";
-import { useStore } from "../store";
-import { formatTime, useAction, useFetch } from "../hooks";
+import { useState } from "react";
+import { analyticsApi, type StudentRisk } from "../analytics";
+import { AnalyticsAccess, localDateTime, Pager, useAnalyticsPolling, utcDay } from "../components/AnalyticsAccess";
 import { Btn, Panel, Select, Status, Tag, ViewHead } from "../components/ui";
+import { pct, useAction, useFetch } from "../hooks";
 
 export function AdvisorView() {
-  const { overview, lastEventAt } = useStore();
-  const learners = overview?.learners ?? [];
-  const [learnerId, setLearnerId] = useState("");
-  useEffect(() => { if (!learnerId && learners.length) setLearnerId(learners[0].id); }, [learners, learnerId]);
-
-  const alerts = useFetch(() => api.advisor.alerts(), []);
-  const risk = useFetch(learnerId ? () => api.advisor.risk(learnerId) : null, [learnerId]);
-  useEffect(() => { void alerts.reload(); void risk.reload(); }, [lastEventAt]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  const scenario = useAction(async () => {
-    const r = await api.simulate.scenario("at_risk_learner");
-    const id = typeof r.outcome.learner_id === "string" ? r.outcome.learner_id : null;
-    if (id) setLearnerId(id);
-    await alerts.reload();
-    await risk.reload();
-    return r;
-  });
-
-  const learner = learners.find((l) => l.id === learnerId);
-  const courseId = learner?.course_ids[0];
-  const cdc = useAction(async (kind: "deadline" | "grade" | "progress") => {
-    if (!learner || !courseId) throw new Error("Pick a learner with a course");
-    const lesson = overview?.courses.find((c) => c.id === courseId)?.lessons[0];
-    const r =
-      kind === "deadline"
-        ? await api.simulate.cdc({ table: "grades", learner_id: learner.id, course_id: courseId, status: "missed" })
-        : kind === "grade"
-          ? await api.simulate.cdc({ table: "grades", learner_id: learner.id, course_id: courseId, score: 35 })
-          : await api.simulate.cdc({ table: "lesson_progress", learner_id: learner.id, course_id: courseId, lesson_id: lesson?.id, percent_done: 80 });
-    await risk.reload();
-    await alerts.reload();
-    return r;
-  });
-
-  return (
-    <>
-      <ViewHead title="Advisor">
-        Advisors get an early warning when a learner is likely to drop out. Changes in the LMS database (progress,
-        grades, enrollments) stream in as CDC and are scored over a sliding window.
-      </ViewHead>
-      <div className="grid">
-        <Panel title="Drop-out alerts" br="BR5">
-          <div className="actions">
-            <Btn primary onClick={() => void scenario.run()} pending={scenario.pending}>Run scenario: at-risk learner</Btn>
-          </div>
-          {scenario.error && <div className="error">{scenario.error}</div>}
-          {scenario.result && (
-            <ol className="small" style={{ margin: "0 0 10px", paddingLeft: 18 }}>
-              {scenario.result.steps.map((s, i) => <li key={i}><span className="muted num">{formatTime(s.at)}</span> {s.message}</li>)}
-            </ol>
-          )}
-          <Status loading={alerts.loading && !alerts.data} error={alerts.error} empty={alerts.data && alerts.data.length === 0 ? "No alerts. Run the scenario, or mark a deadline missed for a learner." : false}>
-            <div className="list">
-              {alerts.data?.map((a, i) => (
-                <button key={`${a.learner_id}-${a.course_id}-${i}`} className="item" style={{ textAlign: "left", cursor: "pointer", background: "var(--surface)" }} onClick={() => setLearnerId(a.learner_id)}>
-                  <div style={{ display: "flex", justifyContent: "space-between", gap: 8 }}>
-                    <strong>{a.learner_name}</strong>
-                    <Tag kind="bad">risk {a.score.toFixed(2)}</Tag>
-                  </div>
-                  <div className="muted">{a.course_title}</div>
-                  <div className="meta"><span className="num">{formatTime(a.at)}</span><span>{a.top_signals.join(", ")}</span></div>
-                </button>
-              ))}
-            </div>
-          </Status>
-        </Panel>
-
-        <Panel title="Learner risk" br="BR5">
-          <div className="toolbar" style={{ margin: "0 0 10px" }}>
-            <Select label="Learner" value={learnerId} options={learners} onChange={setLearnerId} render={(l) => `${l.name} (${l.id})`} />
-          </div>
-          <div className="actions">
-            <Btn onClick={() => void cdc.run("deadline")} pending={cdc.pending} danger>Mark deadline missed</Btn>
-            <Btn onClick={() => void cdc.run("grade")} pending={cdc.pending} danger>Lower a grade</Btn>
-            <Btn onClick={() => void cdc.run("progress")} pending={cdc.pending}>Mark lesson 80% done</Btn>
-          </div>
-          {cdc.error && <div className="error">{cdc.error}</div>}
-          {cdc.result?.risk && (
-            <div className={cdc.result.risk.alerted ? "notice" : "ok"}>
-              Change applied. New score {cdc.result.risk.score.toFixed(2)}{cdc.result.risk.alerted ? ", alert sent to the advisor." : ", below the alert threshold."}
-            </div>
-          )}
-          <Status loading={risk.loading && !risk.data} error={risk.error} empty={risk.data && risk.data.courses.length === 0 ? "No risk profile yet for this learner. Apply a change above." : false}>
-            {risk.data?.courses.map((c) => (
-              <div key={c.course_id} style={{ marginBottom: 16 }}>
-                <h3>{overview?.courses.find((x) => x.id === c.course_id)?.title ?? c.course_id}</h3>
-                <div className="gauge">
-                  <Gauge value={c.score} threshold={risk.data!.policy.alert_threshold} />
-                  <div className="small">
-                    <div>Score <strong className="num">{c.score.toFixed(2)}</strong> at {formatTime(c.computed_at)}</div>
-                    <div className="muted">Threshold {risk.data!.policy.alert_threshold}, window {risk.data!.policy.window_days} d sliding by {risk.data!.policy.slide_days} d, cooldown {risk.data!.policy.cooldown_days >= 1 ? `${risk.data!.policy.cooldown_days} d` : `${Math.round(risk.data!.policy.cooldown_days * 1440)} min`}</div>
-                    <div className="muted">Last alert {c.last_alert_at ? formatTime(c.last_alert_at) : "never"}</div>
-                  </div>
-                </div>
-                <Spark history={c.history} threshold={risk.data!.policy.alert_threshold} />
-                <table style={{ marginTop: 8 }}>
-                  <thead><tr><th>Signal</th><th className="num">Weight</th><th>Observed</th></tr></thead>
-                  <tbody>
-                    {c.signals.map((s, i) => (
-                      <tr key={i}><td>{s.kind.replaceAll("_", " ")}</td><td className="num">{s.weight.toFixed(2)}</td><td className="num">{formatTime(s.observed_at)}</td></tr>
-                    ))}
-                    {c.signals.length === 0 && <tr><td colSpan={3} className="muted">No signals in the window.</td></tr>}
-                  </tbody>
-                </table>
-              </div>
-            ))}
-          </Status>
-        </Panel>
-      </div>
-    </>
-  );
+  return <>
+    <ViewHead title="Advisor">Review learners who may need support, inspect the signals behind each risk score, and track interventions.</ViewHead>
+    <AnalyticsAccess role="advisor">{(token, session) => <AdvisorResults token={token} courses={session.courses} />}</AnalyticsAccess>
+  </>;
 }
 
-function Gauge({ value, threshold }: { value: number; threshold: number }) {
-  const r = 40, cx = 50, cy = 50;
-  const arc = (from: number, to: number) => {
-    const a = (t: number) => Math.PI * (1 - t);
-    const x1 = cx + r * Math.cos(a(from)), y1 = cy - r * Math.sin(a(from));
-    const x2 = cx + r * Math.cos(a(to)), y2 = cy - r * Math.sin(a(to));
-    return `M${x1},${y1} A${r},${r} 0 ${to - from > 0.5 ? 1 : 0} 1 ${x2},${y2}`;
-  };
-  const tx = cx + (r + 6) * Math.cos(Math.PI * (1 - threshold)), ty = cy - (r + 6) * Math.sin(Math.PI * (1 - threshold));
-  const color = value >= threshold ? "var(--red)" : value >= threshold * 0.6 ? "var(--amber)" : "var(--green)";
-  return (
-    <svg viewBox="0 0 100 58" width="140" role="img" aria-label={`Risk score ${value.toFixed(2)}`}>
-      <path d={arc(0, 1)} stroke="var(--border)" strokeWidth="8" fill="none" />
-      {value > 0 && <path d={arc(0, Math.min(1, value))} stroke={color} strokeWidth="8" fill="none" strokeLinecap="butt" />}
-      <circle cx={tx} cy={ty} r="2.5" fill="var(--ink)" />
-      <text x="50" y="52" textAnchor="middle" fontSize="14" fontWeight="700" fill="var(--ink)">{value.toFixed(2)}</text>
-    </svg>
-  );
+function AdvisorResults({ token, courses }: { token: string; courses: { id: string; title: string }[] }) {
+  const [course, setCourse] = useState(courses[0]?.id ?? "");
+  const [level, setLevel] = useState("");
+  const [status, setStatus] = useState("");
+  const [start, setStart] = useState("");
+  const [end, setEnd] = useState("");
+  const [offset, setOffset] = useState(0);
+  const [alertOffset, setAlertOffset] = useState(0);
+  const [student, setStudent] = useState("");
+  const client = analyticsApi(token);
+  const filters = { level, start: utcDay(start), end: utcDay(end, true), limit: 20 };
+  const risks = useFetch(course ? () => client.risks(course, { ...filters, offset }) : null, [token, course, level, start, end, offset]);
+  const alerts = useFetch(course ? () => client.alerts({ ...filters, course_id: course, status, offset: alertOffset }) : null, [token, course, level, status, start, end, alertOffset]);
+  const detail = useFetch(student ? () => client.student(student, { course_id: course }) : null, [token, course, student]);
+  const history = useFetch(student ? () => client.history(student, { course_id: course, limit: 50 }) : null, [token, course, student]);
+  useAnalyticsPolling(risks.reload); useAnalyticsPolling(alerts.reload); useAnalyticsPolling(detail.reload); useAnalyticsPolling(history.reload);
+  const action = useAction(async (id: string, kind: "acknowledge" | "resolve") => { await client.alertAction(id, kind); await alerts.reload(); });
+  function change(setter: (value: string) => void, value: string) { setter(value); setOffset(0); setAlertOffset(0); setStudent(""); }
+  return <>
+    <div className="toolbar">
+      <Select label="Advisor course" value={course} options={courses} onChange={(v) => change(setCourse, v)} render={(c) => c.title} />
+      <label className="field"><span>Risk severity</span><select value={level} onChange={(e) => change(setLevel, e.target.value)}><option value="">All levels</option>{["LOW", "MEDIUM", "HIGH", "CRITICAL"].map((v) => <option key={v}>{v}</option>)}</select></label>
+      <label className="field"><span>Alert status</span><select value={status} onChange={(e) => change(setStatus, e.target.value)}><option value="">All statuses</option>{["NEW", "ACKNOWLEDGED", "RESOLVED"].map((v) => <option key={v}>{v}</option>)}</select></label>
+      <label className="field"><span>From (UTC)</span><input type="date" value={start} onChange={(e) => change(setStart, e.target.value)} /></label>
+      <label className="field"><span>Through (UTC)</span><input type="date" value={end} onChange={(e) => change(setEnd, e.target.value)} /></label>
+      <Btn onClick={() => { void risks.reload(); void alerts.reload(); void detail.reload(); void history.reload(); }}>Refresh risk data</Btn>
+    </div>
+    {risks.data && <p className="analytics-summary" aria-live="polite"><strong>{risks.data.summary.monitored} learners monitored</strong>
+      {Object.entries(risks.data.summary.levels).map(([name, count]) => <span className="num" key={name}>{name}: {count}</span>)}
+    </p>}
+    <div className="grid wide">
+      <Panel title="Learners to review" br="BR5">
+        <p className="muted small">Rule-based points indicate support needs. They are not dropout probabilities. Records refresh every 5 seconds.</p>
+        <Status loading={risks.loading} error={risks.error} empty={risks.data?.total === 0 ? "No learner risk records match. Check the filters or load the synthetic demonstration data." : false}>
+          <div className="analytics-table"><table><thead><tr><th>Learner</th><th>Risk / 100</th><th>Activity: last / preceding 7 days</th><th>Required deadlines missed</th><th>Reasons</th><th>Evaluated</th></tr></thead>
+            <tbody>{risks.data?.items.map((r) => <tr key={`${r.student_id}-${r.course_id}`}>
+              <td><button className="btn" onClick={() => setStudent(r.student_id)} aria-pressed={student === r.student_id}>{r.student_id}</button></td>
+              <td><strong className="num">{r.score}</strong> <RiskTag level={r.level} />{!r.eligible && <div className="muted small">Insufficient history or inactive</div>}</td>
+              <td className="num">{r.features.activity_7d} / {r.features.activity_previous_7d}</td><td className="num">{r.features.missed_deadlines_14d}</td>
+              <td>{r.reasons.map((s) => <div className="small" key={s.signal}>{s.reason} (+{s.points})</div>)}{r.reasons.length === 0 && <span className="muted">No risk signals</span>}</td>
+              <td className="small num">{localDateTime(r.evaluated_at)}</td>
+            </tr>)}</tbody>
+          </table></div>
+          <Pager offset={offset} total={risks.data?.total ?? 0} onChange={setOffset} />
+        </Status>
+      </Panel>
+      <Panel title="Intervention alerts" br="BR5">
+        {action.error && <p className="error" role="alert">{action.error}</p>}
+        <Status loading={alerts.loading} error={alerts.error} empty={alerts.data?.total === 0 ? "No alerts match these filters. Alerts appear when an eligible learner crosses the configured threshold." : false}>
+          <div className="analytics-table"><table><thead><tr><th>Learner / severity</th><th>Status</th><th>Reasons</th><th>Created / updated risk</th><th>Intervention</th></tr></thead>
+            <tbody>{alerts.data?.items.map((a) => <tr key={a.id}>
+              <td><button className="btn" onClick={() => setStudent(a.student_id)}>{a.student_id}</button><div><RiskTag level={a.level} /> <span className="num">{a.score} points</span></div></td>
+              <td><Tag kind={a.status === "RESOLVED" ? "ok" : "warn"}>{a.status}</Tag><div className="muted small">{a.acknowledged_at && `Acknowledged ${localDateTime(a.acknowledged_at)}`}</div></td>
+              <td>{a.reasons.map((r) => <div className="small" key={r.signal}>{r.reason}</div>)}</td>
+              <td className="small num">{localDateTime(a.created_at)}<br />{localDateTime(a.evaluated_at)}</td>
+              <td><div className="actions">
+                <Btn onClick={() => void action.run(a.id, "acknowledge")} pending={action.pending} disabled={a.status !== "NEW"}>Acknowledge</Btn>
+                <Btn onClick={() => void action.run(a.id, "resolve")} pending={action.pending} disabled={a.status === "RESOLVED"}>Resolve</Btn>
+              </div>{a.resolved_at && <span className="muted small">Resolved {localDateTime(a.resolved_at)}</span>}</td>
+            </tr>)}</tbody>
+          </table></div>
+          <Pager offset={alertOffset} total={alerts.data?.total ?? 0} onChange={setAlertOffset} />
+        </Status>
+      </Panel>
+      {student && <Panel title={`Risk detail · ${student}`} br="BR5">
+        <Status loading={detail.loading} error={detail.error}>
+          {detail.data?.courses.map((r) => <div key={r.course_id}>
+            <p><strong className="num">{r.score} / 100</strong> <RiskTag level={r.level} /> · {r.eligibility_reason}</p>
+            <p className="muted small">Evaluated {localDateTime(r.evaluated_at)} · Persisted {localDateTime(r.computed_at)} · Window slide {r.policy.slide_seconds / 3600} hours</p>
+            <dl className="kv analytics-detail"><dt>Recent / previous / 14-day activity</dt><dd className="num">{r.features.activity_7d} / {r.features.activity_previous_7d} / {r.features.activity_14d}</dd>
+              <dt>Last meaningful activity</dt><dd>{localDateTime(r.features.last_activity_at)}</dd><dt>Due-assignment submission rate</dt><dd>{pct(r.features.submission_rate_14d)}</dd>
+              <dt>Telemetry</dt><dd>{r.features.telemetry_available ? "Configured" : "Unavailable; engagement penalties disabled"}</dd>
+            </dl>
+          </div>)}
+        </Status>
+        <Status loading={history.loading} error={history.error} empty={history.data?.total === 0 ? "No risk history yet." : false}>
+          <RiskTrend rows={[...(history.data?.items ?? [])].reverse()} />
+          <p className="muted small">Most recent {history.data?.items.length ?? 0} of {history.data?.total ?? 0} risk observations; corrections at the same evaluation time remain in the audit history.</p>
+        </Status>
+      </Panel>}
+    </div>
+  </>;
 }
 
-function Spark({ history, threshold }: { history: { at: string; score: number }[]; threshold: number }) {
-  if (history.length < 2) return <div className="muted small">Not enough history for a trend line.</div>;
-  const W = 320, H = 50, P = 4;
-  const pt = (i: number, s: number) => `${P + (i / (history.length - 1)) * (W - 2 * P)},${H - P - s * (H - 2 * P)}`;
-  const ty = H - P - threshold * (H - 2 * P);
-  return (
-    <svg viewBox={`0 0 ${W} ${H}`} width="100%" height="50" role="img" aria-label="Risk score history">
-      <line x1={P} x2={W - P} y1={ty} y2={ty} stroke="var(--red)" strokeDasharray="3 3" strokeWidth="1" />
-      <path d={history.map((h, i) => `${i === 0 ? "M" : "L"}${pt(i, h.score)}`).join(" ")} fill="none" stroke="var(--blue)" strokeWidth="2" />
+function RiskTag({ level }: { level: string }) {
+  return <Tag kind={level === "CRITICAL" || level === "HIGH" ? "bad" : level === "MEDIUM" ? "warn" : "ok"}>{level}</Tag>;
+}
+
+function RiskTrend({ rows }: { rows: StudentRisk[] }) {
+  if (rows.length < 2) return <p className="empty">Two observations are needed to show a risk trend.</p>;
+  const points = rows.map((r, i) => `${40 + i / (rows.length - 1) * 600},${130 - r.score}`).join(" ");
+  return <figure className="risk-trend"><figcaption>Risk history · points out of 100</figcaption>
+    <svg viewBox="0 0 680 170" role="img" aria-label={`Risk changed from ${rows[0].score} to ${rows[rows.length - 1].score} points across ${rows.length} observations`}>
+      <line x1="40" x2="640" y1="130" y2="130" stroke="var(--border-strong)" />
+      <text x="8" y="36" fill="var(--muted)" fontSize="13">100</text><text x="20" y="134" fill="var(--muted)" fontSize="13">0</text>
+      <polyline points={points} fill="none" stroke="var(--green)" strokeWidth="2.5" />
+      <text x="40" y="160" fill="var(--muted)" fontSize="12">{localDateTime(rows[0].evaluated_at)}</text>
+      <text x="640" y="160" textAnchor="end" fill="var(--muted)" fontSize="12">{localDateTime(rows[rows.length - 1].evaluated_at)}</text>
     </svg>
-  );
+  </figure>;
 }

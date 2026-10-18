@@ -1,7 +1,7 @@
 # Pipeline design
 
 How data moves from the four raw sources to the serving layers, per business requirement.
-Engines and stores are the ones decided in ADRs 0003-0006; ADRs 0009-0012 record the decisions
+Engines and stores are the ones decided in ADRs 0003-0006; ADRs 0010-0012 record the decisions
 added while designing the pipelines and the warehouse ([data-warehouse.md](data-warehouse.md)).
 
 ## 1. End-to-end flow
@@ -22,11 +22,11 @@ flowchart LR
   end
   subgraph Flink["Flink (real-time, ADR 0004/0010)"]
     N[normalise fast path]
-    R[dropout risk 14d/1d window]
     S[session features]
     H[live heatmap / engagement]
   end
-  subgraph Lakehouse["Delta lakehouse (Spark is the only writer, ADR 0010)"]
+  R["BR4/BR5 runtime (ADR 0009): Spark windows + PostgreSQL marts"]
+  subgraph Lakehouse["Delta lakehouse (Spark is the only writer, ADR 0011)"]
     BR[(bronze)] --> SI[(silver)] --> GO[(gold star schema)] --> MA[(marts / features)]
   end
   C --> TR
@@ -60,19 +60,20 @@ flowchart LR
 | P7 | Engagement trend | 8 | Spark batch, `engagement_weekly` Mon 02:00 (+ Flink live score) | gold → `mart.engagement_trend` | weekly / live in Redis | replace `as_of_date` partition |
 | P8 | Batch features | 2 | Spark batch, `features_daily` (on gold refresh) | gold → `features.learner_longterm` → Redis | 24 h (registry SLA) | replace `as_of_date` partition |
 | P9 | Session features | 2 | Flink, session windows (30 min gap) | `telemetry.learning_events.v1` → Redis + `features.session.v1` | 30 s | keyed state, Redis TTL |
-| P10 | Dropout risk | 5 | Flink, sliding window 14 d / 1 d | CDC + learning events → `risk.dropout_alert.v1`, `risk.learner_score.v1`, Redis | seconds | cooldown per learner-course |
+| P10 | BR4/BR5 persistent runtime | 4, 5 | br45 CDC worker + Spark Structured Streaming (ADR 0009), `--profile br45` | `br45.*` tables → Debezium `br45.cdc.*` → PostgreSQL `analytics` marts, risk states, alerts → dashboards | ≈ 10 s | outbox ids + Spark checkpoints; see docs/BR4_BR5_IMPLEMENTATION.md |
 | P11 | Notification | 1 | Kafka consumer service | `lms.*`, `risk.*`, `grading.*` → push / in-app / email + `notification.*` | seconds | Redis dedup key + rate limit |
 | P12 | Grading ingestion | 3 | Kafka consumer service | `grading.submission_received.v1` → sandbox → `grading.sandbox_result.raw.v1`, `grading.submission_graded.v1` | seconds | (submission, worker_run) |
 | P13 | Content sync / embedding | 8 | service + Spark every 6 h | corpus versions → cache invalidation, OpenSearch, `content.*`, `silver.content_chunks` | minutes | (content_id, version) |
 | P14 | Lakehouse maintenance | ops | Spark batch, `lakehouse_maintenance` 04:00 | retention, OPTIMIZE / Z-order, VACUUM | daily | idempotent |
 
 P3–P8 and P14 are implemented in this repo (`edu stream lakehouse-landing`, `edu warehouse run`,
-`edu batch lakehouse-maintenance`, `orchestration/airflow/dags`). P2 and P9–P13 run the
-existing domain use cases; their production adapters are still the TODO stubs listed in the README.
+`edu batch lakehouse-maintenance`, `orchestration/airflow/dags`), and P10 by the br45 runtime
+(ADR 0009). P2, P9 and P11–P13 run the existing domain use cases; their production adapters are
+still the TODO stubs listed in the README.
 
 ## 3. Hand-offs between engines
 
-- **Flink never writes Delta** (ADR 0010). Its outputs are Kafka topics and Redis keys. Topics
+- **Flink never writes Delta** (ADR 0011). Its outputs are Kafka topics and Redis keys. Topics
   the lakehouse needs (`risk.learner_score.v1`, `risk.dropout_alert.v1`, `telemetry.events.dlq.v1`)
   are landed like any other source.
 - **One normalisation, two engines.** Flink normalises for the real-time branch; Spark runs the
@@ -126,7 +127,7 @@ DAG tasks. Every model build is logged to `ops.pipeline_runs`, every gate to `op
 ## 7. Run it locally
 
 ```bash
-docker compose up -d                                  # incl. seaweedfs, hive-metastore, trino
+docker compose up -d minio minio-init metastore-db hive-metastore trino
 docker compose run --rm spark-jobs edu infra create-topics infra/kafka/topics.yaml
 docker compose run --rm spark-jobs edu warehouse bootstrap        # schemas + 50 tables
 # either real CDC + streaming ...

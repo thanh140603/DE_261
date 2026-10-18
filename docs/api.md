@@ -1,5 +1,11 @@
 # Demo API contract (server: FastAPI, prefix `/api`)
 
+BR4/BR5 also expose persistent, course-scoped analytics. Their full contract,
+metric semantics and examples are documented in
+[BR4/BR5 implementation](BR4_BR5_IMPLEMENTATION.md#8-apis-and-user-interface)
+and the server's `/docs` / `/openapi.json`. Use an analytics bearer token;
+these results come from PostgreSQL rather than the legacy simulator.
+
 All responses JSON. Timestamps ISO-8601 UTC. Errors: `{ "detail": "..." }` with 4xx/5xx.
 Live updates: `GET /api/events` is Server-Sent Events; each message is
 `{ "type": <string>, "at": <iso>, "payload": <object> }` with types:
@@ -67,6 +73,14 @@ Live updates: `GET /api/events` is Server-Sent Events; each message is
 - `GET /api/learners/{id}/submissions` -> `[Submission]` newest first (same shape, without stdout)
 
 ## Instructor (BR4 anomalies, BR7 heatmap, BR8 content sync + engagement)
+
+The persistent BR4 UI uses `/instructor/courses/{course_id}/questions/statistics`,
+`/instructor/questions/{question_id}/statistics`,
+`/instructor/questions/{question_id}/test-cases`,
+`/instructor/courses/{course_id}/anomalies`, and `/instructor/anomalies/{id}`.
+List responses are `{items,total,offset,limit}` and require an instructor token.
+The `/assessments` endpoint below remains the older synthetic demo contract.
+
 - `GET /api/instructor/assessments?course_id=` -> `[{assignment_id, assignment_title, item_id, attempts, passes, pass_rate, assignment_median_pass_rate, is_anomalous}]`
 - `GET /api/instructor/videos/{content_id}/heatmap` -> `{content_id, title, duration_sec, buckets:[{second, play, pause, seek, learners}]}` (one bucket per second, zeros included)
 - `GET /api/instructor/courses/{course_id}/engagement` ->
@@ -75,8 +89,21 @@ Live updates: `GET /api/events` is Server-Sent Events; each message is
 - `POST /api/instructor/content/{content_id}` body `{title?, body}` -> `{version, sync:[{step, status:"done"|"skipped", ms}], notifications_created}`
 
 ## Advisor (BR5)
-- `GET /api/advisor/alerts` -> `[{learner_id, learner_name, course_id, course_title, score, top_signals:[], at}]` newest first
-- `GET /api/advisor/learners/{id}/risk` -> `{learner_id, courses:[{course_id, score, computed_at, signals:[{kind, weight, observed_at}], history:[{at, score}], last_alert_at}], policy:{window_days, slide_days, alert_threshold, cooldown_days}}`
+
+- `GET /api/advisor/alerts` -> `{items:[{id,student_id,course_id,score,level,reasons,status,evaluated_at,created_at,acknowledged_at,resolved_at}],total,offset,limit}`
+- `GET /api/advisor/courses/{course_id}/at-risk-students` -> paginated risk rows plus monitored/risk-level summary
+- `GET /api/advisor/students/{student_id}/risk` -> `{student_id,courses:[Risk]}`
+- `GET /api/advisor/students/{student_id}/risk-history` -> paginated historical risk rows
+- `PATCH /api/advisor/alerts/{id}/acknowledge` and `/resolve` -> persisted alert with lifecycle timestamps
+
+These persistent endpoints require an advisor bearer token with an explicit
+course scope. `Risk` includes 0–100 points, level, eligibility, features, reasons,
+evaluation timestamp and policy. GET lists support offset/limit and applicable
+course/level/date/status filters. Client code uses `analytics.ts`.
+
+The older synthetic alert list remains at `/api/advisor/demo-alerts`, and the
+older synthetic learner profile remains at `/api/advisor/learners/{id}/risk`.
+The legacy `api.ts` client targets those demo endpoints.
 
 ## Admin (BR6)
 - `GET /api/admin/organisations/{org_id}/progress` -> `{organisation_id, as_of, min_cohort:5, rows:[{course_id, course_title, skill, cohort_size, completion_rate|null, avg_mastery|null, suppressed:bool}]}`

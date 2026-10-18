@@ -7,11 +7,11 @@ serves the millisecond lookups. Everything is code in [`/warehouse`](../../wareh
 
 | Role in the requirements | Decided stack (ADRs 0003-0006) | Implementation |
 |---|---|---|
-| Lakehouse storage (ACID, time travel) | Delta Lake on object storage | Delta 3.3 on S3 (SeaweedFS locally, ADR 0011) |
-| Catalog ("Databricks" metastore) | - | Hive Metastore 3.1.3 on Postgres (ADR 0009) |
-| SQL warehouse for BI / dashboards | - | Trino, catalog `lakehouse`, read-only (ADR 0009) |
+| Lakehouse storage (ACID, time travel) | Delta Lake on object storage | Delta 3.3 on S3 (MinIO built from source locally) |
+| Catalog ("Databricks" metastore) | - | Hive Metastore 3.1.3 on Postgres (ADR 0010) |
+| SQL warehouse for BI / dashboards | - | Trino, catalog `lakehouse`, read-only (ADR 0010) |
 | Batch processing | Apache Spark | Spark 3.5 SQL models, `edu warehouse run` |
-| Streaming into the lakehouse | Flink / Spark | Spark Structured Streaming landing (ADR 0010) |
+| Streaming into the lakehouse | Flink / Spark | Spark Structured Streaming landing (ADR 0011) |
 | Low-latency serving | Redis | unchanged (online features, risk, notification state) |
 
 ## 1. Layers
@@ -129,9 +129,12 @@ and unit-tested against the domain; `EngagementPolicy.is_declining` was cross-ch
 | `mart.engagement_trend` | BR8 instructors | 4 weekly windows per learner × course, declining = -30 % in each of the last two windows | `EngagementWeights`, decline ratio 0.30 |
 | `features.learner_longterm` | BR2 recommender | `ComputeBatchFeatures` over 30 days, per `as_of_date` | feature registry v1 |
 
-BR1, BR3 and BR5 are served in real time (notification service, grading service, Flink + Redis);
-the warehouse keeps their history for analysis (`fct_notification`, `fct_submission`,
-`fct_risk_score_daily` / `fct_dropout_alert` with alert-precision labels).
+BR1, BR3 and BR5 are served in real time: notification service, grading service, and the
+BR4/BR5 persistent runtime of ADR 0009 (Debezium -> Spark Structured Streaming -> PostgreSQL
+`analytics` marts, risk states and alerts behind the instructor/advisor dashboards). The
+warehouse is the analytical history next to that serving path: `mart.assessment_item_stats`
+for trend/BI over BR4, `fct_risk_score_daily` / `fct_dropout_alert` with alert-precision labels
+for BR5, `fct_notification`, `fct_submission`.
 
 ## 4. Physical design
 
@@ -211,8 +214,12 @@ full build (43 models) passes all gates. Highlights:
 
 ## 9. Limitations and next steps
 
+- BR5 history: `silver.risk_scores` / `dropout_alerts` read `risk.learner_score.v1` /
+  `risk.dropout_alert.v1`. The ADR 0009 runtime keeps its scores and alerts in PostgreSQL
+  `analytics`; publish them to those topics (or add `analytics` alert tables to the CDC
+  connector) to feed the warehouse from the live path. The synthetic generator covers it today.
 - Redis materialisation of `features.learner_longterm` (`batch_features_job`) and the corpus
   chunking/embedding job remain TODO, as does OpenSearch in the compose stack.
-- For sub-second dashboards at scale, attach StarRocks to the same metastore (ADR 0009).
+- For sub-second dashboards at scale, attach StarRocks to the same metastore (ADR 0010).
 - Accumulating snapshots (`fct_enrollment`, `fct_lesson_progress`) rebuild fully; switch to
   CDF-driven MERGE once volumes warrant it.

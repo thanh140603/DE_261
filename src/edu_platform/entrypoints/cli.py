@@ -51,7 +51,7 @@ def create_topics(
     typer.echo(f"created {len(created)} topic(s): {', '.join(created) or '-'}")
 
 
-# Lakehouse warehouse (ADR 0009/0010): DDL bootstrap, model builds, synthetic bronze data.
+# Lakehouse warehouse (ADR 0011/0011): DDL bootstrap, model builds, synthetic bronze data.
 warehouse_job.app.command("seed-bronze")(seed_bronze_job.seed_bronze)
 app.add_typer(warehouse_job.app, name="warehouse")
 stream_app.command("lakehouse-landing")(lakehouse_landing_job.main)

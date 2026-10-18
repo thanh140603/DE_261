@@ -1,23 +1,16 @@
-"""Flink job: dropout_risk_job (BR5).
+"""Executable BR5 Spark Structured Streaming job (ADR 0009).
 
-Content (TODO):
-- Sources: cdc.lms.public.{lesson_progress,submissions,grades,enrollments} (Debezium
-  envelope, ordered by LSN) + login/attempt telemetry.
-- SignalExtractor per source -> RiskSignal; key by (learner, course).
-- Sliding window (SlidingWindowPolicy: 14 d size / 1 d slide) -> RiskScoringPolicy.
-- ScoreLearnerRisk emits DropoutRiskDetected -> risk.dropout_alert.v1 and Redis score.
-- Every rescore is also published to risk.learner_score.v1
-  (schemas/risk/v1/learner_score.schema.json) -> gold.fct_risk_score_daily (advisor trend).
-Wiring: platform.streaming.flink_env.build_stream_env -> kafka_source(s) with event-time
-watermarks -> keyed process function calling the context use case -> kafka/redis/delta sinks.
-Checkpointing exactly-once; state TTL aligned with the domain window policy.
+Run with the br45-stream Compose service. CDC ingestion runs separately in
+edu_platform.br45.cdc, preserving transactional raw/clean/outbox state.
 """
 
 from __future__ import annotations
 
 
 def main() -> None:
-    raise NotImplementedError  # TODO
+    from edu_platform.br45.streaming import run
+
+    run()
 
 
 if __name__ == "__main__":

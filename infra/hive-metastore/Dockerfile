@@ -1,7 +1,7 @@
 # Hive Metastore 3.1.3 = the lakehouse catalog shared by Spark (writer) and Trino (SQL warehouse).
 #
 # Why 3.1.x and not 4.x: Spark 3.5's built-in Hive client fails against a Hive 4 metastore
-# ("Invalid method name: 'get_table'"); see ADR 0009. The image adds what the stock one lacks:
+# ("Invalid method name: 'get_table'"); see ADR 0010. The image adds what the stock one lacks:
 #   - a Postgres JDBC driver new enough for SCRAM auth (Postgres 14+ default)
 #   - hadoop-aws + AWS SDK matching the bundled Hadoop 3.1.0, so s3a:// table locations resolve
 #   - an idempotent entrypoint (the stock one re-runs initSchema and fails on restart)

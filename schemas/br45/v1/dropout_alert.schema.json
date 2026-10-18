@@ -1,0 +1,122 @@
+{
+  "$defs": {
+    "RiskReason": {
+      "additionalProperties": true,
+      "properties": {
+        "signal": {
+          "title": "Signal",
+          "type": "string"
+        },
+        "points": {
+          "title": "Points",
+          "type": "integer"
+        },
+        "reason": {
+          "title": "Reason",
+          "type": "string"
+        }
+      },
+      "required": [
+        "signal",
+        "points",
+        "reason"
+      ],
+      "title": "RiskReason",
+      "type": "object"
+    }
+  },
+  "additionalProperties": true,
+  "properties": {
+    "id": {
+      "title": "Id",
+      "type": "string"
+    },
+    "student_id": {
+      "title": "Student Id",
+      "type": "string"
+    },
+    "course_id": {
+      "title": "Course Id",
+      "type": "string"
+    },
+    "score": {
+      "title": "Score",
+      "type": "integer"
+    },
+    "level": {
+      "enum": [
+        "LOW",
+        "MEDIUM",
+        "HIGH",
+        "CRITICAL"
+      ],
+      "title": "Level",
+      "type": "string"
+    },
+    "reasons": {
+      "items": {
+        "$ref": "#/$defs/RiskReason"
+      },
+      "title": "Reasons",
+      "type": "array"
+    },
+    "status": {
+      "enum": [
+        "NEW",
+        "ACKNOWLEDGED",
+        "RESOLVED"
+      ],
+      "title": "Status",
+      "type": "string"
+    },
+    "evaluated_at": {
+      "format": "date-time",
+      "title": "Evaluated At",
+      "type": "string"
+    },
+    "created_at": {
+      "format": "date-time",
+      "title": "Created At",
+      "type": "string"
+    },
+    "acknowledged_at": {
+      "anyOf": [
+        {
+          "format": "date-time",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Acknowledged At"
+    },
+    "resolved_at": {
+      "anyOf": [
+        {
+          "format": "date-time",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Resolved At"
+    }
+  },
+  "required": [
+    "id",
+    "student_id",
+    "course_id",
+    "score",
+    "level",
+    "reasons",
+    "status",
+    "evaluated_at",
+    "created_at",
+    "acknowledged_at",
+    "resolved_at"
+  ],
+  "title": "Alert",
+  "type": "object"
+}

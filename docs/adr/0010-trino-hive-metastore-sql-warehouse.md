@@ -1,4 +1,4 @@
-# ADR 0009: Trino + Hive Metastore as the SQL warehouse over the Delta lakehouse
+# ADR 0010: Trino + Hive Metastore as the SQL warehouse over the Delta lakehouse
 
 Status: accepted - 2026-10-18
 
@@ -19,7 +19,7 @@ BI and the instructor / advisor / admin dashboards - was missing. Requirements f
   3.1.x not 4.x: Spark 3.5's built-in Hive client fails against a Hive 4 metastore
   (`Invalid method name: 'get_table'`), Hive 4 needs Spark 4.1+.
 - **SQL warehouse engine: Trino** (`delta_lake` connector, catalog `lakehouse`), read-only for
-  every user: Spark is the single writer (ADR 0010). Access by schema in
+  every user: Spark is the single writer (ADR 0011). Access by schema in
   `infra/trino/rules.json`: `b2b_admin` -> `mart.org_progress` only, `app` -> gold + mart,
   `analyst` -> silver..features (pseudonymised), `pii_steward` -> bronze.
 - **The warehouse itself is the gold layer** of the lakehouse, modelled as a Kimball star

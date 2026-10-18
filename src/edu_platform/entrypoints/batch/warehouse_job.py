@@ -1,7 +1,7 @@
 """Spark job: lakehouse warehouse (bronze -> silver -> gold -> marts / features).
 
 Composition root of the warehouse runner:
-- builds the Spark session (Delta + S3A + Hive Metastore, ADR 0009),
+- builds the Spark session (Delta + S3A + Hive Metastore, ADR 0010),
 - registers the ``pseudonymize`` SQL function (same HMAC key as the telemetry context, so
   pseudonyms from CDC, domain events and telemetry join),
 - injects the business thresholds from the analytics / risk domain value objects as SQL

@@ -16,13 +16,13 @@ TOPICS_YAML = Path(__file__).resolve().parents[3] / "infra/kafka/topics.yaml"
 
 def test_spark_conf_wires_delta_s3_and_metastore() -> None:
     settings = Settings(
-        lakehouse=LakehouseSettings(s3_endpoint="http://seaweedfs:8333", s3_access_key="k"),
+        lakehouse=LakehouseSettings(s3_endpoint="http://minio:9000", s3_access_key="k"),
         spark=SparkSettings(hive_metastore_uri="thrift://hive-metastore:9083"),
     )
     conf = spark_conf(settings)
     assert conf["spark.sql.extensions"] == "io.delta.sql.DeltaSparkSessionExtension"
     assert conf["spark.sql.sources.partitionOverwriteMode"] == "dynamic"
-    assert conf["spark.hadoop.fs.s3a.endpoint"] == "http://seaweedfs:8333"
+    assert conf["spark.hadoop.fs.s3a.endpoint"] == "http://minio:9000"
     assert conf["spark.hadoop.fs.s3a.connection.ssl.enabled"] == "false"
     assert conf["spark.hadoop.hive.metastore.uris"] == "thrift://hive-metastore:9083"
 

@@ -1,4 +1,4 @@
-# ADR 0010: Spark owns every Delta write; Flink publishes to Kafka and Redis
+# ADR 0011: Spark owns every Delta write; Flink publishes to Kafka and Redis
 
 Status: accepted - 2026-10-18 (refines ADR 0004 and ADR 0005)
 
@@ -11,7 +11,9 @@ commit conflicts and duplicated idempotency logic.
 
 ## Decision
 - **Flink** keeps the low-latency, stateful work (normalisation fast path, session features,
-  sliding-window risk, live heatmap/engagement) and writes **only to Kafka and Redis**:
+  live heatmap/engagement) and writes **only to Kafka and Redis**. BR5 risk windows run on
+  Spark Structured Streaming with PostgreSQL state (ADR 0009); that runtime does not write
+  Delta either, so the rule below holds for every engine. Kafka / Redis outputs:
   `telemetry.learning_events.v1`, `telemetry.events.dlq.v1`, `risk.dropout_alert.v1`,
   `risk.learner_score.v1` (new), `features.session.v1`, Redis keys.
 - **Spark Structured Streaming** (`edu stream lakehouse-landing`) is the single writer of the

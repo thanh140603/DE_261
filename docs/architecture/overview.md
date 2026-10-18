@@ -53,8 +53,8 @@ Detailed design: [data-warehouse.md](data-warehouse.md) (model, marts, quality, 
 | gold | `dim_*` (9, conformed, SCD1/SCD2), `fct_*` (11) | warehouse models | Kimball star schema, deterministic surrogate keys (ADR 0012) |
 | mart / features | `mart.assessment_item_stats`, `mart.org_progress`, `mart.video_heatmap`, `mart.engagement_trend`, `features.learner_longterm` | warehouse models | per-BR, domain thresholds, k-anonymity on org reports |
 
-Served to SQL clients by Trino over the Hive Metastore catalog (ADR 0009); Spark is the only
-writer of Delta tables, Flink publishes to Kafka / Redis (ADR 0010).
+Served to SQL clients by Trino over the Hive Metastore catalog (ADR 0010); Spark is the only
+writer of Delta tables, Flink publishes to Kafka / Redis (ADR 0011).
 
 ## Streaming semantics
 

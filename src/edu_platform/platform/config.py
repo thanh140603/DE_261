@@ -37,7 +37,7 @@ class SparkSettings(BaseSettings):
     model_config = SettingsConfigDict(env_prefix="EDU_")
     spark_master: str = "local[*]"
     spark_shuffle_partitions: int = 8
-    # Shared lakehouse catalog (ADR 0009). None = Spark's embedded catalog (unit/local runs).
+    # Shared lakehouse catalog (ADR 0010). None = Spark's embedded catalog (unit/local runs).
     hive_metastore_uri: str | None = None
     # Folder with ddl/, transform/, quality/ and models.yaml (repo `warehouse/`).
     warehouse_dir: str = "warehouse"

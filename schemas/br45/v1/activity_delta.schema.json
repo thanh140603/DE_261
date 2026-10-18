@@ -1,0 +1,52 @@
+{
+  "properties": {
+    "event_id": {
+      "minLength": 1,
+      "title": "Event Id",
+      "type": "string"
+    },
+    "student_id": {
+      "minLength": 1,
+      "title": "Student Id",
+      "type": "string"
+    },
+    "course_id": {
+      "minLength": 1,
+      "title": "Course Id",
+      "type": "string"
+    },
+    "event_time": {
+      "format": "date-time",
+      "title": "Event Time",
+      "type": "string"
+    },
+    "delta": {
+      "enum": [
+        -1,
+        0,
+        1
+      ],
+      "title": "Delta",
+      "type": "integer"
+    },
+    "kind": {
+      "enum": [
+        "activity",
+        "clock",
+        "metadata"
+      ],
+      "title": "Kind",
+      "type": "string"
+    }
+  },
+  "required": [
+    "event_id",
+    "student_id",
+    "course_id",
+    "event_time",
+    "delta",
+    "kind"
+  ],
+  "title": "ActivityDelta",
+  "type": "object"
+}

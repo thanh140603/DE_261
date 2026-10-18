@@ -3,6 +3,12 @@
 Vite + React 18 + TypeScript dashboard for the demo. It talks to the FastAPI server described in
 `docs/api.md` (prefix `/api`) and listens to `/api/events` (Server-Sent Events) for live updates.
 
+BR4 assessment health and the Advisor view use persistent, authenticated APIs
+through `src/analytics.ts`, refreshing every five seconds. Start the Compose
+`br45` profile and seed its synthetic operational records first; see
+[the implementation and runbook](../../docs/BR4_BR5_IMPLEMENTATION.md).
+Local demo tokens are `instructor-demo` and `advisor-demo`.
+
 ## Run in development
 
 ```bash
@@ -35,4 +41,17 @@ src/
   styles/global.css   design tokens and all styling
 ```
 
-No UI kit and no chart library: the heatmap, engagement lines, risk gauge and sparklines are plain SVG/div.
+No UI kit or chart library: the heatmap, engagement lines and risk history use SVG/div.
+
+## BR4/BR5 browser acceptance checks
+
+```bash
+npm ci
+npx playwright install chromium
+npm run test:br45
+```
+
+Requires the running, seeded `br45` profile. These tests make reversible grade
+corrections and create synthetic learner recovery activity through the real
+pipeline. Screenshots and results go to `docs/evidence/br45/`. Set
+`BR45_BASE_URL` to test an alternative local API URL.

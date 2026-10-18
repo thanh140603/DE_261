@@ -1,0 +1,57 @@
+{
+  "properties": {
+    "id": {
+      "maxLength": 200,
+      "minLength": 1,
+      "title": "Id",
+      "type": "string"
+    },
+    "student_id": {
+      "title": "Student Id",
+      "type": "string"
+    },
+    "course_id": {
+      "title": "Course Id",
+      "type": "string"
+    },
+    "assignment_id": {
+      "title": "Assignment Id",
+      "type": "string"
+    },
+    "question_id": {
+      "title": "Question Id",
+      "type": "string"
+    },
+    "question_version": {
+      "exclusiveMinimum": 0,
+      "title": "Question Version",
+      "type": "integer"
+    },
+    "submitted_at": {
+      "format": "date-time",
+      "title": "Submitted At",
+      "type": "string"
+    },
+    "execution_status": {
+      "enum": [
+        "evaluated",
+        "pending",
+        "infra_error"
+      ],
+      "title": "Execution Status",
+      "type": "string"
+    }
+  },
+  "required": [
+    "id",
+    "student_id",
+    "course_id",
+    "assignment_id",
+    "question_id",
+    "question_version",
+    "submitted_at",
+    "execution_status"
+  ],
+  "title": "Submission",
+  "type": "object"
+}

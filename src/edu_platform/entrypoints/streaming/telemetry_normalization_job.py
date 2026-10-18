@@ -5,7 +5,7 @@ Content (TODO):
 - Per event: validate -> migrate schema -> pseudonymise -> map to LearningEvent.
 - Sinks: telemetry.learning_events.v1 (Kafka, consumed by the other Flink jobs) and
   telemetry.events.dlq.v1 ({"reason", "payload"}). Not Delta: Spark owns every lakehouse
-  write and normalises bronze with the same use case (ADR 0010).
+  write and normalises bronze with the same use case (ADR 0011).
 - Late events beyond watermark are still emitted, flagged is_late=true.
 Wiring: platform.streaming.flink_env.build_stream_env -> kafka_source(s) with event-time
 watermarks -> keyed process function calling the context use case -> kafka/redis/delta sinks.

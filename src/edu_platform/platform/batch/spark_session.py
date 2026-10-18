@@ -3,8 +3,8 @@
 Every Spark entrypoint (batch jobs, the streaming landing job) builds its session here so
 the lakehouse behaves the same everywhere:
 - Delta SQL extensions + DeltaCatalog, UTC session time zone, AQE on.
-- ``fs.s3a.*`` from settings (SeaweedFS locally, S3 elsewhere); path-style addressing.
-- Hive Metastore as the catalog when ``EDU_HIVE_METASTORE_URI`` is set (ADR 0009), so the
+- ``fs.s3a.*`` from settings (MinIO locally, S3 elsewhere); path-style addressing.
+- Hive Metastore as the catalog when ``EDU_HIVE_METASTORE_URI`` is set (ADR 0010), so the
   tables Spark creates are immediately queryable from Trino.
 - Dynamic partition overwrite: ``INSERT OVERWRITE`` replaces only the partitions it writes,
   which is what makes the window-strategy gold builds idempotent.

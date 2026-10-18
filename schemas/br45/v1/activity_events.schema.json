@@ -1,0 +1,42 @@
+{
+  "properties": {
+    "id": {
+      "maxLength": 200,
+      "minLength": 1,
+      "title": "Id",
+      "type": "string"
+    },
+    "student_id": {
+      "title": "Student Id",
+      "type": "string"
+    },
+    "course_id": {
+      "title": "Course Id",
+      "type": "string"
+    },
+    "event_type": {
+      "enum": [
+        "lesson_view",
+        "lesson_complete",
+        "submission",
+        "session"
+      ],
+      "title": "Event Type",
+      "type": "string"
+    },
+    "event_time": {
+      "format": "date-time",
+      "title": "Event Time",
+      "type": "string"
+    }
+  },
+  "required": [
+    "id",
+    "student_id",
+    "course_id",
+    "event_type",
+    "event_time"
+  ],
+  "title": "Activity",
+  "type": "object"
+}
