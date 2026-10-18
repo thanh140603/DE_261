@@ -1,0 +1,25 @@
+<?xml version="1.0"?>
+<!-- Hive Metastore configuration (local stack). Credentials are local-only defaults that
+     mirror .env.example; in other environments mount a secret-managed copy of this file. -->
+<configuration>
+  <!-- Backing database (container metastore-db) -->
+  <property><name>javax.jdo.option.ConnectionURL</name><value>jdbc:postgresql://metastore-db:5432/metastore</value></property>
+  <property><name>javax.jdo.option.ConnectionDriverName</name><value>org.postgresql.Driver</value></property>
+  <property><name>javax.jdo.option.ConnectionUserName</name><value>hive</value></property>
+  <property><name>javax.jdo.option.ConnectionPassword</name><value>hive</value></property>
+  <property><name>hive.metastore.schema.verification</name><value>true</value></property>
+  <property><name>datanucleus.autoCreateSchema</name><value>false</value></property>
+
+  <!-- Thrift service used by Spark and Trino -->
+  <property><name>hive.metastore.uris</name><value>thrift://0.0.0.0:9083</value></property>
+  <property><name>hive.metastore.warehouse.dir</name><value>s3a://lakehouse/warehouse</value></property>
+  <property><name>hive.metastore.event.db.notification.api.auth</name><value>false</value></property>
+
+  <!-- Object storage (SeaweedFS S3 gateway) for s3a:// table locations -->
+  <property><name>fs.s3a.endpoint</name><value>http://seaweedfs:8333</value></property>
+  <property><name>fs.s3a.path.style.access</name><value>true</value></property>
+  <property><name>fs.s3a.connection.ssl.enabled</name><value>false</value></property>
+  <property><name>fs.s3a.access.key</name><value>lakehouse</value></property>
+  <property><name>fs.s3a.secret.key</name><value>lakehouse-secret-key</value></property>
+  <property><name>fs.s3a.impl</name><value>org.apache.hadoop.fs.s3a.S3AFileSystem</value></property>
+</configuration>

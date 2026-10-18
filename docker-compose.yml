@@ -11,13 +11,20 @@
 #   connect         Debezium CDC (register: see README 'Developer commands')  :8083
 #   postgres        LMS OLTP source, wal_level=logical        localhost:5432
 #   redis           online features / risk scores / notif state    localhost:6379
-#   minio           object storage: lakehouse + corpus       http://localhost:9001
+#   seaweedfs       S3 object storage: lakehouse + corpus    S3 localhost:9000, UI http://localhost:8888
+#   metastore-db    Postgres backing the Hive Metastore      (internal)
+#   hive-metastore  lakehouse catalog shared by Spark/Trino  thrift://localhost:9083
+#   trino           SQL warehouse over Delta (read-only)     http://localhost:8091
 #   flink-*         streaming engine                         http://localhost:8082
-#   spark, spark-worker  batch engine                        http://localhost:8080
+#   spark, spark-worker  batch engine (Spark 3.5 + Delta)    http://localhost:8080
 #
-# The demo container runs the pipelines in-process (ADR 0008) and does not yet
-# consume the Kafka/Redis/Postgres services; they are the production path whose
-# adapters are TODO stubs under src/edu_platform. Set DEMO_PORT to change :8000.
+# Opt-in profiles (data pipelines, see docs/architecture/pipelines.md):
+#   docker compose --profile pipelines up -d      # Kafka -> bronze -> silver streaming landing
+#   docker compose run --rm spark-jobs edu warehouse bootstrap
+#   docker compose run --rm spark-jobs edu warehouse run --run-date 2026-10-18
+#
+# The demo container runs the pipelines in-process (ADR 0008); the warehouse services are
+# the production path (ADR 0009/0010). Set DEMO_PORT to change :8000.
 name: de261
 
 services:
@@ -37,9 +44,9 @@ services:
       EDU_SCHEMA_REGISTRY_URL: http://schema-registry:8081
       EDU_REDIS_URL: redis://redis:6379/0
       EDU_POSTGRES_DSN: postgresql://lms:lms@postgres:5432/lms
-      EDU_S3_ENDPOINT: http://minio:9000
-      EDU_S3_ACCESS_KEY: minioadmin
-      EDU_S3_SECRET_KEY: minioadmin
+      EDU_S3_ENDPOINT: http://seaweedfs:8333
+      EDU_S3_ACCESS_KEY: ${EDU_S3_ACCESS_KEY:-lakehouse}
+      EDU_S3_SECRET_KEY: ${EDU_S3_SECRET_KEY:-lakehouse-secret-key}
     depends_on:
       kafka:
         condition: service_healthy
@@ -129,7 +136,7 @@ services:
     # LMS source of truth. wal_level=logical lets Debezium read the WAL without query load.
     image: postgres:16
     container_name: de261-postgres
-    ports: ["5432:5432"]
+    ports: ["${POSTGRES_PORT:-5432}:5432"]
     command: ["postgres", "-c", "wal_level=logical", "-c", "max_replication_slots=4", "-c", "max_wal_senders=4"]
     environment:
       POSTGRES_USER: lms
@@ -154,34 +161,101 @@ services:
       - redis-data:/data
 
   # --- object storage (lakehouse + corpus) ---------------------------------------------------
-  minio:
-    image: minio/minio:latest
-    container_name: de261-minio
-    ports: ["9000:9000", "9001:9001"]
-    command: server /data --console-address ":9001"
-    environment:
-      MINIO_ROOT_USER: minioadmin
-      MINIO_ROOT_PASSWORD: minioadmin
+  seaweedfs:
+    # S3-compatible object storage (replaces MinIO, whose images left Docker Hub on 2026-09-11).
+    # Same role: s3a:// lakehouse, versioned corpus bucket, Flink checkpoints.
+    image: chrislusf/seaweedfs:4.48
+    container_name: de261-seaweedfs
+    ports: ["9000:8333", "8888:8888"]
+    command: >
+      server -dir=/data -ip=seaweedfs -ip.bind=0.0.0.0
+      -master.volumeSizeLimitMB=256 -master.defaultReplication=000 -volume.max=0
+      -filer -s3 -s3.port=8333 -s3.config=/etc/seaweedfs/s3.json
     volumes:
-      - minio-data:/data
+      - ./infra/seaweedfs/s3.json:/etc/seaweedfs/s3.json:ro
+      - seaweedfs-data:/data
     healthcheck:
-      test: ["CMD", "mc", "ready", "local"]
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1:9333/cluster/status && wget -q -O /dev/null http://127.0.0.1:8888/"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  s3-init:
+    image: curlimages/curl:8.23.0
+    container_name: de261-s3-init
+    depends_on:
+      seaweedfs:
+        condition: service_healthy
+    environment:
+      S3_ENDPOINT: http://seaweedfs:8333
+      S3_ACCESS_KEY: ${EDU_S3_ACCESS_KEY:-lakehouse}
+      S3_SECRET_KEY: ${EDU_S3_SECRET_KEY:-lakehouse-secret-key}
+    volumes:
+      - ./infra/seaweedfs/init-buckets.sh:/init-buckets.sh:ro
+    entrypoint: ["/bin/sh", "/init-buckets.sh"]
+    restart: on-failure
+
+  # --- lakehouse catalog + SQL warehouse (ADR 0009) ---------------------------------------------
+  metastore-db:
+    image: postgres:16-alpine
+    container_name: de261-metastore-db
+    environment:
+      POSTGRES_USER: hive
+      POSTGRES_PASSWORD: hive
+      POSTGRES_DB: metastore
+    volumes:
+      - metastore-db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U hive -d metastore"]
       interval: 5s
       timeout: 3s
       retries: 10
 
-  minio-init:
-    image: minio/mc:latest
-    container_name: de261-minio-init
+  hive-metastore:
+    build: ./infra/hive-metastore
+    image: de261/hive-metastore:3.1.3
+    platform: linux/amd64          # upstream image is amd64-only; runs emulated on Apple silicon
+    container_name: de261-hive-metastore
+    ports: ["9083:9083"]
+    environment:
+      HIVE_CUSTOM_CONF_DIR: /hive-conf
+      METASTORE_HEAP: 512m
+    volumes:
+      - ./infra/hive-metastore/conf:/hive-conf:ro
     depends_on:
-      minio:
+      metastore-db:
         condition: service_healthy
-    entrypoint: >
-      /bin/sh -c "
-      mc alias set local http://minio:9000 minioadmin minioadmin &&
-      mc mb -p local/lakehouse local/corpus local/checkpoints &&
-      mc version enable local/corpus &&
-      exit 0"
+      s3-init:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD-SHELL", "bash -c '</dev/tcp/127.0.0.1/9083'"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 60s
+
+  trino:
+    image: trinodb/trino:478
+    container_name: de261-trino
+    ports: ["8091:8080"]
+    mem_limit: 2g
+    environment:
+      EDU_S3_ENDPOINT: http://seaweedfs:8333
+      EDU_S3_ACCESS_KEY: ${EDU_S3_ACCESS_KEY:-lakehouse}
+      EDU_S3_SECRET_KEY: ${EDU_S3_SECRET_KEY:-lakehouse-secret-key}
+    volumes:
+      - ./infra/trino/catalog/lakehouse.properties:/etc/trino/catalog/lakehouse.properties:ro
+      - ./infra/trino/access-control.properties:/etc/trino/access-control.properties:ro
+      - ./infra/trino/rules.json:/etc/trino/rules.json:ro
+    depends_on:
+      hive-metastore:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "trino --execute 'SELECT 1' >/dev/null 2>&1"]
+      interval: 10s
+      timeout: 10s
+      retries: 30
+      start_period: 30s
 
   # --- processing engines ---------------------------------------------------------------------
   flink-jobmanager:
@@ -194,9 +268,9 @@ services:
         jobmanager.rpc.address: flink-jobmanager
         state.backend: rocksdb
         state.checkpoints.dir: s3://checkpoints/flink
-        s3.endpoint: http://minio:9000
-        s3.access-key: minioadmin
-        s3.secret-key: minioadmin
+        s3.endpoint: http://seaweedfs:8333
+        s3.access-key: lakehouse
+        s3.secret-key: lakehouse-secret-key
         s3.path.style.access: true
 
   flink-taskmanager:
@@ -210,25 +284,72 @@ services:
         taskmanager.numberOfTaskSlots: 4
 
   spark:
-    image: apache/spark:3.5.1
+    # Spark 3.5 + Delta 3.3 + S3A + Python 3.11 (infra/spark/Dockerfile); one image for every
+    # Spark process so driver and executor Python always match.
+    build:
+      context: .
+      dockerfile: infra/spark/Dockerfile
+    image: de261/spark:local
     container_name: de261-spark
     ports: ["8080:8080", "7077:7077"]
-    command: ["/opt/spark/bin/spark-class", "org.apache.spark.deploy.master.Master", "--host", "spark"]
+    command: ["spark-class", "org.apache.spark.deploy.master.Master", "--host", "spark"]
     environment:
       SPARK_NO_DAEMONIZE: "true"
 
   spark-worker:
-    image: apache/spark:3.5.1
+    image: de261/spark:local
     container_name: de261-spark-worker
     depends_on: [spark]
-    command: ["/opt/spark/bin/spark-class", "org.apache.spark.deploy.worker.Worker", "spark://spark:7077", "--memory", "2G"]
+    command: ["spark-class", "org.apache.spark.deploy.worker.Worker", "spark://spark:7077", "--memory", "2G"]
     environment:
       SPARK_NO_DAEMONIZE: "true"
 
-  # TODO: opensearch (content search/vector index), airflow (webserver + scheduler),
-  #       prometheus/grafana for consumer-lag and checkpoint metrics.
+  # --- data pipelines (opt-in) --------------------------------------------------------------
+  spark-jobs:
+    # One-off batch jobs: docker compose run --rm spark-jobs edu warehouse run --run-date YYYY-MM-DD
+    image: de261/spark:local
+    profiles: ["jobs", "pipelines"]
+    environment: &lakehouse-env
+      EDU_ENV: docker
+      EDU_SPARK_MASTER: ${EDU_SPARK_MASTER:-local[*]}
+      EDU_HIVE_METASTORE_URI: thrift://hive-metastore:9083
+      EDU_LAKEHOUSE_ROOT: s3a://lakehouse
+      EDU_S3_ENDPOINT: http://seaweedfs:8333
+      EDU_S3_ACCESS_KEY: ${EDU_S3_ACCESS_KEY:-lakehouse}
+      EDU_S3_SECRET_KEY: ${EDU_S3_SECRET_KEY:-lakehouse-secret-key}
+      EDU_KAFKA_BOOTSTRAP_SERVERS: kafka:29092
+      EDU_PII_HMAC_SECRET: ${EDU_PII_HMAC_SECRET:-demo-secret}
+    volumes:
+      - ./warehouse:/app/warehouse:ro
+      - ./infra/kafka:/app/infra/kafka:ro
+    depends_on:
+      hive-metastore:
+        condition: service_healthy
+    command: ["edu", "warehouse", "--help"]
+
+  lakehouse-streaming:
+    # Always-on Structured Streaming: Kafka -> bronze (append) -> silver (MERGE). ADR 0010.
+    image: de261/spark:local
+    container_name: de261-lakehouse-streaming
+    profiles: ["pipelines"]
+    environment:
+      <<: *lakehouse-env
+      EDU_SPARK_MASTER: local[2]
+    volumes:
+      - ./warehouse:/app/warehouse:ro
+    depends_on:
+      kafka:
+        condition: service_healthy
+      hive-metastore:
+        condition: service_healthy
+    command: ["edu", "stream", "lakehouse-landing"]
+    restart: unless-stopped
+
+  # TODO: opensearch (content search/vector index), airflow (webserver + scheduler running
+  #       orchestration/airflow/dags), prometheus/grafana for consumer-lag and checkpoint metrics.
 
 volumes:
   postgres-data:
   redis-data:
-  minio-data:
+  seaweedfs-data:
+  metastore-db-data:

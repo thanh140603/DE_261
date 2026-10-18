@@ -1,0 +1,94 @@
+{
+  "catalogs": [
+    {
+      "catalog": "(lakehouse|system)",
+      "allow": "read-only"
+    },
+    {
+      "catalog": ".*",
+      "allow": "none"
+    }
+  ],
+  "schemas": [
+    {
+      "user": "admin",
+      "owner": true
+    },
+    {
+      "owner": false
+    }
+  ],
+  "tables": [
+    {
+      "user": "admin",
+      "privileges": [
+        "SELECT"
+      ]
+    },
+    {
+      "user": "pii_steward",
+      "catalog": "lakehouse",
+      "schema": "bronze",
+      "privileges": [
+        "SELECT"
+      ]
+    },
+    {
+      "user": "(analyst|pii_steward)",
+      "catalog": "lakehouse",
+      "schema": "(silver|gold|mart|features|ops)",
+      "privileges": [
+        "SELECT"
+      ]
+    },
+    {
+      "user": "app",
+      "catalog": "lakehouse",
+      "schema": "(gold|mart)",
+      "privileges": [
+        "SELECT"
+      ]
+    },
+    {
+      "user": "b2b_admin",
+      "catalog": "lakehouse",
+      "schema": "mart",
+      "table": "org_progress",
+      "privileges": [
+        "SELECT"
+      ]
+    },
+    {
+      "catalog": "system",
+      "privileges": [
+        "SELECT"
+      ]
+    },
+    {
+      "privileges": []
+    }
+  ],
+  "functions": [
+    {
+      "user": "admin",
+      "privileges": [
+        "EXECUTE"
+      ]
+    },
+    {
+      "user": "(admin|analyst|pii_steward)",
+      "catalog": "lakehouse",
+      "schema": "system",
+      "function": "table_changes",
+      "privileges": [
+        "EXECUTE"
+      ]
+    },
+    {
+      "catalog": "system",
+      "privileges": [
+        "EXECUTE"
+      ]
+    }
+  ]
+}

@@ -15,7 +15,22 @@ topics:
     config: { retention.ms: 259200000 }  # 3 days, bronze is the durable copy
   - name: telemetry.events.dlq.v1
     partitions: 3
+  - name: telemetry.learning_events.v1  # Flink-normalised, pseudonymised; key = learner pseudonym
+    partitions: 24
+    config: { retention.ms: 86400000 }
   # --- CDC (created by Debezium; declared here for ACLs/retention) -----------
+  - name: cdc.lms.public.organisations
+    config: { cleanup.policy: compact }
+  - name: cdc.lms.public.learners
+    config: { cleanup.policy: compact }
+  - name: cdc.lms.public.courses
+    config: { cleanup.policy: compact }
+  - name: cdc.lms.public.lessons
+    config: { cleanup.policy: compact }
+  - name: cdc.lms.public.assignments
+    config: { cleanup.policy: compact }
+  - name: cdc.lms.public.test_cases
+    config: { cleanup.policy: compact }
   - name: cdc.lms.public.enrollments
     config: { cleanup.policy: compact }
   - name: cdc.lms.public.lesson_progress
@@ -31,11 +46,13 @@ topics:
   - name: grading.submission_graded.v1
   # --- risk (BR5) ------------------------------------------------------------
   - name: risk.dropout_alert.v1
+  - name: risk.learner_score.v1      # every rescore -> gold.fct_risk_score_daily
   # --- LMS business events (BR1) --------------------------------------------
   - name: lms.assignment_created.v1
   - name: lms.deadline_approaching.v1
   - name: lms.course_updated.v1
   - name: notification.dispatched.v1
+  - name: notification.suppressed.v1
   # --- content (BR8) ---------------------------------------------------------
   - name: content.updated.v1
   - name: content.indexed.v1

@@ -43,18 +43,27 @@ DIP = domain and application depend on ports, never on engines.
 
 ## Data flow (medallion)
 
+Detailed design: [data-warehouse.md](data-warehouse.md) (model, marts, quality, security) and
+[pipelines.md](pipelines.md) (pipeline catalogue, orchestration, late data, replay).
+
 | Layer | Tables | Written by | Notes |
 |-------|--------|-----------|-------|
-| bronze | `telemetry_raw`, `telemetry_dlq`, `cdc_*` | IngestRawEvents, Debezium | immutable, raw PII, short retention, restricted ACL |
-| silver | `learning_events`, `enrollments`, `lesson_progress`, `submissions`, `grades`, `content_items`, `content_chunks` | NormalizeEvents, CDC apply | pseudonymised, schema-current, deduped, Change Data Feed on |
-| gold | `assessment_item_stats`, `org_progress_report`, `video_heatmap`, `engagement_trend`, `features_*` | analytics, recommendation | k-anonymity enforced on org reports |
+| bronze | `telemetry_raw`, `telemetry_dlq`, `cdc_events`, `domain_events` | Spark landing stream (Kafka) | immutable, raw PII, retention 30/90 d, restricted ACL |
+| silver | `learning_events`, LMS entities via CDC (`learners`, `enrollments`, `submissions`, ...), parsed domain events (`test_case_results`, `risk_scores`, ...), `content_chunks` | NormalizeEvents in Spark, CDC apply SQL | pseudonymised, schema-current, deduped, Change Data Feed on |
+| gold | `dim_*` (9, conformed, SCD1/SCD2), `fct_*` (11) | warehouse models | Kimball star schema, deterministic surrogate keys (ADR 0012) |
+| mart / features | `mart.assessment_item_stats`, `mart.org_progress`, `mart.video_heatmap`, `mart.engagement_trend`, `features.learner_longterm` | warehouse models | per-BR, domain thresholds, k-anonymity on org reports |
+
+Served to SQL clients by Trino over the Hive Metastore catalog (ADR 0009); Spark is the only
+writer of Delta tables, Flink publishes to Kafka / Redis (ADR 0010).
 
 ## Streaming semantics
 
 - Event time everywhere; watermark bounded out-of-orderness 5 min (telemetry), 10 s (CDC).
-- Late data past the watermark is still persisted and flagged; the batch
-  backfill (`bronze_to_silver_job`) is the authoritative recompute.
-- Exactly-once: Flink checkpoints + Kafka transactions; idempotent Delta MERGE on `event_id`.
+- Late data past the watermark is still persisted and flagged; gold windows reach back to
+  the oldest late event automatically (`late_data` in warehouse/models.yaml), and
+  `edu warehouse run --start-date` is the authoritative recompute.
+- Exactly-once: Flink checkpoints + Kafka transactions; Spark landing checkpoints + Delta
+  transactional sink; idempotent Delta MERGE on business keys.
 - CDC ordering by `source.lsn` per key; Debezium reads a replication slot so
   production query load is untouched.
 
@@ -62,4 +71,6 @@ DIP = domain and application depend on ports, never on engines.
 
 - PII: raw identifiers stop at bronze; keyed-hash `Pseudonymizer` applied at silver (ADR 0007).
 - Schema versioning: `schema_version` in payload, chained migrations to current, contracts in `/schemas`.
+- Data quality: gates per layer (`warehouse/quality`), results in `ops.dq_results`; every
+  model build in `ops.pipeline_runs` (window, rows, Delta version).
 - Observability (TODO): consumer lag, checkpoint duration, DLQ rate, freshness SLA per feature group.

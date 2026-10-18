@@ -12,7 +12,7 @@
     "publication.name": "edu_cdc_pub",
     "publication.autocreate.mode": "filtered",
     "topic.prefix": "cdc.lms",
-    "table.include.list": "public.enrollments,public.lesson_progress,public.submissions,public.grades,public.course_content",
+    "table.include.list": "public.organisations,public.learners,public.courses,public.lessons,public.course_content,public.assignments,public.test_cases,public.enrollments,public.lesson_progress,public.submissions,public.grades",
     "snapshot.mode": "initial",
     "tombstones.on.delete": "false",
     "decimal.handling.mode": "double",

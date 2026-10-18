@@ -15,7 +15,7 @@ class ContentRepository(Protocol):
 
 
 class DocumentStore(Protocol):
-    """Object storage with versioning (S3/MinIO)."""
+    """Object storage with versioning (S3 / SeaweedFS locally)."""
 
     def put(self, object_key: str, body: str) -> str: ...  # returns version id
 

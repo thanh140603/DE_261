@@ -1,7 +1,7 @@
 """Flink job: session_features_job (BR2 streaming branch).
 
 Content (TODO):
-- Source: silver learning events stream (or raw topic post-normalisation).
+- Source: telemetry.learning_events.v1 (Flink-normalised, pseudonymised).
 - Key by learner; session windows with 30 min gap; ComputeSessionFeatures in keyed state.
 - Sinks: Redis online feature store (put_session) + features.session.v1.
 Wiring: platform.streaming.flink_env.build_stream_env -> kafka_source(s) with event-time

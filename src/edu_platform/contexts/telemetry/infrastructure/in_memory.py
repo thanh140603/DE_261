@@ -1,6 +1,6 @@
 """In-memory sinks: used by unit tests and by the demo server (single process).
 
-The Delta-backed equivalents live in delta_sinks.py (TODO).
+The lakehouse path is batch-oriented instead (spark_normalizer.py: MERGE into silver, DLQ table).
 """
 
 from __future__ import annotations

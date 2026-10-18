@@ -15,8 +15,13 @@ _VERB_TO_WEIGHT = {
 }
 
 
+DEFAULT_DECLINE_RATIO = 0.30
+
+
 class EngagementPolicy:
-    def __init__(self, weights: EngagementWeights, decline_ratio: float = 0.30) -> None:
+    def __init__(
+        self, weights: EngagementWeights, decline_ratio: float = DEFAULT_DECLINE_RATIO
+    ) -> None:
         self._weights = weights
         self._decline_ratio = decline_ratio
 

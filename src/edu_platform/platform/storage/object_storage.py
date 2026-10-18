@@ -1,7 +1,7 @@
-"""S3-compatible object storage client (MinIO locally, S3/ADLS/GCS in cloud).
+"""S3-compatible object storage client (SeaweedFS locally, S3/ADLS/GCS in cloud).
 
 Content (TODO):
-- boto3 client factory honouring EDU_S3_ENDPOINT for MinIO.
+- boto3 client factory honouring EDU_S3_ENDPOINT (path-style, for SeaweedFS locally).
 - ``list_objects(bucket, prefix)``, ``get_object(bucket, key, version_id)``, ``put_object``.
 - Version-aware reads (S3 object versioning): the content context requires
   strict versioning of transcripts / slides / exercises.
