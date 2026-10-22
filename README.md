@@ -23,12 +23,12 @@ recommendation and early drop-out detection. Requirements: `docs/DE_261.pdf`.
 Kafka (+ Debezium) is the ingestion and event bus. Flink is available for
 stateful, event-time streaming (low-latency telemetry normalisation, the BR7
 live heatmap and BR8 live engagement overlays) and publishes to Kafka / Redis;
-BR5 risk windows run on Spark Structured Streaming (ADR 0009). BR2 is
-rule-based and served directly by the API from the course catalogue and
-completed lessons, so it has no Flink job and no feature store. Spark is the
-only writer of the lakehouse: Structured Streaming lands Kafka into bronze and
-silver, batch builds gold, marts and features. Delta Lake on object storage
-(MinIO locally) is the lakehouse (ACID, time travel, Change Data Feed); its gold
+BR5 risk windows run on Spark Structured Streaming (ADR 0009). BR2 is being
+reduced to a rule-based recommendation served directly by the API from the
+course catalogue and completed lessons; it needs no Flink job or online feature
+store. Spark is the only writer of the lakehouse: Structured Streaming lands
+Kafka into bronze and silver, batch builds gold, marts and features. Delta Lake
+on object storage (MinIO locally) is the lakehouse (ACID, time travel, Change Data Feed); its gold
 layer is the data warehouse - a Kimball star schema cataloged in the Hive
 Metastore and served by Trino (ADR 0010-0012). Redis is the low-latency serving
 layer (risk scores, notification dedup/rate-limit). Every pipeline is modelled as a DDD bounded
@@ -172,11 +172,10 @@ schema, the BR4/BR6/BR7/BR8 marts, the `features.learner_longterm` offline
 feature table, quality gates, maintenance and the Airflow DAGs.
 
 BR1, BR2 and BR3 are currently demo-only: in-process adapters behind the same
-API the production entrypoints will use. BR2 has been reduced to a rule-based,
+API the production entrypoints will use. BR2 is being reduced to a rule-based,
 request-time next-lesson recommendation — no session stream, no Flink job, no
-online feature store, no training data — and BR6's admin endpoint is decoupled
-from it. The solo implementation plan is
-`docs/BR1_BR3_EXECUTION_PLAN.md`.
+online feature store, no training data. BR6's admin endpoint is already
+decoupled from BR2's feature code.
 
 Still documented `TODO` stubs: the remaining Flink jobs (telemetry normalisation
 fast path, BR7/BR8 live overlays), the BR1/BR3 Kafka consumer services, the
