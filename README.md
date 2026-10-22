@@ -10,7 +10,7 @@ recommendation and early drop-out detection. Requirements: `docs/DE_261.pdf`.
 | BR | Stakeholder | Need | Bounded context | Runtime |
 |----|-------------|------|-----------------|---------|
 | BR1 | Learner | Real-time course notifications | `notification` | Kafka consumer service + Redis |
-| BR2 | Learner | Real-time next-step recommendation | `recommendation` | Spark batch + Flink session features -> Feature Store (Delta / Redis) |
+| BR2 | Learner | Next-step / next-course recommendation | `recommendation` | Rule-based, request-time from the course catalogue + completed lessons (no ML) |
 | BR3 | Learner | Detailed feedback on code/SQL submissions | `grading` | Kafka-buffered ingestion service |
 | BR4 | Instructor | Abnormal fail-rate questions / test cases | `analytics` + `br45` | CDC -> SQL -> PostgreSQL marts (serving); history in lakehouse `mart.assessment_item_stats` |
 | BR5 | Advisor | Early drop-out warning | `risk` + `br45` | Debezium CDC -> Spark event-time windows -> alerts; history in `gold.fct_risk_score_daily` / `fct_dropout_alert` |
@@ -20,16 +20,18 @@ recommendation and early drop-out detection. Requirements: `docs/DE_261.pdf`.
 
 ## Architecture in one paragraph
 
-Kafka (+ Debezium) is the ingestion and event bus. Flink handles stateful,
-event-time streaming (session features, low-latency normalisation) and
-publishes to Kafka / Redis; BR5 risk windows run on Spark Structured Streaming
-(ADR 0009). Spark is the only writer of the lakehouse: Structured Streaming
-lands Kafka into bronze and silver, batch builds gold, marts and features.
-Delta Lake on object storage (MinIO locally) is the lakehouse (ACID, time
-travel, Change Data Feed); its gold layer is the data warehouse - a Kimball
-star schema cataloged in the Hive Metastore and served by Trino (ADR 0010-0012).
-Redis is the low-latency serving layer (online features, risk scores,
-notification dedup/rate-limit). Every pipeline is modelled as a DDD bounded
+Kafka (+ Debezium) is the ingestion and event bus. Flink is available for
+stateful, event-time streaming (low-latency telemetry normalisation, the BR7
+live heatmap and BR8 live engagement overlays) and publishes to Kafka / Redis;
+BR5 risk windows run on Spark Structured Streaming (ADR 0009). BR2 is
+rule-based and served directly by the API from the course catalogue and
+completed lessons, so it has no Flink job and no feature store. Spark is the
+only writer of the lakehouse: Structured Streaming lands Kafka into bronze and
+silver, batch builds gold, marts and features. Delta Lake on object storage
+(MinIO locally) is the lakehouse (ACID, time travel, Change Data Feed); its gold
+layer is the data warehouse - a Kimball star schema cataloged in the Hive
+Metastore and served by Trino (ADR 0010-0012). Redis is the low-latency serving
+layer (risk scores, notification dedup/rate-limit). Every pipeline is modelled as a DDD bounded
 context with hexagonal layers so the same use case runs unchanged on Flink or
 Spark and can be unit-tested without an engine.
 Details: `docs/architecture/overview.md`, `docs/architecture/data-warehouse.md`,
@@ -127,7 +129,7 @@ the same ports the production entrypoints use (ADR 0008). What to show:
 
 | View | Requirement | Try |
 |------|-------------|-----|
-| Learner | BR1, BR2, BR3 | send a deadline reminder, watch a lesson, submit the starter code and read the feedback |
+| Learner | BR1, BR2, BR3 | send a deadline reminder, complete a lesson to update the next-step recommendation, submit the starter code and read the feedback |
 | Instructor | BR4, BR7, BR8 | connect to persistent assessment health with the `br45` profile; simulate views or publish content in the other demo panels |
 | Advisor | BR5 | connect to persistent risk and alerts with the `br45` profile; follow the runbook for CDC recovery |
 | Admin | BR6 | compare Acme (reported) with Globex (suppressed, fewer than 5 learners) |
@@ -166,7 +168,16 @@ BR4/BR5 runtime, CDC connector, jobs, dashboards, tests and
 measured evaluation are implemented; see `docs/BR4_BR5_IMPLEMENTATION.md`. The
 lakehouse path is implemented and verified on the local stack: Debezium CDC and
 Kafka landing into bronze, bronze -> silver (streaming and batch), the gold star
-schema, the BR4/BR6/BR7/BR8 marts, the BR2 offline features, quality gates,
-maintenance and the Airflow DAGs. Still documented `TODO` stubs: the remaining
-Flink jobs, the Kafka consumer services, Redis adapters (online feature
-materialisation), corpus chunking/embedding and OpenSearch.
+schema, the BR4/BR6/BR7/BR8 marts, the `features.learner_longterm` offline
+feature table, quality gates, maintenance and the Airflow DAGs.
+
+BR1, BR2 and BR3 are currently demo-only: in-process adapters behind the same
+API the production entrypoints will use. BR2 has been reduced to a rule-based,
+request-time next-lesson recommendation — no session stream, no Flink job, no
+online feature store, no training data — and BR6's admin endpoint is decoupled
+from it. The solo implementation plan is
+`docs/BR1_BR3_EXECUTION_PLAN.md`.
+
+Still documented `TODO` stubs: the remaining Flink jobs (telemetry normalisation
+fast path, BR7/BR8 live overlays), the BR1/BR3 Kafka consumer services, the
+Redis adapters, corpus chunking/embedding and OpenSearch.

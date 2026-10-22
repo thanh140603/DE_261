@@ -44,3 +44,4 @@ apps/web/node_modules/
 .playwright-mcp/
 apps/web/test-results/
 apps/web/playwright-report/
+docs/BR1_BR3_EXECUTION_PLAN.md
