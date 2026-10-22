@@ -27,7 +27,10 @@ def _mastery_by_pseudonym(p: DemoPlatform) -> dict[str, float]:
     for submission in p.submissions.all():
         if submission.result is not None:
             rates[str(submission.learner_id)].append(submission.result.pass_rate)
-    return {p.pseudonym(learner_id): round(sum(rs) / len(rs), 3) for learner_id, rs in rates.items()}
+    return {
+        p.pseudonym(learner_id): round(sum(rs) / len(rs), 3)
+        for learner_id, rs in rates.items()
+    }
 
 
 @router.get("/organisations/{org_id}/progress")
