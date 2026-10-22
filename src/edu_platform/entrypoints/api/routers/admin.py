@@ -28,8 +28,7 @@ def _mastery_by_pseudonym(p: DemoPlatform) -> dict[str, float]:
         if submission.result is not None:
             rates[str(submission.learner_id)].append(submission.result.pass_rate)
     return {
-        p.pseudonym(learner_id): round(sum(rs) / len(rs), 3)
-        for learner_id, rs in rates.items()
+        p.pseudonym(learner_id): round(sum(rs) / len(rs), 3) for learner_id, rs in rates.items()
     }
 
 
