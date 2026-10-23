@@ -1,25 +1,15 @@
 from __future__ import annotations
 
-from datetime import UTC, datetime
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
-from edu_platform.contexts.recommendation.application.compute_batch_features import (
-    ComputeBatchFeaturesCommand,
-    GradedFact,
-)
 from edu_platform.contexts.recommendation.domain.next_step_policy import CourseRef, LessonRef
 from edu_platform.contexts.telemetry.domain.events import Verb
 from edu_platform.demo import seed
 from edu_platform.demo.container import DemoPlatform
-from edu_platform.demo.serializers import (
-    longterm_dict,
-    notification_dict,
-    session_dict,
-    submission_dict,
-)
+from edu_platform.demo.serializers import notification_dict, submission_dict
 from edu_platform.demo.simulator import Simulator
 from edu_platform.entrypoints.api.deps import platform, simulator
 from edu_platform.shared_kernel.domain.ids import LearnerId, SubmissionId
@@ -42,58 +32,35 @@ async def notifications(
     return [notification_dict(n) for n in p.notifications.for_recipient(learner_id)]
 
 
-def refresh_batch_features(p: DemoPlatform) -> None:
-    """Runs the batch branch on demand (the Spark job does this daily)."""
-    pseudonyms = {it.id: p.pseudonym(it.id) for it in seed.LEARNERS}
-    graded = [
-        GradedFact(
-            pseudonyms[s.learner_id],
-            seed.assignment(s.assignment_id).course_id,
-            s.result.pass_rate,
-            s.submitted_at,
-        )
-        for s in p.submissions.all()
-        if s.result is not None and s.learner_id in pseudonyms
-    ]
-    p.batch_features.execute(
-        ComputeBatchFeaturesCommand(
-            as_of=datetime.now(tz=UTC),
-            events=p.silver.all(),
-            graded=graded,
-            lessons_per_course={c.id: len(c.lessons) for c in seed.COURSES},
-            course_skill={c.id: c.skill for c in seed.COURSES},
-        )
-    )
-
-
 @router.get("/learners/{learner_id}/recommendations")
 async def recommendations(learner_id: str, p: DemoPlatform = Depends(platform)) -> dict[str, Any]:
     learner = _learner(learner_id)
     pseudonym = p.pseudonym(learner_id)
-    refresh_batch_features(p)
-    longterm = p.online_features.get_longterm(pseudonym)
-    session = p.online_features.get_session(pseudonym)
-    completed = {
-        e.content_id
-        for e in p.silver.all()
-        if e.learner_pseudonym == pseudonym and e.verb is Verb.COMPLETED and e.content_id
-    }
+    completed_events = [
+        event
+        for event in p.silver.all()
+        if event.learner_pseudonym == pseudonym
+        and event.verb is Verb.COMPLETED
+        and event.content_id is not None
+    ]
+    completed_content_ids = {str(event.content_id) for event in completed_events}
     lessons = [
-        LessonRef(c.id, it.id, it.title, it.ordinal)
+        LessonRef(c.id, it.id, it.title, it.ordinal, it.content_id)
         for c in seed.COURSES
         if c.id in learner.course_ids
         for it in c.lessons
     ]
-    completed_lessons = {
-        it.lesson_id
-        for it in lessons
-        if seed.course(it.course_id).lessons[it.ordinal - 1].content_id in completed
-    }
-    next_step = p.next_step.next_step(lessons, completed_lessons, session, list(learner.course_ids))
+    next_step = p.next_step.next_step(lessons, completed_content_ids, list(learner.course_ids))
+    last_skill: str | None = None
+    if completed_events:
+        latest = max(completed_events, key=lambda event: event.occurred_at)
+        found = seed.lesson_by_content(str(latest.content_id))
+        if found is not None:
+            last_skill = found[0].skill
     courses = p.next_step.suggest_courses(
         [CourseRef(c.id, c.title, c.skill) for c in seed.COURSES],
         list(learner.course_ids),
-        longterm,
+        last_skill,
     )
     return {
         "next_step": (
@@ -110,7 +77,7 @@ async def recommendations(learner_id: str, p: DemoPlatform = Depends(platform)) 
             {"course_id": r.course_id, "title": r.title, "score": r.score, "reason": r.reason}
             for r in courses
         ],
-        "features": {"longterm": longterm_dict(longterm), "session": session_dict(session)},
+        "features": {"longterm": None, "session": None},
     }
 
 

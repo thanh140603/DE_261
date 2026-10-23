@@ -99,7 +99,7 @@ function NextStep({ learnerId, courseId, tick }: { learnerId: string; courseId: 
   const q = useFetch(() => api.learner.recommendations(learnerId), [learnerId]);
   useEffect(() => { void q.reload(); }, [tick]); // eslint-disable-line react-hooks/exhaustive-deps
   const course = overview?.courses.find((c) => c.id === courseId);
-  const act = useAction(async (verb: "played" | "attempted") => {
+  const act = useAction(async (verb: "played" | "completed") => {
     const lesson = course?.lessons[Math.floor(Math.random() * (course.lessons.length || 1))];
     const r = await api.simulate.telemetry({
       learner_id: learnerId, verb, course_id: courseId ?? undefined, content_id: lesson?.content_id,
@@ -109,12 +109,11 @@ function NextStep({ learnerId, courseId, tick }: { learnerId: string; courseId: 
     await q.reload();
     return r;
   });
-  const f = q.data?.features;
   return (
     <Panel title="Next step" br="BR2">
       <div className="actions">
         <Btn onClick={() => void act.run("played")} pending={act.pending} disabled={!course}>Watch a lesson</Btn>
-        <Btn onClick={() => void act.run("attempted")} pending={act.pending} disabled={!course}>Attempt a quiz</Btn>
+        <Btn onClick={() => void act.run("completed")} pending={act.pending} disabled={!course}>Complete a lesson</Btn>
       </div>
       {act.error && <div className="error">{act.error}</div>}
       <Status loading={q.loading && !q.data} error={q.error}>
@@ -124,7 +123,7 @@ function NextStep({ learnerId, courseId, tick }: { learnerId: string; courseId: 
             <div className="muted">{q.data.next_step.reason}</div>
           </div>
         ) : (
-          <div className="empty">No next step yet. Watch a lesson to create a session.</div>
+          <div className="empty">No next step yet. Complete a lesson to advance.</div>
         )}
         {q.data && q.data.courses.length > 0 && (
           <table style={{ marginTop: 12 }}>
@@ -136,32 +135,6 @@ function NextStep({ learnerId, courseId, tick }: { learnerId: string; courseId: 
             </tbody>
           </table>
         )}
-        <div className="grid" style={{ marginTop: 12, gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-          <div>
-            <h3>Session (streaming)</h3>
-            {f?.session ? (
-              <dl className="kv small">
-                <dt>Active minutes</dt><dd>{f.session.active_minutes.toFixed(1)}</dd>
-                <dt>Events</dt><dd>{f.session.events_in_session}</dd>
-                <dt>Struggle score</dt><dd>{f.session.struggle_score.toFixed(2)}</dd>
-                <dt>Last verbs</dt><dd>{f.session.last_verbs.join(", ") || "–"}</dd>
-                <dt>Updated</dt><dd>{formatTime(f.session.updated_at)}</dd>
-              </dl>
-            ) : <div className="muted small">No live session.</div>}
-          </div>
-          <div>
-            <h3>Long-term (batch)</h3>
-            {f?.longterm ? (
-              <dl className="kv small">
-                <dt>Completion 30 d</dt><dd>{pct(f.longterm.completion_rate_30d)}</dd>
-                <dt>Avg pass rate</dt><dd>{pct(f.longterm.avg_pass_rate_30d)}</dd>
-                <dt>Active days</dt><dd>{f.longterm.active_days_30d}</dd>
-                <dt>Platform</dt><dd>{f.longterm.preferred_platform}</dd>
-                <dt>Mastery</dt><dd>{Object.entries(f.longterm.skill_mastery).map(([k, v]) => `${k} ${pct(v)}`).join(", ") || "–"}</dd>
-              </dl>
-            ) : <div className="muted small">No batch features yet.</div>}
-          </div>
-        </div>
       </Status>
     </Panel>
   );

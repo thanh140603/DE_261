@@ -66,16 +66,7 @@ from edu_platform.contexts.notification.infrastructure.in_memory import (
 from edu_platform.contexts.notification.infrastructure.yaml_rule_repository import (
     YamlRuleRepository,
 )
-from edu_platform.contexts.recommendation.application.compute_batch_features import (
-    ComputeBatchFeatures,
-)
-from edu_platform.contexts.recommendation.application.compute_session_features import (
-    ComputeSessionFeatures,
-)
 from edu_platform.contexts.recommendation.domain.next_step_policy import NextStepPolicy
-from edu_platform.contexts.recommendation.infrastructure.in_memory import (
-    InMemoryOnlineFeatureStore,
-)
 from edu_platform.contexts.risk.application.score_learner_risk import ScoreLearnerRisk
 from edu_platform.contexts.risk.domain.model import SlidingWindowPolicy
 from edu_platform.contexts.risk.domain.scoring_policy import RiskScoringPolicy
@@ -152,10 +143,7 @@ class DemoPlatform:
         )
         self.risk_alerts: list[dict[str, Any]] = []
 
-        # recommendation (BR2)
-        self.online_features = InMemoryOnlineFeatureStore()
-        self.session_features = ComputeSessionFeatures(self.online_features)
-        self.batch_features = ComputeBatchFeatures(self.online_features)
+        # recommendation (BR2-lite: rule-based, no feature store)
         self.next_step = NextStepPolicy()
 
         # notification (BR1)

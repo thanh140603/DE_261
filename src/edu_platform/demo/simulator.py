@@ -413,7 +413,7 @@ class Simulator:
             "notifications_suppressed": p.suppressed_count,
             "submissions_graded": graded,
             "risk_alerts": len(p.risk_alerts),
-            "feature_rows": p.online_features.count(),
+            "feature_rows": 0,
             "content_versions": sum(len(c.versions) for c in p.content.all()),
             "last_event_at": p.bus.last_at.isoformat() if p.bus.last_at else None,
         }
