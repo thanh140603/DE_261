@@ -5,8 +5,7 @@ from typing import Any
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
-from edu_platform.contexts.recommendation.domain.next_step_policy import CourseRef, LessonRef
-from edu_platform.contexts.telemetry.domain.events import Verb
+from edu_platform.contexts.recommendation.domain.next_step_policy import CourseRef
 from edu_platform.demo import seed
 from edu_platform.demo.container import DemoPlatform
 from edu_platform.demo.serializers import notification_dict, submission_dict
@@ -34,51 +33,70 @@ async def notifications(
 
 @router.get("/learners/{learner_id}/recommendations")
 async def recommendations(learner_id: str, p: DemoPlatform = Depends(platform)) -> dict[str, Any]:
-    learner = _learner(learner_id)
-    pseudonym = p.pseudonym(learner_id)
-    completed_events = [
-        event
-        for event in p.silver.all()
-        if event.learner_pseudonym == pseudonym
-        and event.verb is Verb.COMPLETED
-        and event.content_id is not None
-    ]
-    completed_content_ids = {str(event.content_id) for event in completed_events}
-    lessons = [
-        LessonRef(c.id, it.id, it.title, it.ordinal, it.content_id)
-        for c in seed.COURSES
-        if c.id in learner.course_ids
-        for it in c.lessons
-    ]
-    next_step = p.next_step.next_step(lessons, completed_content_ids, list(learner.course_ids))
-    last_skill: str | None = None
-    if completed_events:
-        latest = max(completed_events, key=lambda event: event.occurred_at)
-        found = seed.lesson_by_content(str(latest.content_id))
-        if found is not None:
-            last_skill = found[0].skill
-    courses = p.next_step.suggest_courses(
-        [CourseRef(c.id, c.title, c.skill) for c in seed.COURSES],
-        list(learner.course_ids),
-        last_skill,
-    )
+    _learner(learner_id)
+    enrolled_ids = p.enrollments[learner_id]
+    completed_ids = p.completed_courses[learner_id]
+    catalogue = [CourseRef(c.id, c.title, c.difficulty, c.category) for c in seed.COURSES]
+    next_step = p.next_step.next_course_to_enroll(catalogue, enrolled_ids, completed_ids)
+    suggested = p.next_step.suggest_courses(catalogue, enrolled_ids, completed_ids)
+
+    def course_dict(course_id: str) -> dict[str, str]:
+        course = seed.course(course_id)
+        return {
+            "course_id": course.id,
+            "title": course.title,
+            "difficulty": course.difficulty,
+            "category": course.category,
+        }
+
     return {
         "next_step": (
             {
-                "course_id": next_step.course_id,
-                "lesson_id": next_step.lesson_id,
-                "title": next_step.title,
+                **course_dict(next_step.course_id),
+                "score": next_step.score,
                 "reason": next_step.reason,
             }
             if next_step
             else None
         ),
-        "courses": [
-            {"course_id": r.course_id, "title": r.title, "score": r.score, "reason": r.reason}
-            for r in courses
+        "enrolled": [
+            {**course_dict(course_id), "completed": course_id in completed_ids}
+            for course_id in enrolled_ids
         ],
-        "features": {"longterm": None, "session": None},
+        "courses": [
+            {**course_dict(r.course_id), "score": r.score, "reason": r.reason} for r in suggested
+        ],
     }
+
+
+class CourseActionBody(BaseModel):
+    course_id: str
+
+
+@router.post("/learners/{learner_id}/enroll")
+async def enroll(
+    learner_id: str, body: CourseActionBody, p: DemoPlatform = Depends(platform)
+) -> dict[str, Any]:
+    _learner(learner_id)
+    try:
+        seed.course(body.course_id)
+    except StopIteration as exc:
+        raise HTTPException(404, f"unknown course {body.course_id}") from exc
+    p.enroll(learner_id, body.course_id)
+    return {"enrolled": p.enrollments[learner_id]}
+
+
+@router.post("/learners/{learner_id}/complete-course")
+async def complete_course(
+    learner_id: str, body: CourseActionBody, p: DemoPlatform = Depends(platform)
+) -> dict[str, Any]:
+    _learner(learner_id)
+    try:
+        seed.course(body.course_id)
+    except StopIteration as exc:
+        raise HTTPException(404, f"unknown course {body.course_id}") from exc
+    p.complete_course(learner_id, body.course_id)
+    return {"completed": sorted(p.completed_courses[learner_id])}
 
 
 class SubmissionBody(BaseModel):

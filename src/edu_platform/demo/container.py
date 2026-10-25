@@ -143,8 +143,12 @@ class DemoPlatform:
         )
         self.risk_alerts: list[dict[str, Any]] = []
 
-        # recommendation (BR2-lite: rule-based, no feature store)
+        # recommendation (BR2: rule-based, course granularity)
         self.next_step = NextStepPolicy()
+        self.enrollments: dict[str, list[str]] = {
+            it.id: list(it.course_ids) for it in seed.LEARNERS
+        }
+        self.completed_courses: dict[str, list[str]] = {it.id: [] for it in seed.LEARNERS}
 
         # notification (BR1)
         rules = YamlRuleRepository(rules_path).all()
@@ -220,3 +224,12 @@ class DemoPlatform:
 
     def learner_by_pseudonym(self) -> dict[str, str]:
         return {self.pseudonym(it.id): it.id for it in seed.LEARNERS}
+
+    def enroll(self, learner_id: str, course_id: str) -> None:
+        enrolled = self.enrollments[learner_id]
+        if course_id not in enrolled:
+            enrolled.append(course_id)
+
+    def complete_course(self, learner_id: str, course_id: str) -> None:
+        if course_id not in self.completed_courses[learner_id]:
+            self.completed_courses[learner_id].append(course_id)

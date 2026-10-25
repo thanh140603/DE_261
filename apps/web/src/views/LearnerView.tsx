@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { api } from "../api";
 import { useStore } from "../store";
 import { formatTime, pct, useAction, useFetch } from "../hooks";
@@ -8,15 +8,34 @@ import type { LmsEventResult, Submission, TestResult } from "../types";
 export function LearnerView() {
   const { overview, lastEventAt } = useStore();
   const learners = overview?.learners ?? [];
+  const courses = overview?.courses ?? [];
   const [learnerId, setLearnerId] = useState("");
+  const [courseId, setCourseId] = useState("");
+  const [sentTick, setSentTick] = useState(0);
   useEffect(() => {
     if (!learnerId && learners.length) setLearnerId(learners[0].id);
   }, [learners, learnerId]);
+  useEffect(() => {
+    if (!courseId && courses.length) setCourseId(courses[0].id);
+  }, [courses, courseId]);
   const learner = learners.find((l) => l.id === learnerId) ?? null;
-  const course = useMemo(
-    () => overview?.courses.find((c) => c.id === learner?.course_ids[0]) ?? null,
-    [overview, learner],
-  );
+
+  const [last, setLast] = useState<LmsEventResult | null>(null);
+  const send = useAction(async (event_type: "assignment_created" | "deadline_approaching" | "course_updated") => {
+    if (!courseId) throw new Error("Choose a course to notify about");
+    const assignment = overview?.assignments.find((a) => a.course_id === courseId);
+    const r = await api.simulate.lmsEvent({
+      event_type,
+      course_id: courseId,
+      assignment_id: assignment?.id,
+      hours_to_deadline: event_type === "deadline_approaching" ? 12 : undefined,
+      title: event_type === "assignment_created" ? "Week 3 practice set" : undefined,
+    });
+    setLast(r);
+    setSentTick((t) => t + 1);
+    return r;
+  });
+  const mine = last?.notifications.suppressed.filter((s) => s.learner_id === learnerId) ?? [];
 
   return (
     <>
@@ -25,43 +44,7 @@ export function LearnerView() {
         their live session and long-term features, and detailed feedback when they submit code.
       </ViewHead>
       <div className="toolbar">
-        <Select label="Learner" value={learnerId} options={learners} onChange={setLearnerId} render={(l) => `${l.name} (${l.id})`} />
-        {learner && course && <span className="muted">Enrolled in {learner.course_ids.length} course{learner.course_ids.length === 1 ? "" : "s"}; first course: {course.title}</span>}
-      </div>
-      {learner && (
-        <div className="grid">
-          <Notifications learnerId={learner.id} courseId={course?.id ?? null} tick={lastEventAt} />
-          <NextStep learnerId={learner.id} courseId={course?.id ?? null} tick={lastEventAt} />
-          <div style={{ gridColumn: "1 / -1" }}>
-            <CodeFeedback learnerId={learner.id} />
-          </div>
-        </div>
-      )}
-    </>
-  );
-}
-
-function Notifications({ learnerId, courseId, tick }: { learnerId: string; courseId: string | null; tick: number }) {
-  const { overview } = useStore();
-  const q = useFetch(() => api.learner.notifications(learnerId), [learnerId]);
-  useEffect(() => { void q.reload(); }, [tick]); // eslint-disable-line react-hooks/exhaustive-deps
-  const [last, setLast] = useState<LmsEventResult | null>(null);
-  const send = useAction(async (event_type: "assignment_created" | "deadline_approaching" | "course_updated") => {
-    if (!courseId) throw new Error("This learner has no course");
-    const assignment = overview?.assignments.find((a) => a.course_id === courseId);
-    const r = await api.simulate.lmsEvent({
-      event_type, course_id: courseId, assignment_id: assignment?.id,
-      hours_to_deadline: event_type === "deadline_approaching" ? 12 : undefined,
-      title: event_type === "assignment_created" ? "Week 3 practice set" : undefined,
-    });
-    setLast(r);
-    await q.reload();
-    return r;
-  });
-  const mine = last?.notifications.suppressed.filter((s) => s.learner_id === learnerId) ?? [];
-  return (
-    <Panel title="Notifications" br="BR1">
-      <div className="actions">
+        <Select label="Course" value={courseId} options={courses} onChange={setCourseId} render={(c) => c.title} />
         <Btn onClick={() => void send.run("assignment_created")} pending={send.pending}>Create assignment</Btn>
         <Btn onClick={() => void send.run("deadline_approaching")} pending={send.pending}>Send deadline reminder (12 h)</Btn>
         <Btn onClick={() => void send.run("course_updated")} pending={send.pending}>Announce course update</Btn>
@@ -74,7 +57,29 @@ function Notifications({ learnerId, courseId, tick }: { learnerId: string; cours
           {mine.length > 0 && <> — this learner: {mine.map((s) => s.reason).join(", ")}</>}.
         </div>
       )}
-      <Status loading={q.loading && !q.data} error={q.error} empty={q.data && q.data.length === 0 ? "No notifications yet. Create an assignment or send a reminder to see one arrive." : false}>
+      <div className="toolbar">
+        <Select label="Learner" value={learnerId} options={learners} onChange={setLearnerId} render={(l) => `${l.name} (${l.id})`} />
+        {learner && <span className="muted">Enrolled in {learner.course_ids.length} course{learner.course_ids.length === 1 ? "" : "s"}</span>}
+      </div>
+      {learner && (
+        <div className="grid">
+          <Notifications learnerId={learner.id} tick={lastEventAt} sentTick={sentTick} />
+          <NextStep learnerId={learner.id} tick={lastEventAt} />
+          <div style={{ gridColumn: "1 / -1" }}>
+            <CodeFeedback learnerId={learner.id} />
+          </div>
+        </div>
+      )}
+    </>
+  );
+}
+
+function Notifications({ learnerId, tick, sentTick }: { learnerId: string; tick: number; sentTick: number }) {
+  const q = useFetch(() => api.learner.notifications(learnerId), [learnerId]);
+  useEffect(() => { void q.reload(); }, [tick, sentTick]); // eslint-disable-line react-hooks/exhaustive-deps
+  return (
+    <Panel title="Notifications" br="BR1">
+      <Status loading={q.loading && !q.data} error={q.error} empty={q.data && q.data.length === 0 ? "No notifications yet. Use the buttons above to create an assignment or send a reminder." : false}>
         <div className="list">
           {q.data?.map((n) => (
             <div className={`item${n.priority === "high" ? " high" : ""}`} key={n.id}>
@@ -94,47 +99,70 @@ function Notifications({ learnerId, courseId, tick }: { learnerId: string; cours
   );
 }
 
-function NextStep({ learnerId, courseId, tick }: { learnerId: string; courseId: string | null; tick: number }) {
-  const { overview } = useStore();
+function NextStep({ learnerId, tick }: { learnerId: string; tick: number }) {
   const q = useFetch(() => api.learner.recommendations(learnerId), [learnerId]);
   useEffect(() => { void q.reload(); }, [tick]); // eslint-disable-line react-hooks/exhaustive-deps
-  const course = overview?.courses.find((c) => c.id === courseId);
-  const act = useAction(async (verb: "played" | "completed") => {
-    const lesson = course?.lessons[Math.floor(Math.random() * (course.lessons.length || 1))];
-    const r = await api.simulate.telemetry({
-      learner_id: learnerId, verb, course_id: courseId ?? undefined, content_id: lesson?.content_id,
-      video_position_sec: verb === "played" && lesson ? Math.floor(Math.random() * lesson.duration_sec) : undefined,
-      platform: "web",
-    });
+  const complete = useAction(async (course_id: string) => {
+    await api.learner.completeCourse(learnerId, course_id);
     await q.reload();
-    return r;
   });
+  const enroll = useAction(async (course_id: string) => {
+    await api.learner.enroll(learnerId, course_id);
+    await q.reload();
+  });
+  const nextStep = q.data?.next_step ?? null;
+  const diffKind = (d: string): "ok" | "warn" | "bad" =>
+    d === "easy" ? "ok" : d === "medium" ? "warn" : "bad";
   return (
-    <Panel title="Next step" br="BR2">
-      <div className="actions">
-        <Btn onClick={() => void act.run("played")} pending={act.pending} disabled={!course}>Watch a lesson</Btn>
-        <Btn onClick={() => void act.run("completed")} pending={act.pending} disabled={!course}>Complete a lesson</Btn>
-      </div>
-      {act.error && <div className="error">{act.error}</div>}
+    <Panel title="Courses" br="BR2">
+      {complete.error && <div className="error">{complete.error}</div>}
+      {enroll.error && <div className="error">{enroll.error}</div>}
       <Status loading={q.loading && !q.data} error={q.error}>
-        {q.data?.next_step ? (
-          <div className="item" style={{ borderLeft: "3px solid var(--green)" }}>
-            <div><strong>{q.data.next_step.title}</strong></div>
-            <div className="muted">{q.data.next_step.reason}</div>
+        <h3>Enrolled</h3>
+        <div className="list">
+          {q.data?.enrolled.map((c) => (
+            <div className="item" key={c.course_id}>
+              <div>
+                <strong>{c.title}</strong> <Tag kind={diffKind(c.difficulty)}>{c.difficulty}</Tag>
+                <span className="muted"> {c.category}</span>
+              </div>
+              {c.completed ? (
+                <Tag kind="ok">Completed</Tag>
+              ) : (
+                <Btn onClick={() => void complete.run(c.course_id)} pending={complete.pending}>Complete course</Btn>
+              )}
+            </div>
+          ))}
+        </div>
+
+        <h3 style={{ marginTop: 12 }}>Which course to enroll next</h3>
+        {nextStep && (
+          <div className="item" style={{ borderLeft: "3px solid var(--green)", marginBottom: 8 }}>
+            <div>
+              <strong>Recommended: {nextStep.title}</strong>{" "}
+              <Tag kind={diffKind(nextStep.difficulty)}>{nextStep.difficulty}</Tag>
+              <span className="muted"> {nextStep.category}</span>
+            </div>
+            <div className="muted small">{nextStep.reason}</div>
+            <div className="actions" style={{ marginTop: 8 }}>
+              <Btn primary onClick={() => void enroll.run(nextStep.course_id)} pending={enroll.pending}>Enroll</Btn>
+            </div>
           </div>
-        ) : (
-          <div className="empty">No next step yet. Complete a lesson to advance.</div>
         )}
-        {q.data && q.data.courses.length > 0 && (
-          <table style={{ marginTop: 12 }}>
-            <thead><tr><th>Suggested course</th><th className="num">Score</th><th>Why</th></tr></thead>
-            <tbody>
-              {q.data.courses.map((c) => (
-                <tr key={c.course_id}><td>{c.title}</td><td className="num">{c.score.toFixed(2)}</td><td className="muted">{c.reason}</td></tr>
-              ))}
-            </tbody>
-          </table>
-        )}
+        <div className="list">
+          {q.data?.courses
+            .filter((c) => c.course_id !== nextStep?.course_id)
+            .map((c) => (
+              <div className="item" key={c.course_id}>
+                <div>
+                  <strong>{c.title}</strong> <Tag kind={diffKind(c.difficulty)}>{c.difficulty}</Tag>
+                  <span className="muted"> {c.category}</span>
+                </div>
+                <div className="muted small">{c.reason}</div>
+                <Btn onClick={() => void enroll.run(c.course_id)} pending={enroll.pending}>Enroll</Btn>
+              </div>
+            ))}
+        </div>
       </Status>
     </Panel>
   );

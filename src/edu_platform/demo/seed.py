@@ -30,6 +30,8 @@ class Course:
     title: str
     org_id: str
     skill: str
+    difficulty: str
+    category: str
     lessons: tuple[Lesson, ...]
 
 
@@ -77,6 +79,8 @@ COURSES = (
         "SQL Foundations",
         "org-acme",
         "sql",
+        "easy",
+        "database",
         (
             Lesson("l-sql-1", "Selecting rows", "v-sql-select", 240, 1),
             Lesson("l-sql-2", "Joins", "v-sql-joins", 420, 2),
@@ -88,6 +92,8 @@ COURSES = (
         "Python for Data",
         "org-acme",
         "python",
+        "easy",
+        "programming",
         (
             Lesson("l-py-1", "Functions", "v-py-func", 300, 1),
             Lesson("l-py-2", "Lists and loops", "v-py-lists", 330, 2),
@@ -99,9 +105,119 @@ COURSES = (
         "Data Engineering Basics",
         "org-acme",
         "data_engineering",
+        "medium",
+        "data engineering",
         (
             Lesson("l-de-1", "Batch versus streaming", "v-de-batch", 500, 1),
             Lesson("l-de-2", "Medallion architecture", "v-de-medallion", 450, 2),
+        ),
+    ),
+    Course(
+        "c-ml-301",
+        "ML Engineering",
+        "org-acme",
+        "machine_learning",
+        "hard",
+        "machine learning",
+        (
+            Lesson("l-ml-1", "Feature pipelines", "v-ml-feature", 420, 1),
+            Lesson("l-ml-2", "Model serving", "v-ml-serving", 380, 2),
+        ),
+    ),
+    Course(
+        "c-an-101",
+        "Product Analytics",
+        "org-acme",
+        "analytics",
+        "easy",
+        "analytics",
+        (
+            Lesson("l-an-1", "Funnels", "v-an-funnel", 360, 1),
+            Lesson("l-an-2", "Cohorts", "v-an-cohort", 320, 2),
+        ),
+    ),
+    Course(
+        "c-cl-401",
+        "Cloud Data Pipelines",
+        "org-acme",
+        "cloud",
+        "medium",
+        "cloud",
+        (
+            Lesson("l-cl-1", "Object storage", "v-cl-object", 400, 1),
+            Lesson("l-cl-2", "Orchestration", "v-cl-orchestration", 340, 2),
+        ),
+    ),
+    Course(
+        "c-ai-101",
+        "Introduction to AI",
+        "org-acme",
+        "ai",
+        "easy",
+        "artificial intelligence",
+        (
+            Lesson("l-ai-1", "What is AI", "v-ai-intro", 360, 1),
+            Lesson("l-ai-2", "Search and planning", "v-ai-search", 400, 2),
+        ),
+    ),
+    Course(
+        "c-ml-201",
+        "Machine Learning",
+        "org-acme",
+        "machine_learning",
+        "medium",
+        "machine learning",
+        (
+            Lesson("l-ml-201", "Supervised learning", "v-ml-supervised", 420, 1),
+            Lesson("l-ml-202", "Model evaluation", "v-ml-eval", 380, 2),
+        ),
+    ),
+    Course(
+        "c-dl-401",
+        "Deep Learning",
+        "org-acme",
+        "deep_learning",
+        "hard",
+        "deep learning",
+        (
+            Lesson("l-dl-1", "Neural networks", "v-dl-nn", 480, 1),
+            Lesson("l-dl-2", "Training deep networks", "v-dl-train", 460, 2),
+        ),
+    ),
+    Course(
+        "c-nlp-401",
+        "Natural Language Processing",
+        "org-acme",
+        "nlp",
+        "hard",
+        "nlp",
+        (
+            Lesson("l-nlp-1", "Tokenization", "v-nlp-token", 360, 1),
+            Lesson("l-nlp-2", "Transformers", "v-nlp-transformers", 440, 2),
+        ),
+    ),
+    Course(
+        "c-cv-401",
+        "Computer Vision",
+        "org-acme",
+        "computer_vision",
+        "hard",
+        "computer vision",
+        (
+            Lesson("l-cv-1", "Convolutions", "v-cv-conv", 420, 1),
+            Lesson("l-cv-2", "Object detection", "v-cv-detect", 400, 2),
+        ),
+    ),
+    Course(
+        "c-de-401",
+        "Streaming Data Engineering",
+        "org-acme",
+        "data_engineering",
+        "hard",
+        "data engineering",
+        (
+            Lesson("l-des-1", "Kafka streams", "v-des-kafka", 420, 1),
+            Lesson("l-des-2", "Windowing", "v-des-window", 380, 2),
         ),
     ),
 )

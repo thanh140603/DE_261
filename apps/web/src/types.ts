@@ -71,9 +71,9 @@ export interface SessionFeatures {
   current_course_id: string | null; struggle_score: number; updated_at: string;
 }
 export interface Recommendations {
-  next_step: { course_id: string; lesson_id: string; title: string; reason: string } | null;
-  courses: { course_id: string; title: string; score: number; reason: string }[];
-  features: { longterm: LongtermFeatures | null; session: SessionFeatures | null };
+  next_step: { course_id: string; title: string; difficulty: string; category: string; score: number; reason: string } | null;
+  enrolled: { course_id: string; title: string; difficulty: string; category: string; completed: boolean }[];
+  courses: { course_id: string; title: string; difficulty: string; category: string; score: number; reason: string }[];
 }
 
 export interface TestResult {

@@ -58,6 +58,10 @@ export const api = {
   learner: {
     notifications: (id: string) => get<T.Notification[]>(`/learners/${id}/notifications`),
     recommendations: (id: string) => get<T.Recommendations>(`/learners/${id}/recommendations`),
+    enroll: (learner_id: string, course_id: string) =>
+      post<{ enrolled: string[] }>(`/learners/${learner_id}/enroll`, { course_id }),
+    completeCourse: (learner_id: string, course_id: string) =>
+      post<{ completed: string[] }>(`/learners/${learner_id}/complete-course`, { course_id }),
     submissions: (id: string) => get<T.Submission[]>(`/learners/${id}/submissions`),
     submit: (learner_id: string, assignment_id: string, code: string) =>
       post<{ submission_id: string; status: string }>("/submissions", { learner_id, assignment_id, code }),
