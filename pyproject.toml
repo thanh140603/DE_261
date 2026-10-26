@@ -93,11 +93,19 @@ strict = true
 mypy_path = "src"
 packages = ["edu_platform"]
 ignore_missing_imports = true
+# FastAPI route decorators are untyped, so strict mode flags every endpoint as
+# `untyped-decorator`. Disable that one check rather than dropping strictness.
+disable_error_code = ["untyped-decorator"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["src"]
 addopts = "-ra --strict-markers"
+filterwarnings = [
+  # Domain value objects named `Test*` (TestStatus, TestCaseResult) are imported
+  # into test modules; pytest's `Test*` class pattern tries to collect them.
+  "ignore:cannot collect test class:pytest.PytestCollectionWarning",
+]
 markers = [
   "unit: fast, isolated, no I/O",
   "integration: requires docker services (kafka, redis, postgres, minio)",

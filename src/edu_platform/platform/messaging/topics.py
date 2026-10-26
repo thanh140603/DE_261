@@ -38,5 +38,3 @@ class Topic(StrEnum):
     # Content (BR8)
     CONTENT_UPDATED = "content.updated.v1"
     CONTENT_INDEXED = "content.indexed.v1"
-    # Features (BR2)
-    SESSION_FEATURES = "features.session.v1"

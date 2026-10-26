@@ -6,7 +6,7 @@ from typing import Any
 
 from edu_platform.contexts.grading.domain.model import Submission, TestCaseResult
 from edu_platform.contexts.notification.domain.model import Notification
-from edu_platform.contexts.recommendation.domain.model import LongTermFeatures, SessionFeatures
+from edu_platform.contexts.recommendation.domain.model import LongTermFeatures
 from edu_platform.contexts.telemetry.domain.events import LearningEvent
 
 
@@ -96,18 +96,4 @@ def longterm_dict(f: LongTermFeatures | None) -> dict[str, Any] | None:
         "preferred_platform": f.preferred_platform,
         "skill_mastery": f.skill_mastery,
         "computed_at": f.computed_at.isoformat(),
-    }
-
-
-def session_dict(f: SessionFeatures | None) -> dict[str, Any] | None:
-    if f is None:
-        return None
-    return {
-        "session_id": f.session_id,
-        "active_minutes": f.active_minutes,
-        "events_in_session": f.events_in_session,
-        "last_verbs": list(f.last_verbs),
-        "current_course_id": f.current_course_id,
-        "struggle_score": f.struggle_score,
-        "updated_at": f.updated_at.isoformat(),
     }

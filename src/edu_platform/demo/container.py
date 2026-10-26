@@ -66,16 +66,7 @@ from edu_platform.contexts.notification.infrastructure.in_memory import (
 from edu_platform.contexts.notification.infrastructure.yaml_rule_repository import (
     YamlRuleRepository,
 )
-from edu_platform.contexts.recommendation.application.compute_batch_features import (
-    ComputeBatchFeatures,
-)
-from edu_platform.contexts.recommendation.application.compute_session_features import (
-    ComputeSessionFeatures,
-)
 from edu_platform.contexts.recommendation.domain.next_step_policy import NextStepPolicy
-from edu_platform.contexts.recommendation.infrastructure.in_memory import (
-    InMemoryOnlineFeatureStore,
-)
 from edu_platform.contexts.risk.application.score_learner_risk import ScoreLearnerRisk
 from edu_platform.contexts.risk.domain.model import SlidingWindowPolicy
 from edu_platform.contexts.risk.domain.scoring_policy import RiskScoringPolicy
@@ -152,11 +143,12 @@ class DemoPlatform:
         )
         self.risk_alerts: list[dict[str, Any]] = []
 
-        # recommendation (BR2)
-        self.online_features = InMemoryOnlineFeatureStore()
-        self.session_features = ComputeSessionFeatures(self.online_features)
-        self.batch_features = ComputeBatchFeatures(self.online_features)
+        # recommendation (BR2: rule-based, course granularity)
         self.next_step = NextStepPolicy()
+        self.enrollments: dict[str, list[str]] = {
+            it.id: list(it.course_ids) for it in seed.LEARNERS
+        }
+        self.completed_courses: dict[str, list[str]] = {it.id: [] for it in seed.LEARNERS}
 
         # notification (BR1)
         rules = YamlRuleRepository(rules_path).all()
@@ -232,3 +224,12 @@ class DemoPlatform:
 
     def learner_by_pseudonym(self) -> dict[str, str]:
         return {self.pseudonym(it.id): it.id for it in seed.LEARNERS}
+
+    def enroll(self, learner_id: str, course_id: str) -> None:
+        enrolled = self.enrollments[learner_id]
+        if course_id not in enrolled:
+            enrolled.append(course_id)
+
+    def complete_course(self, learner_id: str, course_id: str) -> None:
+        if course_id not in self.completed_courses[learner_id]:
+            self.completed_courses[learner_id].append(course_id)

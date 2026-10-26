@@ -56,20 +56,6 @@ class LongTermFeatures(ValueObject):
 
 
 @dataclass(frozen=True)
-class SessionFeatures(ValueObject):
-    """Streaming-branch output for the learner's current session (BR2 real-time next step)."""
-
-    learner_pseudonym: str
-    session_id: str
-    active_minutes: float
-    events_in_session: int
-    last_verbs: tuple[str, ...]
-    current_course_id: str | None
-    struggle_score: float
-    updated_at: datetime
-
-
-@dataclass(frozen=True)
 class Recommendation(ValueObject):
     course_id: str
     lesson_id: str | None

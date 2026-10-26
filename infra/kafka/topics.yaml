@@ -56,7 +56,3 @@ topics:
   # --- content (BR8) ---------------------------------------------------------
   - name: content.updated.v1
   - name: content.indexed.v1
-  # --- features (BR2) --------------------------------------------------------
-  - name: features.session.v1
-    partitions: 12
-    config: { cleanup.policy: compact, retention.ms: 3600000 }

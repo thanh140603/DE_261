@@ -1,17 +1,22 @@
-"""Grading Ingestion Service (BR3) - decouples LMS submissions from sandbox workers.
+"""Grading Ingestion Service (BR3) entrypoint.
 
-Content (TODO):
-- HTTP (FastAPI) POST /submissions -> EnqueueSubmission (202 Accepted immediately).
-- Kafka consumer on grading.sandbox_result.raw.v1 -> NormalizeExecutionLog.
-- Back-pressure: bounded in-flight per worker; sandbox worker autoscaling is driven by
-  consumer lag on grading.submission_received.v1.
+Run: ``uvicorn edu_platform.entrypoints.services.grading_ingestion.app:app``
+with ``EDU_ENV=docker`` (or ``python -m edu_platform.entrypoints.services.grading_ingestion.main``).
 """
 
 from __future__ import annotations
 
+import os
+
 
 def main() -> None:
-    raise NotImplementedError  # TODO
+    import uvicorn
+
+    from edu_platform.entrypoints.services.grading_ingestion.app import build_app
+    from edu_platform.platform.config import get_settings
+
+    app = build_app(get_settings())
+    uvicorn.run(app, host="0.0.0.0", port=int(os.getenv("EDU_GRADING_PORT", "8001")))
 
 
 if __name__ == "__main__":

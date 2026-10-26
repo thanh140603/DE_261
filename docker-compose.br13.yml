@@ -1,0 +1,60 @@
+# BR1/BR3 services overlay. Merge on top of docker-compose.yml:
+#   docker compose -f docker-compose.yml -f docker-compose.br13.yml up -d --build
+# Each service reuses the demo image (Python package already installed) with a
+# different command; the web client build is shared by the `demo` service.
+
+x-br13-environment: &br13-environment
+  EDU_ENV: docker
+  EDU_PII_HMAC_SECRET: ${EDU_PII_HMAC_SECRET:-demo-secret}
+  EDU_KAFKA_BOOTSTRAP_SERVERS: kafka:29092
+  EDU_REDIS_URL: redis://redis:6379/0
+  EDU_POSTGRES_DSN: postgresql://lms:lms@postgres:5432/lms
+
+services:
+  grading-ingest:
+    build: { context: ., dockerfile: Dockerfile }
+    image: de261/demo:local
+    container_name: de261-grading-ingest
+    ports: ["${GRADING_PORT:-8001}:8001"]
+    environment:
+      <<: *br13-environment
+      EDU_GRADING_PORT: "8001"
+    command: ["python", "-m", "edu_platform.entrypoints.services.grading_ingestion.main"]
+    depends_on:
+      kafka: { condition: service_healthy }
+      redis: { condition: service_started }
+    restart: unless-stopped
+
+  grading-worker:
+    build: { context: ., dockerfile: Dockerfile }
+    image: de261/demo:local
+    container_name: de261-grading-worker
+    environment: *br13-environment
+    command: ["python", "-m", "edu_platform.entrypoints.services.grading_worker.main"]
+    depends_on:
+      kafka: { condition: service_healthy }
+      redis: { condition: service_started }
+    restart: unless-stopped
+
+  grading-normalizer:
+    build: { context: ., dockerfile: Dockerfile }
+    image: de261/demo:local
+    container_name: de261-grading-normalizer
+    environment: *br13-environment
+    command: ["python", "-m", "edu_platform.entrypoints.services.grading_normalizer.main"]
+    depends_on:
+      kafka: { condition: service_healthy }
+      redis: { condition: service_started }
+    restart: unless-stopped
+
+  notification:
+    build: { context: ., dockerfile: Dockerfile }
+    image: de261/demo:local
+    container_name: de261-notification
+    environment: *br13-environment
+    command: ["python", "-m", "edu_platform.entrypoints.services.notification_service.main"]
+    depends_on:
+      kafka: { condition: service_healthy }
+      redis: { condition: service_started }
+      postgres: { condition: service_healthy }
+    restart: unless-stopped
