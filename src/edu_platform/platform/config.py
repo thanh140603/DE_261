@@ -43,6 +43,18 @@ class SparkSettings(BaseSettings):
     warehouse_dir: str = "warehouse"
 
 
+class TrinoSettings(BaseSettings):
+    """SQL warehouse used to serve the lakehouse marts (ADR 0010). Read-only ``app`` user."""
+
+    model_config = SettingsConfigDict(env_prefix="EDU_TRINO_")
+    host: str = "localhost"
+    port: int = 8091
+    user: str = "app"
+    catalog: str = "lakehouse"
+    http_scheme: str = "http"
+    timeout_seconds: float = 15.0
+
+
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", env_prefix="EDU_", extra="ignore")
 
@@ -54,10 +66,14 @@ class Settings(BaseSettings):
     pii_hmac_secret: SecretStr = SecretStr("change-me")
     search_url: str = "http://localhost:9200"
     embedding_endpoint: str = "http://localhost:8000/embed"
+    # Structured Streaming checkpoints (MinIO bucket locally); one sub-folder per app/query.
+    stream_checkpoint_root: str = "s3a://checkpoints"
+    stream_progress_seconds: int = 30  # how often streaming apps log their last busy batch
 
     kafka: KafkaSettings = Field(default_factory=KafkaSettings)
     lakehouse: LakehouseSettings = Field(default_factory=LakehouseSettings)
     spark: SparkSettings = Field(default_factory=SparkSettings)
+    trino: TrinoSettings = Field(default_factory=TrinoSettings)
 
 
 @lru_cache(maxsize=1)

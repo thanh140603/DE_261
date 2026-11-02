@@ -61,6 +61,40 @@ screenshots and the complete demonstration runbook:**
 Use `docker compose --profile br45 stop` to preserve demonstration state.
 `down -v` deletes shared data and is not the BR4/BR5 reset command.
 
+## BR6, BR7 and BR8: lakehouse serving, content sync, live overlays
+
+```bash
+docker compose --profile br678 up -d --build    # everything; first start builds the warehouse (~5 min)
+```
+
+**What was done, measured results, defects found and the runbook:**
+[BR6/BR7/BR8 implementation document](docs/BR6_BR7_BR8_IMPLEMENTATION.md).
+
+The Admin view (BR6 organisation progress) and the Instructor video heatmap (BR7)
+and engagement trend (BR8) read the warehouse marts through Trino with scoped
+tokens. Build the warehouse first (see "Run the lakehouse warehouse"), then open
+Admin with `admin-demo` (both organisations) or `acme-admin-demo` (Acme only),
+and Instructor with `instructor-demo`. Plan and status:
+[BR6/BR7/BR8 plan](docs/BR6_BR7_BR8_PLAN.md); API contract: `docs/api.md`.
+Content sync (BR8) runs on CDC: publish a transcript version in Instructor and follow it
+until it is searchable. Start it with:
+
+```bash
+docker compose --profile br678 up -d --build opensearch content-init content-sync
+docker compose run --rm spark-jobs edu batch content-reindex   # optional full reindex (Spark)
+```
+
+Live overlays (BR7 heatmap and BR8 engagement for today, on top of the daily marts):
+
+```bash
+docker compose --profile br678 up -d telemetry-live
+docker compose exec demo edu telemetry simulate --sessions 50   # synthetic live telemetry
+```
+
+Design in [ADR 0014](docs/adr/0014-spark-streaming-telemetry-live-overlays.md).
+`content-init` uploads the transcripts, creates the OpenSearch indices and registers the
+Debezium LMS connector; design in [ADR 0013](docs/adr/0013-br8-content-sync-cdc-opensearch.md).
+
 ## Layout
 
 ```

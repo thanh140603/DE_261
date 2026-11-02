@@ -4,7 +4,7 @@ Two hops, each its own checkpointed query so raw capture never waits for transfo
 
 1. Landing (append-only, exactly-once via checkpoint + Delta transactional sink):
      telemetry.events.raw.v1   -> bronze.telemetry_raw
-     telemetry.events.dlq.v1   -> bronze.telemetry_dlq      (Flink fast-path rejections)
+     telemetry.events.dlq.v1   -> bronze.telemetry_dlq      (fast-path rejections)
      cdc.lms.*  (Debezium)     -> bronze.cdc_events
      business/pipeline topics  -> bronze.domain_events
 2. Silver (bronze Delta tables read as streams, foreachBatch): the *same* silver models the
@@ -86,7 +86,8 @@ def _landing_queries(spark: Any, settings: Settings) -> dict[str, Any]:
             "get_json_object(v, '$.payload.learner_id') AS learner_id",
             "coalesce(get_json_object(v, '$.payload'), v) AS payload",
             "get_json_object(v, '$.reason') AS reason",
-            "'flink' AS rejected_by",
+            # producer of the reject: the Spark fast path tags itself (ADR 0014)
+            "coalesce(get_json_object(v, '$.rejected_by'), 'flink') AS rejected_by",
             "kafka_timestamp AS received_at",
             "to_date(kafka_timestamp) AS ingest_date",
             landed,

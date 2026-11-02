@@ -34,9 +34,13 @@ def topic_specs(
 
 
 def create_topics_from_file(
-    path: str, bootstrap_servers: str, replication_factor: int | None = None
+    path: str,
+    bootstrap_servers: str,
+    replication_factor: int | None = None,
+    only: set[str] | None = None,
 ) -> list[str]:
-    """Create missing topics; returns the names actually created."""
+    """Create missing topics (all, or the catalogue entries named in ``only``); returns the
+    names actually created. A topic created concurrently by someone else is not an error."""
     from confluent_kafka.admin import AdminClient, NewTopic  # type: ignore[attr-defined]
 
     catalogue = yaml.safe_load(Path(path).read_text(encoding="utf-8"))
@@ -45,10 +49,18 @@ def create_topics_from_file(
     new = [
         NewTopic(s["name"], s["partitions"], s["replication_factor"], config=s["config"])
         for s in topic_specs(catalogue, replication_factor)
-        if s["name"] not in existing
+        if s["name"] not in existing and (only is None or s["name"] in only)
     ]
     if not new:
         return []
-    for future in admin.create_topics(new).values():
-        future.result()  # raises on failure
-    return [t.topic for t in new]
+    from confluent_kafka import KafkaError, KafkaException
+
+    created = []
+    for topic, future in admin.create_topics(new).items():
+        try:
+            future.result()
+            created.append(topic)
+        except KafkaException as exc:
+            if exc.args[0].code() != KafkaError.TOPIC_ALREADY_EXISTS:
+                raise
+    return created

@@ -106,4 +106,47 @@ older synthetic learner profile remains at `/api/advisor/learners/{id}/risk`.
 The legacy `api.ts` client targets those demo endpoints.
 
 ## Admin (BR6)
-- `GET /api/admin/organisations/{org_id}/progress` -> `{organisation_id, as_of, min_cohort:5, rows:[{course_id, course_title, skill, cohort_size, completion_rate|null, avg_mastery|null, suppressed:bool}]}`
+- `GET /api/admin/organisations/{org_id}/progress` -> `{organisation_id, as_of, min_cohort:5, rows:[{course_id, course_title, skill, cohort_size, completion_rate|null, avg_mastery|null, suppressed:bool}]}` (older synthetic demo contract)
+
+## Lakehouse analytics (BR6, BR7, BR8)
+
+Read from the warehouse marts (`mart.org_progress`, `mart.video_heatmap`,
+`mart.engagement_trend`) through Trino as the read-only `app` user. Bearer tokens
+come from `EDU_BR45_AUTH`, the same token file as BR4/BR5; an `admin` account
+carries `organisations:[...]`, an `instructor` account `courses:[...]`.
+Errors: 401 no/invalid token, 403 wrong role or outside scope, 404 nothing built
+yet, 422 bad `as_of`, 503 Trino unavailable. Dates are UTC calendar days;
+`built_at` is when the mart was built. Client code uses `analytics.ts`.
+
+- `GET /api/lakehouse/session` -> `{id, role, courses:[{id,title}], organisations:[{id,name}]}` (names from `gold.dim_*`)
+- `GET /api/admin/organisations/{org_id}/skill-progress?as_of=YYYY-MM-DD` (admin) ->
+  `{organisation_id, organisation_name, as_of, built_at, min_cohort, rows:[{course_id, course_title, skill, cohort_size, completion_rate|null, avg_mastery|null, completed_learners|null, suppressed}]}`.
+  Latest daily snapshot on or before `as_of`. Rates of a suppressed row (cohort < `min_cohort`) are always null.
+- `GET /api/instructor/courses/{course_id}/videos` (instructor) -> `{course_id, videos:[{content_id, title, versions:[{version, duration_sec}]}]}` (versions newest first)
+- `GET /api/instructor/videos/{content_id}/interaction-heatmap?version=` (instructor, course of the video in scope) ->
+  `{video:{content_id, version, title, course_id, duration_sec}, as_of, window_days, built_at, versions:[...], seconds:[{second, play, pause, seek, learners, intensity}]}`.
+  One row per second of that version (zeros included); newest version when `version` is omitted.
+  `&live=true` (default) adds `live:{days, updated_at, seconds:[{second, play, pause, seek, learners}]} | null`:
+  streamed events (Redis) for the days after `as_of`, newest version only, positions clamped
+  to the video length; `null` when not applicable or Redis is unavailable.
+- `GET /api/instructor/courses/{course_id}/engagement-trend?as_of=` (instructor) ->
+  `{course_id, as_of, built_at, decline_ratio, declining_count, week_starts:[date], course_avg:[number], learners:[{learner_pseudonym, scores:[number], deltas:[number|null], declining}]}` (oldest week first)
+  plus `live:{day, updated_at, scores:{pseudonym: points}, course_avg} | null` = today's
+  streamed engagement (only without `as_of`, when the mart is older than today).
+
+## Content sync (BR8)
+
+Instructor token, course-scoped (403 outside scope, 404 unknown content, 503 when PostgreSQL,
+MinIO, Redis or OpenSearch is unavailable). Publishing returns 202: the sync happens
+asynchronously through CDC (`docs/adr/0013-br8-content-sync-cdc-opensearch.md`).
+
+- `GET /api/instructor/courses/{course_id}/content` -> `{course_id, items:[ContentStatus]}`
+- `GET /api/instructor/content/{content_id}/sync-status` -> `ContentStatus` =
+  `{content_id, course_id, content_type, title, version, object_key, duration_sec, updated_at, indexed_version|null, indexed_at|null, chunk_count, cache_state:"warm"|"invalidated", in_sync}`
+  (`version` = LMS row, `indexed_version` = what search serves; `in_sync` when equal)
+- `POST /api/instructor/content/{content_id}/versions` body `{body, title?}` -> 202
+  `{...catalog row, changed, status:"pending_sync"|"unchanged"}` (identical body and title create no version)
+- `GET /api/instructor/content/{content_id}/document` -> `{content_id, course_id, title, version, body, cache:"hit"|"miss"}`
+  (read-through Redis cache; a sync invalidates it)
+- `GET /api/instructor/courses/{course_id}/search?q=&mode=hybrid|keyword&limit=10` ->
+  `{course_id, query, mode, hits:[{content_id, version, title, ordinal, section_path, snippet, score}]}` (current versions only)

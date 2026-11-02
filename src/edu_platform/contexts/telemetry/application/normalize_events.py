@@ -24,6 +24,7 @@ from edu_platform.contexts.telemetry.application.ports import (
 )
 from edu_platform.contexts.telemetry.domain.events import (
     CURRENT_SCHEMA_VERSION,
+    ClockSkewPolicy,
     LatenessPolicy,
     LearningEvent,
     Platform,
@@ -66,6 +67,7 @@ class NormalizeEvents:
         silver: SilverSink,
         dlq: DeadLetterSink,
         lateness: LatenessPolicy | None = None,
+        clock_skew: ClockSkewPolicy | None = None,
     ) -> None:
         self._validator = validator
         self._migrator = migrator
@@ -74,6 +76,7 @@ class NormalizeEvents:
         self._silver = silver
         self._dlq = dlq
         self._lateness = lateness or LatenessPolicy()
+        self._clock_skew = clock_skew or ClockSkewPolicy()
 
     def normalize_one(self, raw: RawEvent) -> LearningEvent:
         payload = dict(raw.payload)
@@ -87,7 +90,12 @@ class NormalizeEvents:
             verb = Verb(payload["verb"])
         except ValueError as exc:
             raise RejectedEvent(f"unknown verb {payload.get('verb')!r}") from exc
-        occurred_at = _parse_ts(payload["occurred_at"])
+        occurred_at, skew = self._clock_skew.correct(
+            _parse_ts(payload["occurred_at"]), raw.received_at
+        )
+        extensions = dict(payload.get("extensions") or {})
+        if skew:
+            extensions["clock_skew_sec"] = round(skew, 3)
         position = payload.get("video_position_sec")
         return LearningEvent(
             event_id=raw.event_id,
@@ -102,7 +110,7 @@ class NormalizeEvents:
             received_at=raw.received_at,
             video_position=VideoPosition(int(position)) if position is not None else None,
             is_late=self._lateness.is_late(occurred_at, raw.received_at),
-            extensions=dict(payload.get("extensions") or {}),
+            extensions=extensions,
         )
 
     def execute(self, command: NormalizeEventsCommand) -> NormalizeResult:

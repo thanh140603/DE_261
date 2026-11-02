@@ -28,6 +28,7 @@ RUN pip install --no-deps --no-build-isolation -e ".[demo]"
 COPY infra/notification ./infra/notification
 COPY infra/postgres/br45.sql ./infra/postgres/br45.sql
 COPY infra/debezium/br45-connector.json ./infra/debezium/br45-connector.json
+COPY infra/debezium/postgres-connector.json ./infra/debezium/postgres-connector.json
 COPY schemas ./schemas
 COPY docs/api.md ./docs/api.md
 COPY --from=web /web/dist ./apps/web/dist

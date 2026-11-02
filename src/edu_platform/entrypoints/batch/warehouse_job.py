@@ -16,7 +16,7 @@ Idempotent per (run_date, window): Airflow retries and backfills are safe.
 
 from __future__ import annotations
 
-from datetime import date
+from datetime import date, timedelta
 from pathlib import Path
 from typing import Any
 
@@ -115,6 +115,44 @@ def run(
     )
     for r in results:
         typer.echo(f"{r.status:8} {r.model:40} rows={r.rows_written} version={r.table_version}")
+
+
+@app.command("demo-init")
+def demo_init(
+    end_date: str = typer.Option("2026-10-17", help="Last day of synthetic activity"),
+    days: int = typer.Option(35, help="Days of synthetic activity"),
+) -> None:
+    """Idempotent demo bring-up: DDL, synthetic bronze only if bronze is empty, and a full
+    build only if the BR6 mart has no snapshot yet. Safe to rerun on every `compose up`."""
+    from edu_platform.entrypoints.batch.seed_bronze_job import Generator
+
+    runner = build_runner(get_settings(), "edu-warehouse-demo-init")
+    spark = runner.spark
+    runner.bootstrap()
+    end = date.fromisoformat(end_date)
+    gen = Generator(end, days)
+    if spark.table("bronze.telemetry_raw").limit(1).count() == 0:
+        gen.reference()
+        gen.activity()
+        for table, rows in {
+            "bronze.telemetry_raw": gen.out.telemetry,
+            "bronze.cdc_events": gen.out.cdc,
+            "bronze.domain_events": gen.out.events,
+        }.items():
+            spark.createDataFrame(rows, spark.table(table).schema).writeTo(table).append()
+        typer.echo(f"seeded bronze: {len(gen.out.telemetry)} telemetry rows")
+    else:
+        typer.echo("bronze already seeded")
+    if spark.table("mart.org_progress").limit(1).count() == 0:
+        # reference CDC rows are dated 30 days before the activity: include them (README)
+        start = gen.start.date() - timedelta(days=31)
+        results = runner.run(end, start_date=start)
+        failed = [r.model for r in results if r.status != "success"]
+        typer.echo(f"built {len(results)} models" + (f", FAILED: {failed}" if failed else ""))
+        if failed:
+            raise typer.Exit(1)
+    else:
+        typer.echo("marts already built")
 
 
 if __name__ == "__main__":

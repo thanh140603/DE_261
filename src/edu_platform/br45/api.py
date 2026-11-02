@@ -5,7 +5,7 @@ from __future__ import annotations
 import hmac
 import json
 from collections.abc import Iterator
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
 from typing import Annotated, Any, Literal, cast
 
@@ -29,6 +29,7 @@ class Principal:
     id: str
     role: str
     courses: list[str]
+    organisations: list[str] = field(default_factory=list)  # BR6 B2B admin scope
 
 
 def principal(
@@ -44,7 +45,12 @@ def principal(
         raise HTTPException(503, "Analytics authentication is not configured") from exc
     for token, account in accounts.items():
         if hmac.compare_digest(token, credentials.credentials):
-            return Principal(account["id"], account["role"], account["courses"])
+            return Principal(
+                account["id"],
+                account["role"],
+                account.get("courses", []),
+                account.get("organisations", []),
+            )
     raise HTTPException(
         401, "Invalid analytics access token", headers={"WWW-Authenticate": "Bearer"}
     )

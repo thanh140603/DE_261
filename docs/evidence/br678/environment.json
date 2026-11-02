@@ -1,0 +1,14 @@
+{
+  "measured_at": "2026-11-02T09:06:53.109215+00:00",
+  "host_platform": "macOS-26.7.1-arm64-arm-64bit",
+  "host_python": "3.11.17",
+  "host_logical_cpus": 10,
+  "docker_server": "29.5.2",
+  "docker_vm_cpus": "6",
+  "docker_vm_memory_bytes": "10403799040",
+  "spark_image": "Spark 3.5.5, Delta 3.3.2, Python 3.11, Java 17 (infra/spark/Dockerfile)",
+  "telemetry_live": "local[2], shuffle partitions 2, 1 s triggers, checkpoints s3a (MinIO)",
+  "trino": "478, single node, heap 1.2 GB (infra/trino/jvm.config)",
+  "opensearch": "2.17.1, single node, heap 512 MB",
+  "dataset": "SYNTHETIC: seed_bronze_job, demo/corpus.py, demo/live_telemetry.py"
+}

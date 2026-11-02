@@ -80,3 +80,8 @@ class ContentItem(AggregateRoot[ContentId]):
         self.record(
             ContentIndexed(aggregate_id=self.id, version=version_number, chunk_count=chunk_count)
         )
+
+
+def object_key_for(course_id: str, content_id: str, version: int, extension: str = "md") -> str:
+    """Immutable object per version: a key is never overwritten once published."""
+    return f"courses/{course_id}/{content_id}/v{version}.{extension}"

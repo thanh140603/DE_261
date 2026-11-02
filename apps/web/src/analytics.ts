@@ -24,13 +24,46 @@ export interface DropoutAlert {
   acknowledged_at: string | null; resolved_at: string | null;
 }
 export type RiskPage = Page<StudentRisk> & { summary: { monitored: number; levels: Record<string, number> } };
+
+// BR6/BR7/BR8: lakehouse marts served through Trino.
+export interface LakehouseSession extends AnalyticsSession { organisations: { id: string; name: string }[] }
+export interface SkillProgress {
+  organisation_id: string; organisation_name: string | null; as_of: string; built_at: string; min_cohort: number;
+  rows: { course_id: string; course_title: string | null; skill: string | null; cohort_size: number;
+    completion_rate: number | null; avg_mastery: number | null; completed_learners: number | null; suppressed: boolean }[];
+}
+export interface VideoEntry { content_id: string; title: string | null; versions: { version: number | null; duration_sec: number | null }[] }
+export interface VideoHeatmap {
+  video: { content_id: string; version: number | null; title: string | null; course_id: string | null; duration_sec: number | null };
+  as_of: string; window_days: number; built_at: string; versions: VideoEntry["versions"];
+  seconds: { second: number; play: number; pause: number; seek: number; learners: number; intensity: number }[];
+  live: { days: string[]; updated_at: string | null; seconds: { second: number; play: number; pause: number; seek: number; learners: number }[] } | null;
+}
+export interface EngagementTrend {
+  course_id: string; as_of: string; built_at: string; decline_ratio: number; declining_count: number;
+  week_starts: string[]; course_avg: number[];
+  learners: { learner_pseudonym: string; scores: number[]; deltas: (number | null)[]; declining: boolean }[];
+  live: { day: string; updated_at: string | null; scores: Record<string, number>; course_avg: number | null } | null;
+}
 export type Filters = Record<string, string | number | undefined>;
 
+// BR8: content sync (LMS row + versioned object -> CDC -> cache, vectors, search).
+export interface ContentStatus {
+  content_id: string; course_id: string; content_type: string; title: string; version: number; object_key: string;
+  duration_sec: number | null; updated_at: string; indexed_version: number | null; indexed_at: string | null;
+  chunk_count: number; cache_state: "warm" | "invalidated"; in_sync: boolean;
+}
+export interface ContentDocument { content_id: string; course_id: string; title: string; version: number; body: string; cache: "hit" | "miss" }
+export type PublishedVersion = Omit<ContentStatus, "indexed_version" | "indexed_at" | "chunk_count" | "cache_state" | "in_sync"> & { changed: boolean; status: "pending_sync" | "unchanged" };
+export interface SearchHit { content_id: string; version: number; title: string; ordinal: number; section_path: string[]; snippet: string; score: number }
+
 export function analyticsApi(token: string) {
-  async function request<T>(path: string, filters: Filters = {}, method = "GET"): Promise<T> {
+  async function request<T>(path: string, filters: Filters = {}, method = "GET", body?: unknown): Promise<T> {
     const query = new URLSearchParams();
     for (const [key, value] of Object.entries(filters)) if (value !== undefined && value !== "") query.set(key, String(value));
-    const response = await fetch(`/api${path}?${query}`, { method, headers: { Authorization: `Bearer ${token}` } });
+    const headers: Record<string, string> = { Authorization: `Bearer ${token}` };
+    if (body !== undefined) headers["Content-Type"] = "application/json";
+    const response = await fetch(`/api${path}?${query}`, { method, headers, body: body === undefined ? undefined : JSON.stringify(body) });
     if (!response.ok) {
       const body: { detail?: unknown } = await response.json().catch(() => ({}));
       throw new Error(typeof body.detail === "string" ? body.detail : `Request failed (${response.status}); check the filters and retry.`);
@@ -46,5 +79,14 @@ export function analyticsApi(token: string) {
     student: (student: string, filters: Filters) => request<{ student_id: string; courses: StudentRisk[] }>(`/advisor/students/${encodeURIComponent(student)}/risk`, filters),
     alerts: (filters: Filters) => request<Page<DropoutAlert>>("/advisor/alerts", filters),
     alertAction: (id: string, action: "acknowledge" | "resolve") => request<DropoutAlert>(`/advisor/alerts/${encodeURIComponent(id)}/${action}`, {}, "PATCH"),
+    lakehouseSession: () => request<LakehouseSession>("/lakehouse/session"),
+    skillProgress: (org: string, filters: Filters) => request<SkillProgress>(`/admin/organisations/${encodeURIComponent(org)}/skill-progress`, filters),
+    courseVideos: (course: string) => request<{ course_id: string; videos: VideoEntry[] }>(`/instructor/courses/${encodeURIComponent(course)}/videos`),
+    heatmap: (content: string, filters: Filters) => request<VideoHeatmap>(`/instructor/videos/${encodeURIComponent(content)}/interaction-heatmap`, filters),
+    engagementTrend: (course: string, filters: Filters) => request<EngagementTrend>(`/instructor/courses/${encodeURIComponent(course)}/engagement-trend`, filters),
+    courseContent: (course: string) => request<{ course_id: string; items: ContentStatus[] }>(`/instructor/courses/${encodeURIComponent(course)}/content`),
+    contentDocument: (content: string) => request<ContentDocument>(`/instructor/content/${encodeURIComponent(content)}/document`),
+    publishVersion: (content: string, body: string, title?: string) => request<PublishedVersion>(`/instructor/content/${encodeURIComponent(content)}/versions`, {}, "POST", { body, title: title || undefined }),
+    search: (course: string, q: string, mode: "keyword" | "hybrid") => request<{ hits: SearchHit[] }>(`/instructor/courses/${encodeURIComponent(course)}/search`, { q, mode, limit: 8 }),
   };
 }

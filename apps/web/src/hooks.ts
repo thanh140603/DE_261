@@ -87,5 +87,13 @@ export function formatDate(iso: string | null | undefined): string {
   return d.toLocaleDateString([], { month: "short", day: "numeric" });
 }
 
+/** A calendar day ("2026-10-17", warehouse dates are UTC days) without shifting it into the viewer's zone. */
+export function formatDay(day: string | null | undefined): string {
+  if (!day) return "–";
+  const d = new Date(`${day.slice(0, 10)}T00:00:00Z`);
+  if (Number.isNaN(d.getTime())) return day;
+  return d.toLocaleDateString([], { month: "short", day: "numeric", year: "numeric", timeZone: "UTC" });
+}
+
 export const pct = (v: number | null | undefined, digits = 0) =>
   v === null || v === undefined ? "–" : `${(v * 100).toFixed(digits)}%`;

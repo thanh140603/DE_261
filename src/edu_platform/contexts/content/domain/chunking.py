@@ -1,7 +1,11 @@
 """Domain service: semantic chunking of extracted text blocks.
 
 Splits on paragraph/heading boundaries first, then packs paragraphs into
-chunks under ``max_tokens`` with sentence-level overlap. Pure and deterministic.
+chunks under ``max_tokens``. Pure and deterministic.
+
+No text is ever dropped: a piece shorter than ``min_chunk_tokens`` is merged into the
+previous chunk of the same section when it fits under ``max_tokens``, and otherwise kept
+as its own chunk (a short section is still searchable; a heading is never crossed).
 """
 
 from __future__ import annotations
@@ -32,20 +36,31 @@ class SemanticChunker:
         def flush() -> None:
             nonlocal buffer, start
             body = "\n\n".join(buffer).strip()
-            if (body and _tokens(body) >= strategy.min_chunk_tokens) or (body and not chunks):
-                chunks.append(
-                    Chunk(
-                        id=f"{content_id}:v{version}:{len(chunks)}",
-                        content_id=content_id,
-                        version_number=version,
-                        ordinal=len(chunks),
-                        text=body,
-                        section_path=section,
-                        start_offset=start,
-                        end_offset=start + len(body),
-                    )
-                )
             buffer = []
+            if not body:
+                return
+            last = chunks[-1] if chunks else None
+            if (
+                last is not None
+                and _tokens(body) < strategy.min_chunk_tokens
+                and last.section_path == section
+                and _tokens(last.text) + _tokens(body) <= strategy.max_tokens
+            ):
+                last.text = f"{last.text}\n\n{body}"
+                last.end_offset = start + len(body)
+                return
+            chunks.append(
+                Chunk(
+                    id=f"{content_id}:v{version}:{len(chunks)}",
+                    content_id=content_id,
+                    version_number=version,
+                    ordinal=len(chunks),
+                    text=body,
+                    section_path=section,
+                    start_offset=start,
+                    end_offset=start + len(body),
+                )
+            )
 
         for para in re.split(r"\n\s*\n", text):
             para = para.strip()

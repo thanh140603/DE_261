@@ -46,6 +46,10 @@ code, pre, textarea.code, .mono { font-family: var(--mono); font-size: 12.5px; }
 .small { font-size: 12.5px; }
 .analytics-table { overflow-x: auto; margin-block: 12px; }
 .assessment-span { grid-column: 1 / -1; min-width: 0; }
+.stack { display: grid; gap: 24px; min-width: 0; }
+.field.checkbox { flex-direction: row; align-items: center; gap: 6px; align-self: end; min-height: 36px; }
+.field.checkbox input { width: auto; }
+.subhead { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 10px; }
 .analytics-table table { min-width: 640px; }
 .analytics-table td { overflow-wrap: anywhere; }
 .analytics-access { align-items: end; }
@@ -185,6 +189,7 @@ details > summary { cursor: pointer; }
 .heat .col i.pause { background: var(--amber); }
 .heat .col i.seek { background: var(--red); }
 .heat .col:hover { outline: 1px solid var(--ink); }
+.heat .col.clipped { box-shadow: inset 0 3px 0 var(--ink); }
 .legend { display: flex; gap: 14px; margin-top: 8px; font-size: 12.5px; color: var(--muted); }
 .legend i { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 5px; vertical-align: -1px; }
 .tip { position: absolute; top: -34px; background: var(--ink); color: #fff; padding: 3px 8px; border-radius: 4px; font-size: 12px; white-space: nowrap; pointer-events: none; }

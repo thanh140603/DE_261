@@ -73,6 +73,11 @@ class KafkaEventPublisher:
             headers=headers or {},
         )
 
+    def flush(self, timeout: float = 10.0) -> None:
+        """Block until every produced message is acknowledged (call before committing input)."""
+        if self._producer is not None and self._producer.flush(timeout) > 0:
+            raise TimeoutError("Kafka did not acknowledge every message in time")
+
     def close(self) -> None:
         if self._producer is not None:
             self._producer.flush(5)

@@ -48,7 +48,7 @@ WORKDIR /app
 # Dependencies first so source edits do not invalidate the layer above.
 COPY pyproject.toml README.md ./
 COPY src ./src
-RUN pip install -e ".[spark]"
+RUN pip install -e ".[spark,content]"
 COPY warehouse ./warehouse
 COPY schemas ./schemas
 

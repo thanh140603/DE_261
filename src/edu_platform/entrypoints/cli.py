@@ -6,6 +6,11 @@ edu warehouse run --run-date 2026-09-29 [--layer gold] [--select gold.fct_submis
 edu stream lakehouse-landing
 edu stream dropout-risk
 edu service notification
+edu service content-sync
+edu batch content-reindex
+edu content seed-corpus | ensure-index | register-cdc
+edu stream telemetry-live [--once]
+edu telemetry simulate --sessions 50
 """
 
 from __future__ import annotations
@@ -17,6 +22,7 @@ from edu_platform.entrypoints.batch import (
     seed_bronze_job,
     warehouse_job,
 )
+from edu_platform.entrypoints.services.content_sync import admin as content_admin
 from edu_platform.entrypoints.streaming import lakehouse_landing_job
 from edu_platform.platform.config import get_settings
 from edu_platform.platform.logging import configure_logging
@@ -56,6 +62,69 @@ warehouse_job.app.command("seed-bronze")(seed_bronze_job.seed_bronze)
 app.add_typer(warehouse_job.app, name="warehouse")
 stream_app.command("lakehouse-landing")(lakehouse_landing_job.main)
 batch_app.command("lakehouse-maintenance")(lakehouse_maintenance_job.main)
+
+
+@service_app.command("content-sync")
+def content_sync() -> None:
+    """BR8: CDC of course_content -> cache invalidation, chunks/vectors, search refresh."""
+    from edu_platform.entrypoints.services.content_sync.main import main
+
+    main()
+
+
+@batch_app.command("content-reindex")
+def content_reindex(
+    content_id: list[str] = typer.Option(None, help="Only these content ids (repeatable)"),
+    write_chunks: bool = typer.Option(True, help="Also write silver.content_chunks (Delta)"),
+) -> None:
+    """BR8 backfill on Spark: re-chunk, re-embed and re-index current content versions."""
+    from edu_platform.entrypoints.batch.content_chunking_embedding_job import main
+
+    main(content_id=content_id or None, write_chunks=write_chunks)
+
+
+app.add_typer(content_admin.app, name="content")
+
+
+@stream_app.command("telemetry-live")
+def telemetry_live(
+    once: bool = typer.Option(False, help="availableNow: process available data, then stop"),
+) -> None:
+    """BR6 fast path + BR7/BR8 live overlays (Spark Structured Streaming -> Kafka, Redis)."""
+    from edu_platform.entrypoints.streaming.telemetry_live_job import main
+
+    main(once=once)
+
+
+def _benchmark_app() -> typer.Typer:
+    from edu_platform.entrypoints.batch.br678_benchmark import app as benchmark
+
+    return benchmark
+
+
+app.add_typer(_benchmark_app(), name="benchmark")
+
+telemetry_app = typer.Typer(help="Telemetry producers for the live path")
+app.add_typer(telemetry_app, name="telemetry")
+
+
+@telemetry_app.command("simulate")
+def telemetry_simulate(
+    sessions: int = typer.Option(50, help="Viewing sessions to generate (~8-14 events each)"),
+    seed_value: int | None = typer.Option(None, "--seed", help="Deterministic RNG seed"),
+) -> None:
+    """Publish live synthetic telemetry (current timestamps) to telemetry.events.raw.v1."""
+    from edu_platform.demo.live_telemetry import generate
+    from edu_platform.platform.messaging.kafka_producer import KafkaEventPublisher
+    from edu_platform.platform.messaging.topics import Topic
+
+    events = generate(sessions, seed_value=seed_value)
+    publisher = KafkaEventPublisher(get_settings().kafka.bootstrap_servers, client_id="edu-sim")
+    for e in events:
+        publisher.publish_raw(Topic.TELEMETRY_RAW.value, key=e["learner_id"], payload=e)
+    publisher.flush()
+    typer.echo(f"published {len(events)} telemetry events from {sessions} sessions")
+
 
 # TODO: register the remaining modules under entrypoints/batch, streaming, services.
 
