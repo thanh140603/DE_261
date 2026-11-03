@@ -17,3 +17,5 @@ edited after acceptance - supersede with a new ADR instead.
 | 0010 | Trino + Hive Metastore as the SQL warehouse over Delta | accepted |
 | 0011 | Spark owns every Delta write; Flink publishes to Kafka / Redis | accepted |
 | 0012 | Gold = Kimball star schema with deterministic surrogate keys | accepted |
+| 0013 | BR8 content sync driven by CDC of course_content into OpenSearch | accepted |
+| 0014 | Spark Structured Streaming for the telemetry fast path and BR7/BR8 live overlays | accepted |

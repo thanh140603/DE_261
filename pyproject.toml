@@ -36,10 +36,14 @@ content = [
 ]
 service = [
   "fastapi>=0.111",
+  "trino>=0.330",
   "uvicorn[standard]>=0.30",
 ]
 demo = [
+  "boto3>=1.34",
   "fastapi>=0.111",
+  "opensearch-py>=2.6",
+  "trino>=0.330",
   "uvicorn[standard]>=0.30",
 ]
 orchestration = [
@@ -55,6 +59,8 @@ dev = [
   "pre-commit>=3.7",
   "testcontainers[kafka,redis,postgres]>=4.5",
   "httpx>=0.27",
+  "fakeredis>=2.23",
+  "moto[s3,server]>=5.0",
 ]
 
 [project.scripts]
@@ -82,6 +88,8 @@ ignore = ["RUF012", "N818"]  # N818: domain exceptions are named as concepts
 [tool.ruff.lint.per-file-ignores]
 "src/edu_platform/entrypoints/api/routers/*" = ["B008"]  # FastAPI Depends() idiom
 "src/edu_platform/entrypoints/batch/*" = ["B008"]  # typer.Option() idiom
+"src/edu_platform/entrypoints/cli.py" = ["B008"]  # typer.Option() idiom
+"src/edu_platform/entrypoints/services/*/admin.py" = ["B008"]  # typer.Option() idiom
 "src/edu_platform/demo/*" = ["E501"]  # seed data and scenario copy are long strings
 
 [tool.ruff.lint.isort]
@@ -110,6 +118,7 @@ markers = [
   "unit: fast, isolated, no I/O",
   "integration: requires docker services (kafka, redis, postgres, minio)",
   "e2e: full pipeline run against local stack",
+  "spark: local pyspark + delta-spark + JDK, no docker",
 ]
 
 [tool.coverage.run]

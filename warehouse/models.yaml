@@ -85,4 +85,6 @@ quality:
   - {name: gold_orphan_keys,              model: gold.fct_learning_event, severity: error, sql: gold_orphan_keys.sql}
   - {name: gold_unresolved_learners,      model: gold.fct_learning_event, severity: warn,  sql: gold_unresolved_learners.sql}
   - {name: mart_org_progress_k_anonymity, model: mart.org_progress,      severity: error, sql: mart_org_progress_k_anonymity.sql}
+  - {name: mart_org_progress_unresolved_dims, model: mart.org_progress, severity: warn, sql: mart_org_progress_unresolved_dims.sql}
+  - {name: mart_video_heatmap_unversioned, model: mart.video_heatmap,  severity: warn, sql: mart_video_heatmap_unversioned.sql}
   - {name: mart_rates_in_range,           model: features.learner_longterm, severity: error, sql: mart_rates_in_range.sql}

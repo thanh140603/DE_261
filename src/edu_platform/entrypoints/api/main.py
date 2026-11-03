@@ -17,14 +17,17 @@ from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
 from edu_platform.br45.api import router as analytics_router
+from edu_platform.contexts.analytics.application.ports import MartUnavailable
 from edu_platform.demo import handlers
 from edu_platform.demo.container import DemoPlatform
 from edu_platform.demo.simulator import Simulator
 from edu_platform.entrypoints.api.routers import (
     admin,
     advisor,
+    content,
     events,
     instructor,
+    lakehouse,
     learner,
     pipeline,
     reference,
@@ -63,8 +66,26 @@ def create_app() -> FastAPI:
         allow_headers=["*"],
     )
     app.include_router(analytics_router, prefix="/api")
+    app.include_router(lakehouse.router, prefix="/api")
+    app.include_router(content.router, prefix="/api")
     for router in (reference, simulate, pipeline, learner, instructor, advisor, admin, events):
         app.include_router(router.router, prefix="/api")
+
+    @app.exception_handler(content.ContentUnavailable)
+    async def _content_unavailable(_: Request, exc: content.ContentUnavailable) -> JSONResponse:
+        log.warning("content services unavailable", error=str(exc))
+        return JSONResponse(
+            {"detail": "Content services (PostgreSQL, MinIO, Redis, OpenSearch) are unavailable"},
+            status_code=503,
+        )
+
+    @app.exception_handler(MartUnavailable)
+    async def _mart_unavailable(_: Request, exc: MartUnavailable) -> JSONResponse:
+        log.warning("lakehouse query failed", error=str(exc))
+        return JSONResponse(
+            {"detail": "The lakehouse warehouse (Trino) is unavailable; retry once it is running"},
+            status_code=503,
+        )
 
     @app.exception_handler(NotFoundError)
     async def _not_found(_: Request, exc: NotFoundError) -> JSONResponse:

@@ -75,6 +75,22 @@ class LatenessPolicy(ValueObject):
 
 
 @dataclass(frozen=True)
+class ClockSkewPolicy(ValueObject):
+    """Device clocks run ahead: an event "from the future" (beyond ``max_future_skew`` of its
+    ingestion time) is pinned to its ingestion time. Keeps the activity, and keeps one skewed
+    client from advancing every event-time watermark (live overlays would drop on-time data)."""
+
+    max_future_skew: timedelta = timedelta(minutes=2)
+
+    def correct(self, occurred_at: datetime, received_at: datetime) -> tuple[datetime, float]:
+        """(event time to use, seconds removed - 0 when the clock was plausible)."""
+        skew = (occurred_at - received_at).total_seconds()
+        if skew > self.max_future_skew.total_seconds():
+            return received_at, skew
+        return occurred_at, 0.0
+
+
+@dataclass(frozen=True)
 class VideoPosition(ValueObject):
     """Playback position in whole seconds (bucket key for the BR7 heatmap)."""
 

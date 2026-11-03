@@ -16,6 +16,7 @@ import hashlib
 import time
 from dataclasses import dataclass, field
 from datetime import datetime
+from typing import Protocol
 
 from edu_platform.contexts.content.application.ports import (
     CacheInvalidator,
@@ -112,8 +113,12 @@ class PublishContentVersion:
         return result
 
 
+class _HasSteps(Protocol):
+    steps: list[SyncStep]
+
+
 class _Timed:
-    def __init__(self, result: PublishContentVersionResult, step: str) -> None:
+    def __init__(self, result: _HasSteps, step: str) -> None:
         self._result, self._step = result, step
 
     def __enter__(self) -> None:

@@ -80,3 +80,28 @@ def test_semantic_chunker_respects_headings() -> None:
     )
     assert [c.section_path for c in chunks] == [("Intro",), ("Details",)]
     assert all(c.ordinal == i for i, c in enumerate(chunks))
+
+
+def test_semantic_chunker_never_drops_text() -> None:
+    """Regression: sections shorter than min_chunk_tokens used to vanish from the index."""
+    from edu_platform.demo.corpus import TRANSCRIPTS
+
+    for content_id, text in TRANSCRIPTS.items():
+        chunks = SemanticChunker().chunk(ContentId(content_id), 1, text, ChunkingStrategy())
+        paragraphs = [p.strip() for p in text.split("\n\n") if not p.startswith("#")]
+        joined = "\n\n".join(c.text for c in chunks)
+        assert all(p in joined for p in paragraphs), content_id
+        headings = [p[2:] for p in text.split("\n\n") if p.startswith("# ")]
+        assert [c.section_path[0] for c in chunks] == headings, content_id
+
+
+def test_semantic_chunker_merges_short_pieces_within_a_section_only() -> None:
+    strategy = ChunkingStrategy(max_tokens=12, min_chunk_tokens=4)
+    text = "# A\n\n" + "one two three four five six seven eight" + "\n\ntail end\n\n# B\n\nshort"
+    chunks = SemanticChunker().chunk(ContentId("c"), 1, text, strategy)
+    # "tail end" is short and fits -> merged into A; "short" is alone in B -> kept, not merged
+    assert [(c.section_path, c.text.split()[-1]) for c in chunks] == [
+        (("A",), "end"),
+        (("B",), "short"),
+    ]
+    assert all(len(c.text.split()) <= 12 for c in chunks)

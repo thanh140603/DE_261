@@ -31,7 +31,7 @@ class AnalyticsSettings(BaseSettings):
     critical_threshold: int = Field(default=80, ge=1, le=100)
     alert_threshold: int = Field(default=60, ge=1, le=100)
     cooldown_hours: int = Field(default=72, ge=0)
-    auth: str = "{}"  # JSON token -> {id, role, courses}; no implicit anonymous access.
+    auth: str = "{}"  # JSON token -> {id, role, courses?, organisations?}; no anonymous access.
     clock_mode: Literal["wall", "manual"] = "manual"
 
     @model_validator(mode="after")

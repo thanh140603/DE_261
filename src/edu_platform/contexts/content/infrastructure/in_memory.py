@@ -30,7 +30,9 @@ class InMemoryDocumentStore:
         self._versions[object_key].append(body)
         return f"v{len(self._versions[object_key])}"
 
-    def fetch(self, object_key: str, version_id: str) -> str:
+    def fetch(self, object_key: str, version_id: str | None) -> str:
+        if version_id is None:
+            return self._versions[object_key][-1]
         return self._versions[object_key][int(version_id[1:]) - 1]
 
 
@@ -50,6 +52,18 @@ class InMemoryVectorIndex:
         ]:
             del self.chunks[k]
 
+    def prune(self, content_id: ContentId, keep_version: int) -> None:
+        for k in [
+            k
+            for k, c in self.chunks.items()
+            if c.content_id == content_id and c.version_number != keep_version
+        ]:
+            del self.chunks[k]
+
+    def delete_content(self, content_id: ContentId) -> None:
+        for k in [k for k, c in self.chunks.items() if c.content_id == content_id]:
+            del self.chunks[k]
+
     def count(self, content_id: ContentId) -> int:
         return sum(c.content_id == content_id for c in self.chunks.values())
 
@@ -64,6 +78,9 @@ class InMemorySearchIndexer:
 
     def indexed_version(self, content_id: ContentId) -> int | None:
         return self._versions.get(content_id)
+
+    def remove(self, content_id: ContentId) -> None:
+        self._versions.pop(content_id, None)
 
 
 class InMemoryCacheInvalidator:

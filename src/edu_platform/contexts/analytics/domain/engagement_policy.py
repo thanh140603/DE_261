@@ -15,6 +15,12 @@ _VERB_TO_WEIGHT = {
 }
 
 
+def verb_weights(weights: EngagementWeights) -> dict[str, float]:
+    """Engagement points per learning verb (verbs not listed score 0). Shared by the policy,
+    the warehouse (gold.dim_activity mirrors it) and the live BR8 stream."""
+    return {verb: float(getattr(weights, attr)) for verb, attr in _VERB_TO_WEIGHT.items()}
+
+
 DEFAULT_DECLINE_RATIO = 0.30
 
 

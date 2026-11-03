@@ -15,7 +15,7 @@ topics:
     config: { retention.ms: 259200000 }  # 3 days, bronze is the durable copy
   - name: telemetry.events.dlq.v1
     partitions: 3
-  - name: telemetry.learning_events.v1  # Flink-normalised, pseudonymised; key = learner pseudonym
+  - name: telemetry.learning_events.v1  # normalised by telemetry-live (ADR 0014); key = pseudonym
     partitions: 24
     config: { retention.ms: 86400000 }
   # --- CDC (created by Debezium; declared here for ACLs/retention) -----------

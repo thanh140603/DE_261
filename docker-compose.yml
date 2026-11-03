@@ -24,7 +24,9 @@
 #   docker compose --profile pipelines up -d      # Kafka -> bronze -> silver streaming landing
 #
 # Other BRs retain the in-process demo (ADR 0008). The opt-in br45 profile runs
-# real CDC, persistent marts and Spark windows (ADR 0009). Set DEMO_PORT for :8000.
+# real CDC, persistent marts and Spark windows (ADR 0009). BR6/BR7/BR8 Admin and Instructor
+# views read the lakehouse marts through Trino (see the warehouse commands above).
+# Set DEMO_PORT for :8000.
 name: de261
 
 x-br45-environment: &br45-environment
@@ -68,10 +70,14 @@ services:
       EDU_POSTGRES_DSN: postgresql://lms:lms@postgres:5432/lms
       EDU_BR45_DSN: postgresql://lms:lms@postgres:5432/lms
       # Public local demonstration tokens only. Set EDU_BR45_AUTH for any shared deployment.
-      EDU_BR45_AUTH: '${EDU_BR45_AUTH:-{"instructor-demo":{"id":"instructor-local","role":"instructor","courses":["c-py-201","c-sql-101","c-de-301"]},"advisor-demo":{"id":"advisor-local","role":"advisor","courses":["c-py-201"]},"learner-demo":{"id":"br45-demo-at-risk","role":"learner","courses":["c-py-201"]}}}'
+      EDU_BR45_AUTH: '${EDU_BR45_AUTH:-{"instructor-demo":{"id":"instructor-local","role":"instructor","courses":["c-py-201","c-sql-101","c-de-301"]},"advisor-demo":{"id":"advisor-local","role":"advisor","courses":["c-py-201"]},"learner-demo":{"id":"br45-demo-at-risk","role":"learner","courses":["c-py-201"]},"admin-demo":{"id":"admin-local","role":"admin","organisations":["org-acme","org-globex"]},"acme-admin-demo":{"id":"acme-admin-local","role":"admin","organisations":["org-acme"]}}}'
       EDU_S3_ENDPOINT: http://minio:9000
       EDU_S3_ACCESS_KEY: minioadmin
       EDU_S3_SECRET_KEY: minioadmin
+      # BR6/BR7/BR8 marts are read through Trino as the read-only `app` user (ADR 0010).
+      EDU_TRINO_HOST: trino
+      EDU_TRINO_PORT: "8080"
+      EDU_SEARCH_URL: http://opensearch:9200
     depends_on:
       kafka:
         condition: service_healthy
@@ -195,7 +201,6 @@ services:
     build: &minio-build
       context: ./infra/minio
     image: de261/minio:local
-    pull_policy: build
     container_name: de261-minio
     ports: ["9000:9000", "9001:9001"]
     command: server /data --console-address ":9001"
@@ -213,7 +218,6 @@ services:
   minio-init:
     build: *minio-build
     image: de261/minio:local
-    pull_policy: build
     container_name: de261-minio-init
     depends_on:
       minio:
@@ -277,6 +281,8 @@ services:
       - ./infra/trino/catalog/lakehouse.properties:/etc/trino/catalog/lakehouse.properties:ro
       - ./infra/trino/access-control.properties:/etc/trino/access-control.properties:ro
       - ./infra/trino/rules.json:/etc/trino/rules.json:ro
+      - ./infra/trino/jvm.config:/etc/trino/jvm.config:ro
+      - ./infra/trino/config.properties:/etc/trino/config.properties:ro
     depends_on:
       hive-metastore:
         condition: service_healthy
@@ -286,6 +292,7 @@ services:
       timeout: 10s
       retries: 30
       start_period: 30s
+    restart: unless-stopped
 
   # --- processing engines ---------------------------------------------------------------------
   flink-jobmanager:
@@ -349,6 +356,8 @@ services:
       EDU_S3_SECRET_KEY: minioadmin
       EDU_KAFKA_BOOTSTRAP_SERVERS: kafka:29092
       EDU_PII_HMAC_SECRET: ${EDU_PII_HMAC_SECRET:-demo-secret}
+      EDU_REDIS_URL: redis://redis:6379/0           # content-reindex (BR8)
+      EDU_SEARCH_URL: http://opensearch:9200
     volumes:
       - ./warehouse:/app/warehouse:ro
       - ./infra/kafka:/app/infra/kafka:ro
@@ -422,8 +431,111 @@ services:
         condition: service_completed_successfully
     restart: on-failure:5
 
-  # TODO: opensearch (content search/vector index), airflow (webserver + scheduler running
-  #       orchestration/airflow/dags), prometheus/grafana for consumer-lag and checkpoint metrics.
+  # --- BR6 / BR7 / BR8 (opt-in: --profile br678) ------------------------------------------------
+  # docker compose --profile br678 up -d --build     # everything, incl. warehouse + content + live
+  br678-init:
+    # Idempotent: DDL, synthetic bronze (if empty), full warehouse build (if marts missing).
+    image: de261/spark:local
+    profiles: ["br678"]
+    environment: *lakehouse-env
+    volumes:
+      - ./warehouse:/app/warehouse:ro
+    depends_on:
+      hive-metastore:
+        condition: service_healthy
+    command: ["edu", "warehouse", "demo-init"]
+    healthcheck:
+      disable: true
+
+  opensearch:
+    image: opensearchproject/opensearch:2.17.1
+    container_name: de261-opensearch
+    profiles: ["br678"]
+    ports: ["9200:9200"]
+    environment:
+      discovery.type: single-node
+      DISABLE_SECURITY_PLUGIN: "true"          # local only; enable TLS + auth in any shared env
+      DISABLE_INSTALL_DEMO_CONFIG: "true"
+      OPENSEARCH_JAVA_OPTS: -Xms512m -Xmx512m
+    volumes:
+      - opensearch-data:/usr/share/opensearch/data
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://localhost:9200/_cluster/health >/dev/null"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 30s
+
+  content-init:
+    # Idempotent: corpus objects first, so the connector snapshot never references a missing one.
+    profiles: ["br678"]
+    image: de261/demo:local
+    environment: &content-env
+      EDU_ENV: docker
+      EDU_POSTGRES_DSN: postgresql://lms:lms@postgres:5432/lms
+      EDU_REDIS_URL: redis://redis:6379/0
+      EDU_SEARCH_URL: http://opensearch:9200
+      EDU_S3_ENDPOINT: http://minio:9000
+      EDU_S3_ACCESS_KEY: minioadmin
+      EDU_S3_SECRET_KEY: minioadmin
+      EDU_KAFKA_BOOTSTRAP_SERVERS: kafka:29092
+    depends_on:
+      postgres:
+        condition: service_healthy
+      minio-init:
+        condition: service_completed_successfully
+      opensearch:
+        condition: service_healthy
+      connect:
+        condition: service_healthy
+    command: ["sh", "-c", "edu content seed-corpus && edu content ensure-index && edu content register-cdc --connect-url http://connect:8083"]
+    healthcheck:
+      disable: true
+
+  content-sync:
+    # CDC of course_content -> Redis cache invalidation, chunks/vectors + search in OpenSearch.
+    profiles: ["br678"]
+    image: de261/demo:local
+    container_name: de261-content-sync
+    environment: *content-env
+    depends_on:
+      content-init:
+        condition: service_completed_successfully
+      kafka:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    command: ["edu", "service", "content-sync"]
+    healthcheck:
+      disable: true
+    restart: unless-stopped
+
+  telemetry-live:
+    # BR6 fast path + BR7/BR8 live overlays: raw telemetry -> normalised topic / DLQ ->
+    # per-second heatmap and daily engagement in Redis (ADR 0014). Checkpoints in MinIO.
+    #   docker compose run --rm demo edu telemetry simulate --sessions 50   # live events
+    image: de261/spark:local
+    container_name: de261-telemetry-live
+    profiles: ["br678"]
+    environment:
+      <<: *lakehouse-env
+      EDU_SPARK_MASTER: local[2]
+      EDU_STREAM_CHECKPOINT_ROOT: s3a://checkpoints
+      EDU_SPARK_SHUFFLE_PARTITIONS: "2"        # small stateful aggregations: fewer, faster tasks
+    volumes:
+      - ./infra/kafka:/app/infra/kafka:ro      # topic catalogue (created on start)
+    depends_on:
+      kafka:
+        condition: service_healthy
+      redis:
+        condition: service_started
+      hive-metastore:
+        condition: service_healthy
+    command: ["edu", "stream", "telemetry-live"]
+    restart: unless-stopped
+
+  # TODO: airflow (webserver + scheduler running orchestration/airflow/dags),
+  #       prometheus/grafana for consumer-lag and checkpoint metrics.
 
 volumes:
   postgres-data:
@@ -431,3 +543,4 @@ volumes:
   minio-data:
   metastore-db-data:
   br45-checkpoints:
+  opensearch-data:
