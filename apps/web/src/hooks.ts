@@ -97,3 +97,39 @@ export function formatDay(day: string | null | undefined): string {
 
 export const pct = (v: number | null | undefined, digits = 0) =>
   v === null || v === undefined ? "–" : `${(v * 100).toFixed(digits)}%`;
+
+/** State that survives navigation and reloads within the browser tab. */
+export function usePersisted(key: string, initial: string): [string, (v: string) => void] {
+  const [value, setValue] = useState<string>(() => {
+    try { return sessionStorage.getItem(key) ?? initial; } catch { return initial; }
+  });
+  const set = useCallback((v: string) => {
+    setValue(v);
+    try { sessionStorage.setItem(key, v); } catch { /* private mode */ }
+  }, [key]);
+  return [value, set];
+}
+
+/** "just now", "4 min ago", "3 h ago", or a date for anything older than a day. */
+export function relTime(iso: string | null | undefined, now = Date.now()): string {
+  if (!iso) return "–";
+  const t = new Date(iso).getTime();
+  if (Number.isNaN(t)) return iso;
+  const s = Math.round((now - t) / 1000);
+  if (s < 45) return "just now";
+  if (s < 3600) return `${Math.round(s / 60)} min ago`;
+  if (s < 86400) return `${Math.round(s / 3600)} h ago`;
+  return new Date(iso).toLocaleDateString([], { month: "short", day: "numeric" });
+}
+
+export const fmtNum = (n: number | null | undefined) => (n === null || n === undefined ? "–" : n.toLocaleString());
+
+export function initials(name: string): string {
+  const parts = name.replace(/[-_.]/g, " ").trim().split(/\s+/).filter(Boolean);
+  return ((parts[0]?.[0] ?? "?") + (parts.length > 1 ? parts[parts.length - 1][0] : parts[0]?.[1] ?? "")).toUpperCase();
+}
+
+/** "data_engineering" -> "Data engineering" */
+const ACRONYMS: Record<string, string> = { sql: "SQL", nlp: "NLP", ai: "AI" };
+export const humanize = (id: string | null | undefined) =>
+  !id ? "–" : ACRONYMS[id] ?? id[0].toUpperCase() + id.slice(1).replaceAll("_", " ");

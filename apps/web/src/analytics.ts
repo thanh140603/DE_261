@@ -68,6 +68,10 @@ export function analyticsApi(token: string) {
       const body: { detail?: unknown } = await response.json().catch(() => ({}));
       throw new Error(typeof body.detail === "string" ? body.detail : `Request failed (${response.status}); check the filters and retry.`);
     }
+    if (!(response.headers.get("content-type") ?? "").includes("json")) {
+      // an older server answers unknown API paths with the web app itself
+      throw new Error("This server does not provide this report yet. Rebuild and restart the demo service to get the latest API.");
+    }
     return response.json() as Promise<T>;
   }
   return {

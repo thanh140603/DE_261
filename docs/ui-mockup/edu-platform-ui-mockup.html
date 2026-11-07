@@ -1,0 +1,1852 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>EduPlatform UI Mockup</title>
+<meta name="description" content="Clickable UI mockup for the DE_261 education data platform: Learner, Instructor, Advisor, Org admin and Data platform workspaces (BR1-BR8).">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+/* ===== Design tokens ===================================================== */
+:root {
+  color-scheme: light;
+  --bg: #f3f5f7; --surface: #ffffff; --surface-2: #f8f9fb; --surface-3: #eef1f4;
+  --ink: #141b24; --ink-2: #465161; --muted: #687282; --border: #e2e6eb; --border-strong: #cbd2da;
+  --brand: #1f7a5a; --brand-hover: #196a4d; --brand-soft: #e2f1ea; --brand-ink: #145c43;
+  --focus: #2a78d6; --band: rgba(16, 24, 40, .045);
+  /* charts (validated reference palette: categorical slots 1-4, blue sequential ramp) */
+  --chart-surface: #ffffff; --grid: #eceef1; --axis: #c3c8cf; --tick: #6f7885; --ref: #8f98a3;
+  --s1: #2a78d6; --s1-wash: rgba(42, 120, 214, .10); --s2: #eb6834; --s3: #1baf7a; --s4: #eda100; --s-dim: #9ec5f4;
+  --h0: #eef3f9; --h1: #cde2fb; --h2: #9ec5f4; --h3: #6da7ec; --h4: #3987e5; --h5: #256abf; --h6: #184f95;
+  --meter-track: #e3edfa;
+  /* status (reserved; always paired with an icon + label) */
+  --good: #0ca30c; --warning: #fab219; --serious: #ec835a; --critical: #d03b3b;
+  --good-bg: #e7f5e7; --good-ink: #17641a; --warn-bg: #fdf3d8; --warn-ink: #6e4a00;
+  --serious-bg: #fdece4; --serious-ink: #8a3a16; --crit-bg: #fbe8e8; --crit-ink: #98221f;
+  --info-bg: #e7effa; --info-ink: #1c5cab; --neutral-bg: #eef1f4; --neutral-ink: #4b5563;
+  --code-bg: #0f151c; --code-ink: #dbe3ec; --code-muted: #5f6d7e;
+  --shadow-sm: 0 1px 2px rgba(16, 24, 40, .05);
+  --shadow-lg: 0 16px 48px rgba(16, 24, 40, .18);
+  --r: 12px; --r-sm: 8px;
+  --font: "Manrope", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --mono: ui-monospace, "SF Mono", "Cascadia Code", Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --bg: #0d1015; --surface: #151a21; --surface-2: #1a2028; --surface-3: #212833;
+    --ink: #e8ecf1; --ink-2: #b6bfca; --muted: #8b95a2; --border: #262d37; --border-strong: #37414e;
+    --brand: #23855e; --brand-hover: #2a9a6d; --brand-soft: #142c25; --brand-ink: #7fd3b0;
+    --focus: #5598e7; --band: rgba(255, 255, 255, .04);
+    --chart-surface: #151a21; --grid: #242b35; --axis: #3a434f; --tick: #8b95a2; --ref: #6b7584;
+    --s1: #3987e5; --s1-wash: rgba(57, 135, 229, .16); --s2: #d95926; --s3: #199e70; --s4: #c98500; --s-dim: #1f4f87;
+    --h0: #1b212a; --h1: #142b4b; --h2: #184f95; --h3: #1f63b5; --h4: #2f7ad8; --h5: #5598e7; --h6: #9ec5f4;
+    --meter-track: #1a2a40;
+    --good-bg: rgba(12, 163, 12, .15); --good-ink: #74d474; --warn-bg: rgba(250, 178, 25, .15); --warn-ink: #f4c766;
+    --serious-bg: rgba(236, 131, 90, .16); --serious-ink: #f3a787; --crit-bg: rgba(208, 59, 59, .2); --crit-ink: #f29090;
+    --info-bg: rgba(57, 135, 229, .17); --info-ink: #93c0f3; --neutral-bg: #232a35; --neutral-ink: #b6bfca;
+    --code-bg: #0a0e13;
+    --shadow-sm: 0 1px 2px rgba(0, 0, 0, .3);
+    --shadow-lg: 0 16px 48px rgba(0, 0, 0, .55);
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: #0d1015; --surface: #151a21; --surface-2: #1a2028; --surface-3: #212833;
+  --ink: #e8ecf1; --ink-2: #b6bfca; --muted: #8b95a2; --border: #262d37; --border-strong: #37414e;
+  --brand: #23855e; --brand-hover: #2a9a6d; --brand-soft: #142c25; --brand-ink: #7fd3b0;
+  --focus: #5598e7; --band: rgba(255, 255, 255, .04);
+  --chart-surface: #151a21; --grid: #242b35; --axis: #3a434f; --tick: #8b95a2; --ref: #6b7584;
+  --s1: #3987e5; --s1-wash: rgba(57, 135, 229, .16); --s2: #d95926; --s3: #199e70; --s4: #c98500; --s-dim: #1f4f87;
+  --h0: #1b212a; --h1: #142b4b; --h2: #184f95; --h3: #1f63b5; --h4: #2f7ad8; --h5: #5598e7; --h6: #9ec5f4;
+  --meter-track: #1a2a40;
+  --good-bg: rgba(12, 163, 12, .15); --good-ink: #74d474; --warn-bg: rgba(250, 178, 25, .15); --warn-ink: #f4c766;
+  --serious-bg: rgba(236, 131, 90, .16); --serious-ink: #f3a787; --crit-bg: rgba(208, 59, 59, .2); --crit-ink: #f29090;
+  --info-bg: rgba(57, 135, 229, .17); --info-ink: #93c0f3; --neutral-bg: #232a35; --neutral-ink: #b6bfca;
+  --code-bg: #0a0e13;
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, .3);
+  --shadow-lg: 0 16px 48px rgba(0, 0, 0, .55);
+}
+
+/* ===== Base ============================================================== */
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+html, body { margin: 0; }
+body {
+  background: var(--bg); color: var(--ink); font-family: var(--font);
+  font-size: 14px; line-height: 1.5; -webkit-font-smoothing: antialiased;
+}
+h1, h2, h3, h4, p { margin: 0; }
+button, input, select, textarea { font: inherit; color: inherit; }
+a { color: var(--brand-ink); }
+:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.icon { width: 16px; height: 16px; flex: none; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.num { font-variant-numeric: tabular-nums; }
+.mono { font-family: var(--mono); font-size: 12.5px; }
+.muted { color: var(--muted); }
+.small { font-size: 12.5px; }
+.xs { font-size: 11.5px; }
+.strong { font-weight: 700; }
+.sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
+@media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition: none !important; } }
+
+/* ===== App shell ========================================================= */
+.app { display: grid; grid-template-columns: 256px minmax(0, 1fr); min-height: 100vh; }
+.sidebar {
+  position: sticky; top: 0; height: 100vh; overflow-y: auto;
+  background: var(--surface); border-right: 1px solid var(--border);
+  display: flex; flex-direction: column; padding: 16px 12px;
+}
+.brand { display: flex; align-items: center; gap: 10px; padding: 4px 8px 12px; font-weight: 800; font-size: 16px; letter-spacing: -.01em; }
+.brand-mark { width: 32px; height: 32px; border-radius: 9px; background: var(--brand); display: grid; place-items: center; color: #fff; }
+.brand-mark .icon { width: 18px; height: 18px; }
+.brand small { display: block; font-size: 11px; font-weight: 600; color: var(--muted); letter-spacing: 0; }
+.nav-label { font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); padding: 14px 10px 6px; }
+.nav-list { display: grid; gap: 2px; }
+.nav-btn {
+  display: flex; align-items: center; gap: 10px; width: 100%; padding: 8px 10px;
+  border: 0; background: none; border-radius: 8px; cursor: pointer; text-align: left;
+  color: var(--ink-2); font-weight: 600; font-size: 13.5px;
+}
+.nav-btn:hover { background: var(--surface-3); color: var(--ink); }
+.nav-btn[aria-current="true"] { background: var(--brand-soft); color: var(--brand-ink); }
+.nav-btn .who { display: block; font-size: 11.5px; font-weight: 500; color: var(--muted); }
+.nav-btn .grow { flex: 1; min-width: 0; }
+.ws-ico { width: 30px; height: 30px; border-radius: 8px; display: grid; place-items: center; background: var(--surface-3); color: var(--ink-2); flex: none; }
+.nav-btn[aria-current="true"] .ws-ico { background: var(--brand); color: #fff; }
+.sidebar-foot { margin-top: auto; padding: 12px 10px 4px; border-top: 1px solid var(--border); display: grid; gap: 10px; }
+.switch { display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 12.5px; font-weight: 600; color: var(--ink-2); cursor: pointer; }
+.switch input { appearance: none; width: 32px; height: 18px; border-radius: 999px; background: var(--border-strong); position: relative; cursor: pointer; transition: background .15s; margin: 0; flex: none; }
+.switch input::after { content: ""; position: absolute; top: 2px; left: 2px; width: 14px; height: 14px; border-radius: 50%; background: #fff; transition: transform .15s; box-shadow: 0 1px 2px rgba(0,0,0,.2); }
+.switch input:checked { background: var(--brand); }
+.switch input:checked::after { transform: translateX(14px); }
+
+.main-col { min-width: 0; display: flex; flex-direction: column; }
+.topbar {
+  position: sticky; top: 0; z-index: 40; display: flex; align-items: center; gap: 12px;
+  height: 60px; padding: 0 28px; background: var(--bg);
+  background: color-mix(in srgb, var(--bg) 88%, transparent); backdrop-filter: blur(10px);
+  border-bottom: 1px solid var(--border);
+}
+.crumbs { display: flex; align-items: center; gap: 6px; font-size: 13px; color: var(--muted); font-weight: 600; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.crumbs b { color: var(--ink); }
+.top-tools { margin-left: auto; display: flex; align-items: center; gap: 8px; }
+.search { position: relative; }
+.search .icon { position: absolute; left: 10px; top: 9px; color: var(--muted); }
+.search input { height: 34px; width: 260px; border-radius: 8px; border: 1px solid var(--border-strong); background: var(--surface); padding: 0 44px 0 32px; font-size: 13px; }
+.search kbd { position: absolute; right: 8px; top: 7px; font-family: var(--font); font-size: 11px; color: var(--muted); border: 1px solid var(--border); border-radius: 4px; padding: 0 5px; background: var(--surface-2); }
+.live { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: var(--muted); font-weight: 600; padding: 0 8px; white-space: nowrap; }
+.live i { width: 8px; height: 8px; border-radius: 50%; background: var(--good); box-shadow: 0 0 0 3px var(--good-bg); }
+.icon-btn { position: relative; width: 34px; height: 34px; border-radius: 8px; border: 1px solid var(--border-strong); background: var(--surface); display: grid; place-items: center; cursor: pointer; color: var(--ink-2); }
+.icon-btn:hover { background: var(--surface-3); color: var(--ink); }
+.icon-btn .count { position: absolute; top: -5px; right: -5px; min-width: 17px; height: 17px; border-radius: 999px; background: var(--critical); color: #fff; font-size: 10.5px; font-weight: 800; display: grid; place-items: center; padding: 0 4px; border: 2px solid var(--bg); }
+.avatar { width: 34px; height: 34px; border-radius: 50%; display: grid; place-items: center; background: var(--brand-soft); color: var(--brand-ink); font-weight: 800; font-size: 12px; flex: none; }
+.avatar.sm { width: 28px; height: 28px; font-size: 11px; }
+.popover { position: absolute; right: 0; top: 44px; width: 360px; max-width: calc(100vw - 32px); background: var(--surface); border: 1px solid var(--border); border-radius: var(--r); box-shadow: var(--shadow-lg); padding: 6px 16px 12px; z-index: 60; text-align: left; cursor: default; color: var(--ink); }
+.popover h3 { font-size: 13px; padding: 10px 0 4px; }
+
+main { width: 100%; max-width: 1380px; margin: 0 auto; padding: 24px 28px 56px; }
+
+/* ===== Page scaffolding =================================================== */
+.page-head { display: flex; justify-content: space-between; align-items: flex-end; gap: 16px; margin-bottom: 20px; flex-wrap: wrap; }
+.eyebrow { font-size: 12px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: .06em; margin-bottom: 4px; display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+.page-head h1 { font-size: 26px; font-weight: 800; letter-spacing: -.02em; line-height: 1.2; }
+.lede { color: var(--ink-2); margin-top: 6px; max-width: 72ch; }
+.head-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+
+.grid-2-1 { display: grid; grid-template-columns: minmax(0, 1.75fr) minmax(0, 1fr); gap: 16px; align-items: start; }
+.grid-1-1 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; align-items: start; }
+.grid-3-2 { display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr); gap: 16px; align-items: start; }
+.stack { display: grid; gap: 16px; min-width: 0; align-content: start; }
+.sticky { position: sticky; top: 76px; }
+@media (max-width: 1180px) {
+  .grid-2-1, .grid-1-1, .grid-3-2 { grid-template-columns: minmax(0, 1fr); }
+  .sticky { position: static; }
+}
+
+.card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r); box-shadow: var(--shadow-sm); padding: 20px; min-width: 0; }
+.card-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin-bottom: 14px; flex-wrap: wrap; }
+.card-title { font-size: 15px; font-weight: 700; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.card-sub { color: var(--muted); font-size: 12.5px; margin-top: 2px; max-width: 70ch; }
+.card-foot { margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--border); color: var(--muted); font-size: 12.5px; display: flex; gap: 8px; align-items: flex-start; }
+.card-foot .icon { margin-top: 2px; }
+.br { font-size: 10.5px; font-weight: 800; letter-spacing: .04em; color: var(--info-ink); background: var(--info-bg); padding: 1px 6px; border-radius: 4px; line-height: 16px; }
+.hide-br .br { display: none; }
+.divider { height: 1px; background: var(--border); margin: 16px 0; }
+
+/* controls */
+.btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; height: 34px; padding: 0 12px; border-radius: 8px; border: 1px solid var(--border-strong); background: var(--surface); font-weight: 700; cursor: pointer; white-space: nowrap; font-size: 13px; color: var(--ink); text-decoration: none; }
+.btn:hover { background: var(--surface-3); }
+.btn.primary { background: var(--brand); border-color: var(--brand); color: #fff; }
+.btn.primary:hover { background: var(--brand-hover); border-color: var(--brand-hover); }
+.btn.ghost { border-color: transparent; background: none; color: var(--ink-2); }
+.btn.ghost:hover { background: var(--surface-3); color: var(--ink); }
+.btn.sm { height: 28px; padding: 0 10px; font-size: 12.5px; }
+.btn:disabled { opacity: .5; cursor: not-allowed; }
+.filters { display: flex; flex-wrap: wrap; gap: 12px; align-items: flex-end; margin-bottom: 16px; }
+.field { display: flex; flex-direction: column; gap: 4px; font-size: 12px; font-weight: 700; color: var(--muted); min-width: 0; }
+.select, .input, .textarea { height: 34px; border: 1px solid var(--border-strong); border-radius: 8px; background: var(--surface); padding: 0 10px; color: var(--ink); font-weight: 500; font-size: 13px; min-width: 0; max-width: 100%; }
+.textarea { height: auto; padding: 10px; line-height: 1.55; resize: vertical; width: 100%; }
+.input.full { width: 100%; }
+.seg { display: inline-flex; padding: 3px; border-radius: 9px; background: var(--surface-3); gap: 2px; flex-wrap: wrap; }
+.seg button { border: 0; background: none; padding: 5px 10px; border-radius: 7px; font-size: 12.5px; font-weight: 700; color: var(--ink-2); cursor: pointer; }
+.seg button[aria-pressed="true"] { background: var(--surface); color: var(--ink); box-shadow: var(--shadow-sm); }
+.inline-toggle { height: 34px; display: inline-flex; align-items: center; }
+
+/* badges, chips */
+.badge { display: inline-flex; align-items: center; gap: 4px; padding: 1px 8px 1px 6px; border-radius: 999px; font-size: 11.5px; font-weight: 700; white-space: nowrap; line-height: 20px; }
+.badge .icon { width: 12px; height: 12px; stroke-width: 2.6; }
+.b-good { background: var(--good-bg); color: var(--good-ink); }
+.b-warn { background: var(--warn-bg); color: var(--warn-ink); }
+.b-serious { background: var(--serious-bg); color: var(--serious-ink); }
+.b-crit { background: var(--crit-bg); color: var(--crit-ink); }
+.b-info { background: var(--info-bg); color: var(--info-ink); }
+.b-neutral { background: var(--neutral-bg); color: var(--neutral-ink); }
+.chip { display: inline-flex; align-items: center; gap: 4px; padding: 1px 8px; border-radius: 6px; background: var(--surface-3); color: var(--ink-2); font-size: 12px; font-weight: 600; white-space: nowrap; line-height: 20px; }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.callout { display: flex; gap: 10px; align-items: flex-start; padding: 12px 14px; border-radius: 10px; font-size: 13px; }
+.callout .icon { margin-top: 2px; }
+.callout.info { background: var(--info-bg); color: var(--ink); }
+.callout.info > .icon { color: var(--info-ink); }
+.callout.warn { background: var(--warn-bg); color: var(--ink); }
+.callout.warn > .icon { color: var(--warn-ink); }
+.callout.good { background: var(--good-bg); color: var(--ink); }
+.callout.good > .icon { color: var(--good-ink); }
+.callout.neutral { background: var(--surface-2); border: 1px solid var(--border); }
+
+/* stat tiles */
+.tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; margin-bottom: 16px; }
+.tile { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r); padding: 14px 16px; box-shadow: var(--shadow-sm); min-width: 0; }
+.tile.wide { grid-column: span 2; }
+@media (max-width: 760px) { .tile.wide { grid-column: auto; } }
+.tile-label { font-size: 12.5px; color: var(--muted); font-weight: 600; }
+.tile-value { font-size: 26px; font-weight: 700; letter-spacing: -.02em; margin-top: 2px; line-height: 1.25; }
+.tile-value small { font-size: 14px; color: var(--muted); font-weight: 600; letter-spacing: 0; }
+.tile-delta { font-size: 12px; color: var(--muted); margin-top: 2px; display: flex; align-items: center; gap: 4px; flex-wrap: wrap; }
+.delta-good { color: var(--good-ink); font-weight: 700; }
+.delta-bad { color: var(--crit-ink); font-weight: 700; }
+
+/* tables */
+.table-wrap { overflow-x: auto; margin: 0 -20px; padding: 0 20px; }
+table.t { width: 100%; border-collapse: collapse; font-size: 13px; }
+.t th { text-align: left; font-size: 11px; font-weight: 800; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; padding: 8px 10px; border-bottom: 1px solid var(--border); white-space: nowrap; }
+.t td { padding: 10px; border-bottom: 1px solid var(--border); vertical-align: middle; }
+.t tbody tr:last-child td { border-bottom: 0; }
+.t .r { text-align: right; }
+.t tr.clickable { cursor: pointer; }
+.t tr.clickable:hover td { background: var(--surface-2); }
+.t tr[aria-selected="true"] td { background: var(--brand-soft); }
+.t tr[aria-selected="true"] td:first-child { box-shadow: inset 3px 0 0 var(--brand); }
+.t .title-cell { font-weight: 700; }
+.t .sub { display: block; font-size: 12px; color: var(--muted); font-weight: 500; }
+
+/* meters & bars */
+.meter { display: flex; align-items: center; gap: 8px; min-width: 130px; }
+.meter-track { flex: 1; height: 8px; border-radius: 999px; background: var(--meter-track); overflow: hidden; }
+.meter-fill { height: 100%; border-radius: 999px; background: var(--s1); }
+.t .meter { min-width: 104px; }
+.meter .num { width: 38px; text-align: right; font-weight: 700; font-size: 12.5px; }
+.progress { height: 6px; border-radius: 999px; background: var(--meter-track); overflow: hidden; }
+.progress i { display: block; height: 100%; border-radius: 999px; background: var(--s1); }
+.hbars { display: grid; gap: 8px; position: relative; }
+.hbar-row { display: grid; grid-template-columns: minmax(84px, 140px) minmax(0, 1fr) 52px; gap: 10px; align-items: center; font-size: 12.5px; }
+.hbar-label { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: flex; align-items: center; gap: 4px; }
+.hbar-track { position: relative; height: 22px; display: flex; align-items: center; }
+.hbar { height: 12px; border-radius: 0 4px 4px 0; background: var(--s-dim); min-width: 2px; }
+.hbar.on { background: var(--s1); }
+.hbar-ref { position: absolute; top: -5px; bottom: -5px; width: 0; border-left: 1px solid var(--ref); }
+.hbar-val { font-weight: 700; text-align: right; }
+.hbar-axis { display: grid; grid-template-columns: minmax(84px, 140px) minmax(0, 1fr) 52px; gap: 10px; font-size: 11px; color: var(--muted); }
+.hbar-axis div { position: relative; height: 16px; }
+.hbar-axis span { position: absolute; transform: translateX(-50%); }
+.hbar-axis span:first-child { transform: none; }
+.hbar-axis span:last-child { transform: translateX(-100%); }
+
+/* chart shell */
+.chart-host { position: relative; width: 100%; min-width: 0; }
+svg.chart { display: block; overflow: visible; }
+.chart .gridline { stroke: var(--grid); stroke-width: 1; }
+.chart .axis { stroke: var(--axis); stroke-width: 1; }
+.chart .tick { font-size: 11px; fill: var(--tick); font-family: var(--font); }
+.chart .ref { stroke: var(--ref); stroke-width: 1; }
+.chart .ref-label { font-size: 11px; fill: var(--muted); font-weight: 700; font-family: var(--font); }
+.chart .end-label { font-size: 12px; fill: var(--ink); font-weight: 800; font-family: var(--font); }
+.chart .row-label { font-size: 12px; fill: var(--ink-2); font-weight: 700; font-family: var(--font); }
+.chart .crosshair { stroke: var(--ink-2); stroke-width: 1; opacity: .55; }
+.chart .band { fill: var(--band); }
+.chart .pin { fill: var(--ink); }
+.chart .pin-text { fill: var(--surface); font-size: 11px; font-weight: 800; font-family: var(--font); }
+.legend { display: flex; flex-wrap: wrap; gap: 14px; font-size: 12px; color: var(--ink-2); font-weight: 600; align-items: center; }
+.legend .key { display: inline-flex; align-items: center; gap: 6px; }
+.sw-line { width: 16px; height: 2px; border-radius: 2px; display: inline-block; }
+.sw-box { width: 10px; height: 10px; border-radius: 3px; display: inline-block; }
+.ramp { display: inline-flex; gap: 2px; }
+.ramp i { width: 14px; height: 10px; border-radius: 2px; display: inline-block; }
+details.data-table { margin-top: 10px; font-size: 12.5px; }
+details.data-table summary { cursor: pointer; color: var(--ink-2); font-weight: 700; width: max-content; }
+details.data-table .table-wrap { margin-top: 8px; max-height: 260px; overflow: auto; }
+.tt { position: fixed; z-index: 100; pointer-events: none; background: var(--surface); color: var(--ink); border: 1px solid var(--border); box-shadow: var(--shadow-lg); border-radius: 8px; padding: 8px 10px; font-size: 12px; min-width: 150px; }
+.tt-title { font-weight: 800; margin-bottom: 4px; }
+.tt-row { display: flex; align-items: center; gap: 8px; justify-content: space-between; }
+.tt-row span:first-child { display: inline-flex; align-items: center; gap: 6px; color: var(--ink-2); }
+.tt-row b { font-variant-numeric: tabular-nums; }
+
+/* segmented bars */
+.segbar { display: flex; gap: 2px; height: 8px; border-radius: 999px; overflow: hidden; background: var(--surface-3); }
+.segbar i { display: block; height: 100%; }
+.segbar.tall { height: 28px; border-radius: 0; background: none; overflow: visible; }
+.segbar.tall i { border-radius: 4px; display: flex; align-items: center; padding-left: 8px; font-size: 12px; font-weight: 800; color: #fff; font-style: normal; min-width: 0; overflow: hidden; white-space: nowrap; }
+.segbar.tall i.dark-text { color: #0b0b0b; }
+.segbar.tall i.rest { background: var(--surface-3); }
+
+/* ===== Learner =========================================================== */
+.resume { display: grid; grid-template-columns: 220px minmax(0, 1fr); gap: 20px; align-items: center; }
+.thumb { position: relative; aspect-ratio: 16 / 9; border-radius: 10px; overflow: hidden; background: linear-gradient(135deg, #17324d 0%, #1f4f87 55%, #1f7a5a 100%); }
+.thumb .lines { position: absolute; inset: 18px 18px auto 18px; display: grid; gap: 7px; }
+.thumb .lines i { height: 6px; border-radius: 3px; background: rgba(255, 255, 255, .22); display: block; }
+.thumb .play { position: absolute; left: 50%; top: 56%; width: 40px; height: 40px; margin: -20px 0 0 -20px; border-radius: 50%; background: rgba(255, 255, 255, .95); display: grid; place-items: center; color: #17324d; }
+.thumb .play .icon { fill: currentColor; stroke: none; width: 15px; height: 15px; margin-left: 2px; }
+.thumb .dur { position: absolute; right: 8px; bottom: 8px; background: rgba(0, 0, 0, .65); color: #fff; font-size: 11px; font-weight: 700; padding: 1px 6px; border-radius: 4px; }
+.thumb .scrub { position: absolute; left: 0; right: 0; bottom: 0; height: 4px; background: rgba(255, 255, 255, .25); }
+.thumb .scrub i { display: block; height: 100%; width: 58%; background: #fff; }
+@media (max-width: 640px) { .resume { grid-template-columns: minmax(0, 1fr); } }
+.course-row { display: grid; grid-template-columns: 40px minmax(0, 1fr) auto; gap: 12px; align-items: center; padding: 12px 0; border-bottom: 1px solid var(--border); }
+.course-row:last-child { border-bottom: 0; padding-bottom: 0; }
+.course-row:first-child { padding-top: 0; }
+.course-ico { width: 40px; height: 40px; border-radius: 10px; display: grid; place-items: center; font-weight: 800; font-size: 12px; background: var(--info-bg); color: var(--info-ink); }
+.course-ico.alt { background: var(--brand-soft); color: var(--brand-ink); }
+.rec-hero { border: 1px solid var(--border); border-radius: 12px; padding: 16px; background: linear-gradient(180deg, var(--brand-soft), var(--surface) 70%); display: grid; gap: 10px; }
+.rec-why { display: flex; gap: 8px; align-items: flex-start; font-size: 13px; color: var(--ink-2); }
+.rec-why .icon { color: var(--brand-ink); margin-top: 2px; }
+.rec-list { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 12px; margin-top: 12px; }
+.rec-card { border: 1px solid var(--border); border-radius: 10px; padding: 12px; display: grid; gap: 8px; align-content: space-between; }
+.rec-card.locked { background: var(--surface-2); }
+.notif { display: grid; grid-template-columns: 32px minmax(0, 1fr); gap: 10px; padding: 12px 0; border-bottom: 1px solid var(--border); }
+.notif:last-child { border-bottom: 0; }
+.notif-ico { width: 32px; height: 32px; border-radius: 8px; display: grid; place-items: center; background: var(--surface-3); color: var(--ink-2); }
+.notif.high .notif-ico { background: var(--crit-bg); color: var(--crit-ink); }
+.notif-title { font-weight: 700; font-size: 13.5px; display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.notif.unread .notif-title::after { content: ""; width: 7px; height: 7px; border-radius: 50%; background: var(--s1); display: inline-block; }
+.notif-body { color: var(--ink-2); font-size: 13px; margin-top: 2px; }
+.notif-meta { display: flex; flex-wrap: wrap; gap: 4px 10px; font-size: 11.5px; color: var(--muted); margin-top: 6px; align-items: center; }
+.notif-meta .ch { display: inline-flex; gap: 3px; align-items: center; }
+.notif-meta .ch .icon { width: 12px; height: 12px; }
+.deadline { display: grid; grid-template-columns: 44px minmax(0, 1fr) auto; gap: 12px; align-items: center; padding: 10px 0; border-bottom: 1px solid var(--border); }
+.deadline:last-child { border-bottom: 0; }
+.date-chip { width: 44px; border-radius: 8px; border: 1px solid var(--border); text-align: center; line-height: 1.1; padding: 5px 0; }
+.date-chip b { display: block; font-size: 16px; }
+.date-chip span { font-size: 10.5px; font-weight: 800; color: var(--muted); text-transform: uppercase; }
+.mini-stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+.mini-stats div b { display: block; font-size: 20px; letter-spacing: -.01em; }
+.mini-stats div span { font-size: 12px; color: var(--muted); font-weight: 600; }
+
+/* code lab */
+.editor { border-radius: 10px; overflow: hidden; background: var(--code-bg); color: var(--code-ink); border: 1px solid rgba(0, 0, 0, .3); }
+.editor-bar { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 8px 12px; border-bottom: 1px solid rgba(255, 255, 255, .08); font-size: 12px; color: #8a97a8; flex-wrap: wrap; }
+.editor-tab { color: #e6edf3; font-weight: 600; font-family: var(--mono); display: inline-flex; gap: 6px; align-items: center; }
+.code { font-family: var(--mono); font-size: 13px; line-height: 1.75; padding: 12px 0; overflow-x: auto; }
+.cl { display: grid; grid-template-columns: 44px max-content; }
+.cl .ln { color: var(--code-muted); text-align: right; padding-right: 14px; user-select: none; }
+.cl code { white-space: pre; padding-right: 16px; font-family: inherit; }
+.k { color: #ff7b72; } .f { color: #d2a8ff; } .n { color: #79c0ff; } .s { color: #a5d6ff; } .c { color: #8b949e; }
+.result-head { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
+.result-score { font-size: 30px; font-weight: 800; letter-spacing: -.02em; line-height: 1; }
+.result-score small { font-size: 15px; color: var(--muted); font-weight: 700; }
+.kv { display: grid; grid-template-columns: repeat(auto-fit, minmax(110px, 1fr)); gap: 10px; margin-top: 12px; }
+.kv div { background: var(--surface-2); border: 1px solid var(--border); border-radius: 8px; padding: 8px 10px; }
+.kv dt, .kv span { font-size: 11.5px; color: var(--muted); font-weight: 700; }
+.kv b { display: block; font-size: 14px; }
+.status-ico { width: 22px; height: 22px; border-radius: 50%; display: grid; place-items: center; }
+.status-ico .icon { width: 13px; height: 13px; stroke-width: 3; }
+.status-ico.pass { background: var(--good-bg); color: var(--good-ink); }
+.status-ico.fail { background: var(--crit-bg); color: var(--crit-ink); }
+.diff { font-family: var(--mono); font-size: 12px; display: grid; gap: 2px; white-space: nowrap; }
+.nowrap { white-space: nowrap; }
+.t .sub.mono { font-size: 12px; margin-top: 2px; }
+.diff .exp { color: var(--good-ink); }
+.diff .act { color: var(--crit-ink); }
+.grading { display: inline-flex; align-items: center; gap: 8px; font-size: 12.5px; color: var(--muted); font-weight: 600; }
+.spinner { width: 14px; height: 14px; border-radius: 50%; border: 2px solid var(--border-strong); border-top-color: var(--s1); animation: spin .8s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ===== Instructor ======================================================== */
+.detail-head { display: flex; justify-content: space-between; gap: 12px; align-items: flex-start; flex-wrap: wrap; }
+.reason-list { list-style: none; padding: 0; margin: 12px 0 0; display: grid; gap: 6px; }
+.reason-list li { display: flex; gap: 8px; align-items: flex-start; font-size: 13px; }
+.reason-list li .icon { margin-top: 2px; color: var(--muted); }
+.spec { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 6px 14px; margin-top: 12px; font-size: 13px; background: var(--surface-2); border: 1px solid var(--border); border-radius: 10px; padding: 12px 14px; }
+.spec dt { color: var(--muted); font-weight: 700; font-size: 12px; }
+.spec dd { margin: 0; }
+.actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
+.moment { display: grid; grid-template-columns: 28px minmax(0, 1fr); gap: 12px; padding: 14px 0; border-bottom: 1px solid var(--border); }
+.moment:last-child { border-bottom: 0; padding-bottom: 0; }
+.moment:first-child { padding-top: 0; }
+.pin-badge { width: 24px; height: 24px; border-radius: 50%; background: var(--ink); color: var(--surface); font-weight: 800; font-size: 12px; display: grid; place-items: center; }
+.quote { margin-top: 8px; padding: 8px 10px; border-left: 3px solid var(--border-strong); background: var(--surface-2); border-radius: 0 8px 8px 0; font-size: 12.5px; color: var(--ink-2); }
+.minis { display: grid; grid-template-columns: repeat(auto-fill, minmax(176px, 1fr)); gap: 12px; }
+.mini { border: 1px solid var(--border); border-radius: 10px; padding: 12px; display: grid; gap: 6px; }
+.mini-top { display: flex; justify-content: space-between; align-items: center; gap: 6px; }
+.steps { list-style: none; margin: 0; padding: 0; }
+.step { display: grid; grid-template-columns: 26px minmax(0, 1fr) auto; gap: 12px; padding: 0 0 16px; position: relative; }
+.step:not(:last-child)::before { content: ""; position: absolute; left: 12px; top: 26px; bottom: 2px; width: 2px; background: var(--border); }
+.step.done:not(:last-child)::before { background: var(--good); opacity: .5; }
+.step-dot { width: 26px; height: 26px; border-radius: 50%; display: grid; place-items: center; border: 2px solid var(--border-strong); background: var(--surface); color: var(--muted); }
+.step-dot .icon { width: 13px; height: 13px; stroke-width: 3; }
+.step.done .step-dot { background: var(--good-bg); border-color: var(--good); color: var(--good-ink); }
+.step.active .step-dot { border-color: var(--s1); }
+.step.active .step-dot::after { content: ""; width: 10px; height: 10px; border-radius: 50%; border: 2px solid var(--s1); border-top-color: transparent; animation: spin .8s linear infinite; }
+.step.pending { opacity: .55; }
+.step-title { font-weight: 700; font-size: 13px; }
+.step-sub { font-size: 12px; color: var(--muted); }
+.step-time { font-size: 12px; font-weight: 700; color: var(--ink-2); font-variant-numeric: tabular-nums; }
+.hit { padding: 12px 0; border-bottom: 1px solid var(--border); }
+.hit:last-child { border-bottom: 0; }
+.hit mark { background: var(--warn-bg); color: inherit; padding: 0 2px; border-radius: 3px; }
+.hit-title { font-weight: 700; font-size: 13px; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+
+/* ===== Advisor =========================================================== */
+.queue-row { display: grid; grid-template-columns: 36px minmax(0, 1fr) 128px; gap: 12px; align-items: center; padding: 12px; border-radius: 10px; border: 1px solid transparent; cursor: pointer; width: 100%; text-align: left; background: none; color: inherit; }
+.queue-row:hover { background: var(--surface-2); }
+.queue-row[aria-pressed="true"] { background: var(--brand-soft); border-color: color-mix(in srgb, var(--brand) 35%, transparent); }
+.queue-row + .queue-row { margin-top: 2px; }
+.queue-row[aria-pressed="true"] .avatar { background: var(--surface); }
+.queue-name { font-weight: 700; display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.queue-reasons { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 4px; }
+.score-cell { text-align: right; }
+.score-cell b { font-size: 18px; letter-spacing: -.01em; }
+.score-cell .meter-track { height: 6px; margin-top: 4px; }
+.big-score { display: flex; align-items: baseline; gap: 6px; }
+.big-score b { font-size: 48px; font-weight: 800; letter-spacing: -.03em; line-height: 1; }
+.big-score span { color: var(--muted); font-weight: 700; }
+.facts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin-top: 12px; }
+.facts div { background: var(--surface-2); border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px; }
+.facts span { display: block; font-size: 11.5px; color: var(--muted); font-weight: 700; }
+.facts b { font-size: 14px; }
+.log { list-style: none; padding: 0; margin: 10px 0 0; display: grid; gap: 10px; }
+.log li { display: grid; grid-template-columns: 8px minmax(0, 1fr); gap: 10px; font-size: 12.5px; }
+.log li::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--border-strong); margin-top: 6px; }
+.levels { display: flex; flex-wrap: wrap; gap: 8px 16px; margin-top: 10px; font-size: 12.5px; }
+.levels span { display: inline-flex; align-items: center; gap: 6px; font-weight: 600; color: var(--ink-2); }
+
+/* ===== Platform ========================================================== */
+.flow { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 28px; position: relative; }
+.flow-col { display: grid; gap: 8px; align-content: start; position: relative; min-width: 0; }
+.flow-col:not(:last-child)::after { content: ""; position: absolute; right: -22px; top: 50%; width: 16px; height: 16px; border-top: 2px solid var(--border-strong); border-right: 2px solid var(--border-strong); transform: translateY(-50%) rotate(45deg); }
+.flow-col h4 { font-size: 11px; font-weight: 800; color: var(--muted); letter-spacing: .06em; text-transform: uppercase; }
+.node { border: 1px solid var(--border); border-radius: 10px; padding: 9px 11px; background: var(--surface-2); display: grid; gap: 2px; min-width: 0; }
+.node-top { display: flex; align-items: center; gap: 6px; font-weight: 700; font-size: 13px; min-width: 0; }
+.node-top span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.node small { font-size: 11.5px; color: var(--muted); }
+.dot { width: 8px; height: 8px; border-radius: 50%; flex: none; }
+.dot.ok { background: var(--good); }
+.dot.warn { background: var(--warning); }
+@media (max-width: 1100px) {
+  .flow { grid-template-columns: minmax(0, 1fr); gap: 30px; }
+  .flow-col:not(:last-child)::after { right: auto; left: 50%; top: auto; bottom: -22px; transform: translateX(-50%) rotate(135deg); }
+}
+.check-row { display: grid; grid-template-columns: 22px minmax(0, 1fr) auto; gap: 10px; align-items: center; padding: 9px 0; border-bottom: 1px solid var(--border); }
+.check-row:last-child { border-bottom: 0; }
+
+.toast { position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%); background: var(--ink); color: var(--surface); padding: 10px 16px; border-radius: 10px; font-weight: 700; font-size: 13px; z-index: 120; box-shadow: var(--shadow-lg); display: flex; gap: 8px; align-items: center; max-width: calc(100vw - 32px); }
+
+/* ===== Responsive shell ================================================== */
+@media (max-width: 900px) {
+  .app { display: block; }
+  .sidebar { position: static; height: auto; border-right: 0; border-bottom: 1px solid var(--border); padding: 12px 16px; }
+  .nav-label { padding: 8px 0 6px; }
+  .nav-list { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 4px; }
+  .nav-btn { width: auto; flex: none; }
+  .nav-btn .who { display: none; }
+  .sidebar-foot { margin-top: 8px; padding: 10px 0 0; grid-template-columns: repeat(2, max-content); gap: 16px; }
+  .sidebar-foot .foot-note { display: none; }
+  .topbar { padding: 0 16px; }
+  .search, .live { display: none; }
+  main { padding: 20px 16px 48px; }
+  .table-wrap { margin: 0 -20px; }
+}
+@media (max-width: 560px) {
+  .page-head h1 { font-size: 22px; }
+  .card { padding: 16px; }
+  .table-wrap { margin: 0 -16px; padding: 0 16px; }
+  .mini-stats { grid-template-columns: minmax(0, 1fr); }
+  .facts { grid-template-columns: minmax(0, 1fr); }
+  .queue-row { grid-template-columns: 36px minmax(0, 1fr) 84px; }
+  .hbar-row, .hbar-axis { grid-template-columns: 84px minmax(0, 1fr) 46px; }
+}
+</style>
+</head>
+<body>
+
+<!-- ===== Icon sprite ===== -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <symbol id="i-home" viewBox="0 0 24 24"><path d="M3 10.5 12 3l9 7.5"/><path d="M5 9.5V21h14V9.5"/><path d="M10 21v-6h4v6"/></symbol>
+    <symbol id="i-code" viewBox="0 0 24 24"><path d="m16 18 6-6-6-6"/><path d="m8 6-6 6 6 6"/></symbol>
+    <symbol id="i-bell" viewBox="0 0 24 24"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></symbol>
+    <symbol id="i-check" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></symbol>
+    <symbol id="i-x" viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></symbol>
+    <symbol id="i-alert" viewBox="0 0 24 24"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"/><path d="M12 9v4"/><path d="M12 17h.01"/></symbol>
+    <symbol id="i-octagon" viewBox="0 0 24 24"><path d="M7.86 2h8.28L22 7.86v8.28L16.14 22H7.86L2 16.14V7.86z"/><path d="M12 8v4"/><path d="M12 16h.01"/></symbol>
+    <symbol id="i-info" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></symbol>
+    <symbol id="i-minus" viewBox="0 0 24 24"><path d="M5 12h14"/></symbol>
+    <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></symbol>
+    <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></symbol>
+    <symbol id="i-users" viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></symbol>
+    <symbol id="i-chart" viewBox="0 0 24 24"><path d="M3 3v18h18"/><path d="M8 17v-4"/><path d="M13 17V9"/><path d="M18 17V5"/></symbol>
+    <symbol id="i-video" viewBox="0 0 24 24"><rect x="2" y="5" width="15" height="14" rx="2"/><path d="m17 10 5-3v10l-5-3"/></symbol>
+    <symbol id="i-trend-down" viewBox="0 0 24 24"><path d="m22 17-8.5-8.5-5 5L2 7"/><path d="M16 17h6v-6"/></symbol>
+    <symbol id="i-file" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M8 13h8M8 17h6"/></symbol>
+    <symbol id="i-shield" viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="m9 12 2 2 4-4"/></symbol>
+    <symbol id="i-database" viewBox="0 0 24 24"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/><path d="M3 12c0 1.66 4 3 9 3s9-1.34 9-3"/></symbol>
+    <symbol id="i-activity" viewBox="0 0 24 24"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></symbol>
+    <symbol id="i-arrow-right" viewBox="0 0 24 24"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></symbol>
+    <symbol id="i-sparkle" viewBox="0 0 24 24"><path d="M12 3l1.8 4.7 4.7 1.8-4.7 1.8L12 16l-1.8-4.7L5.5 9.5l4.7-1.8z"/><path d="M19 15l.8 2.2 2.2.8-2.2.8L19 21l-.8-2.2-2.2-.8 2.2-.8z"/></symbol>
+    <symbol id="i-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></symbol>
+    <symbol id="i-moon" viewBox="0 0 24 24"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9z"/></symbol>
+    <symbol id="i-download" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m7 10 5 5 5-5"/><path d="M12 15V3"/></symbol>
+    <symbol id="i-lock" viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></symbol>
+    <symbol id="i-flag" viewBox="0 0 24 24"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><path d="M4 22v-7"/></symbol>
+    <symbol id="i-message" viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></symbol>
+    <symbol id="i-calendar" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></symbol>
+    <symbol id="i-refresh" viewBox="0 0 24 24"><path d="M21 12a9 9 0 1 1-2.64-6.36L21 8"/><path d="M21 3v5h-5"/></symbol>
+    <symbol id="i-play" viewBox="0 0 24 24"><path d="M6 3l14 9-14 9z"/></symbol>
+    <symbol id="i-mail" viewBox="0 0 24 24"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 7-10 6L2 7"/></symbol>
+    <symbol id="i-phone" viewBox="0 0 24 24"><rect x="6" y="2" width="12" height="20" rx="2"/><path d="M12 18h.01"/></symbol>
+    <symbol id="i-monitor" viewBox="0 0 24 24"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></symbol>
+    <symbol id="i-cap" viewBox="0 0 24 24"><path d="M22 10 12 5 2 10l10 5 10-5z"/><path d="M6 12v5c3 3 9 3 12 0v-5"/></symbol>
+    <symbol id="i-board" viewBox="0 0 24 24"><path d="M2 3h20"/><path d="M21 3v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V3"/><path d="m7 21 5-5 5 5"/></symbol>
+    <symbol id="i-buoy" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="4"/><path d="m4.93 4.93 4.24 4.24M14.83 14.83l4.24 4.24M14.83 9.17l4.24-4.24M4.93 19.07l4.24-4.24"/></symbol>
+    <symbol id="i-building" viewBox="0 0 24 24"><rect x="4" y="2" width="16" height="20" rx="2"/><path d="M9 22v-4h6v4"/><path d="M8 6h.01M12 6h.01M16 6h.01M8 10h.01M12 10h.01M16 10h.01M8 14h.01M12 14h.01M16 14h.01"/></symbol>
+    <symbol id="i-layers" viewBox="0 0 24 24"><path d="m12 2 10 5-10 5L2 7z"/><path d="m2 17 10 5 10-5"/><path d="m2 12 10 5 10-5"/></symbol>
+    <symbol id="i-upload" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m17 8-5-5-5 5"/><path d="M12 3v12"/></symbol>
+    <symbol id="i-book" viewBox="0 0 24 24"><path d="M2 4h6a4 4 0 0 1 4 4v13a3 3 0 0 0-3-3H2z"/><path d="M22 4h-6a4 4 0 0 0-4 4v13a3 3 0 0 1 3-3h7z"/></symbol>
+  </defs>
+</svg>
+
+<div class="app" id="app">
+  <!-- ===== Sidebar ===== -->
+  <aside class="sidebar" aria-label="Workspaces and pages">
+    <div class="brand">
+      <div class="brand-mark"><svg class="icon" aria-hidden="true"><use href="#i-cap"/></svg></div>
+      <div>EduPlatform<small>Learning analytics</small></div>
+    </div>
+    <div class="nav-label" id="ws-label">Workspace</div>
+    <nav class="nav-list" id="ws-nav" aria-labelledby="ws-label"></nav>
+    <div class="nav-label" id="pg-label">Pages</div>
+    <nav class="nav-list" id="page-nav" aria-labelledby="pg-label"></nav>
+    <div class="sidebar-foot">
+      <label class="switch">Requirement tags <input type="checkbox" id="br-toggle" checked autocomplete="off"></label>
+      <label class="switch">Dark theme <input type="checkbox" id="theme-toggle" autocomplete="off"></label>
+      <p class="xs muted foot-note">UI mockup with sample data. Names are fictional; numbers follow the platform's real rules.</p>
+    </div>
+  </aside>
+
+  <div class="main-col">
+    <!-- ===== Top bar ===== -->
+    <header class="topbar">
+      <div class="crumbs" id="crumbs"></div>
+      <div class="top-tools">
+        <div class="search"><svg class="icon" aria-hidden="true"><use href="#i-search"/></svg><input type="search" id="global-search" placeholder="Search" aria-label="Search"><kbd>⌘K</kbd></div>
+        <span class="live" title="Operational data refreshes every 5 seconds"><i></i><span id="live-text">Live · updated 2 s ago</span></span>
+        <div style="position:relative">
+          <button class="icon-btn" id="bell" aria-label="Notifications" aria-expanded="false"><svg class="icon" aria-hidden="true"><use href="#i-bell"/></svg><span class="count" id="bell-count">3</span></button>
+          <div class="popover" id="bell-pop" hidden></div>
+        </div>
+        <div class="avatar" id="avatar" title="">AP</div>
+      </div>
+    </header>
+
+    <main id="main">
+
+<!-- ===================================================================== -->
+<!-- LEARNER · HOME (BR1 notifications, BR2 recommendations)               -->
+<!-- ===================================================================== -->
+<section class="screen" data-screen="learner-home" hidden>
+  <div class="page-head">
+    <div>
+      <p class="eyebrow">Saturday, 7 November</p>
+      <h1>Good morning, An</h1>
+      <p class="lede">One assignment is due tonight, and there is a new course recommendation for you.</p>
+    </div>
+    <div class="head-actions">
+      <button class="btn"><svg class="icon"><use href="#i-book"/></svg>Course catalogue</button>
+    </div>
+  </div>
+
+  <div class="grid-2-1">
+    <div class="stack">
+      <article class="card resume">
+        <div class="thumb" aria-hidden="true">
+          <div class="lines"><i style="width:70%"></i><i style="width:46%"></i><i style="width:58%"></i></div>
+          <div class="play"><svg class="icon"><use href="#i-play"/></svg></div>
+          <span class="dur">5:30</span>
+          <div class="scrub"><i></i></div>
+        </div>
+        <div>
+          <p class="eyebrow">Continue learning · Python for Data</p>
+          <h2 style="font-size:19px;letter-spacing:-.01em">Lesson 2 · Lists and loops</h2>
+          <p class="muted small" style="margin-top:4px">You stopped at 3:12 of 5:30 yesterday evening.</p>
+          <div class="progress" style="margin:12px 0 14px;max-width:360px" aria-label="58% watched"><i style="width:58%"></i></div>
+          <div class="head-actions">
+            <button class="btn primary"><svg class="icon"><use href="#i-play"/></svg>Resume at 3:12</button>
+            <button class="btn ghost">Lesson notes</button>
+          </div>
+        </div>
+      </article>
+
+      <article class="card">
+        <div class="card-head">
+          <div><h2 class="card-title">My courses</h2><p class="card-sub">2 enrolled · 4 of 6 lessons finished</p></div>
+        </div>
+        <div class="course-row">
+          <div class="course-ico">SQL</div>
+          <div style="min-width:0">
+            <div class="strong">SQL Foundations</div>
+            <div class="muted small">3 of 3 lessons · finished 28 Oct · new practice set due Wed 11 Nov</div>
+            <div class="progress" style="margin-top:8px;max-width:420px"><i style="width:100%"></i></div>
+          </div>
+          <span class="badge b-good"><svg class="icon"><use href="#i-check"/></svg>Completed</span>
+        </div>
+        <div class="course-row">
+          <div class="course-ico alt">PY</div>
+          <div style="min-width:0">
+            <div class="strong">Python for Data</div>
+            <div class="muted small">1 of 3 lessons · next: Lists and loops · assignment due today</div>
+            <div class="progress" style="margin-top:8px;max-width:420px"><i style="width:33%"></i></div>
+          </div>
+          <span class="badge b-info"><svg class="icon"><use href="#i-clock"/></svg>In progress</span>
+        </div>
+      </article>
+
+      <article class="card">
+        <div class="card-head">
+          <div>
+            <h2 class="card-title">Recommended next <span class="br">BR2</span></h2>
+            <p class="card-sub">Chosen from your completed lessons, course difficulty and track. Updated every time you finish a lesson.</p>
+          </div>
+        </div>
+        <div class="rec-hero">
+          <div style="display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;align-items:flex-start">
+            <div>
+              <p class="eyebrow" style="color:var(--brand-ink)"><svg class="icon"><use href="#i-sparkle"/></svg>Best next step</p>
+              <h3 style="font-size:18px;letter-spacing:-.01em">Data Engineering Basics</h3>
+              <div class="chips" style="margin-top:6px"><span class="badge b-warn"><svg class="icon"><use href="#i-chart"/></svg>Medium</span><span class="chip">Data engineering</span><span class="chip">2 lessons · 16 min</span></div>
+            </div>
+            <div class="head-actions">
+              <button class="btn primary" data-enroll="Data Engineering Basics">Enroll</button>
+              <button class="btn ghost">Not now</button>
+            </div>
+          </div>
+          <p class="rec-why"><svg class="icon"><use href="#i-info"/></svg><span><b>Why this course:</b> a related next step in your track, a medium data engineering course. It builds on SQL Foundations, which you finished, and the Python you are learning now.</span></p>
+        </div>
+        <div class="rec-list">
+          <div class="rec-card">
+            <div><div class="strong">Product Analytics</div><div class="chips" style="margin:6px 0"><span class="badge b-good"><svg class="icon"><use href="#i-chart"/></svg>Easy</span><span class="chip">Analytics</span></div><p class="small muted">Start this track: an easy analytics course.</p></div>
+            <button class="btn sm" data-enroll="Product Analytics">Enroll</button>
+          </div>
+          <div class="rec-card">
+            <div><div class="strong">Introduction to AI</div><div class="chips" style="margin:6px 0"><span class="badge b-good"><svg class="icon"><use href="#i-chart"/></svg>Easy</span><span class="chip">Artificial intelligence</span></div><p class="small muted">Start this track: an easy artificial intelligence course.</p></div>
+            <button class="btn sm" data-enroll="Introduction to AI">Enroll</button>
+          </div>
+          <div class="rec-card locked">
+            <div><div class="strong">Streaming Data Engineering</div><div class="chips" style="margin:6px 0"><span class="badge b-crit"><svg class="icon"><use href="#i-chart"/></svg>Hard</span><span class="chip">Data engineering</span></div><p class="small muted">Too advanced for now: finish the intermediate data engineering course first.</p></div>
+            <button class="btn sm" disabled><svg class="icon"><use href="#i-lock"/></svg>Locked</button>
+          </div>
+        </div>
+      </article>
+    </div>
+
+    <div class="stack">
+      <article class="card">
+        <div class="card-head">
+          <div><h2 class="card-title">Notifications <span class="br">BR1</span></h2><p class="card-sub">3 unread · delivered in real time</p></div>
+          <button class="btn sm ghost" id="mark-read">Mark all read</button>
+        </div>
+        <div class="seg" role="group" aria-label="Filter notifications" id="notif-filter">
+          <button aria-pressed="true" data-f="all">All</button><button aria-pressed="false" data-f="deadline">Deadlines</button><button aria-pressed="false" data-f="course">Courses</button><button aria-pressed="false" data-f="feedback">Feedback</button>
+        </div>
+        <div id="notif-list" style="margin-top:6px">
+          <div class="notif high unread" data-kind="deadline">
+            <div class="notif-ico"><svg class="icon"><use href="#i-clock"/></svg></div>
+            <div>
+              <div class="notif-title">Due in 12 hours: Sum of even numbers <span class="badge b-crit"><svg class="icon"><use href="#i-octagon"/></svg>High</span></div>
+              <p class="notif-body">Due today at 23:59. Your latest attempt passes 3 of 5 tests.</p>
+              <div class="notif-meta"><span>Python for Data</span><span>11:52</span><span class="ch"><svg class="icon"><use href="#i-monitor"/></svg>In-app</span><span class="ch"><svg class="icon"><use href="#i-mail"/></svg>Email</span><span class="ch"><svg class="icon"><use href="#i-phone"/></svg>Push</span></div>
+              <button class="btn sm" style="margin-top:8px" data-go="learner-lab">Open assignment <svg class="icon"><use href="#i-arrow-right"/></svg></button>
+            </div>
+          </div>
+          <div class="notif unread" data-kind="course">
+            <div class="notif-ico"><svg class="icon"><use href="#i-file"/></svg></div>
+            <div>
+              <div class="notif-title">New assignment: Week 3 practice set</div>
+              <p class="notif-body">Added to SQL Foundations. Due Wednesday 11 November.</p>
+              <div class="notif-meta"><span>SQL Foundations</span><span>10:05</span><span class="ch"><svg class="icon"><use href="#i-monitor"/></svg>In-app</span><span class="ch"><svg class="icon"><use href="#i-mail"/></svg>Email</span></div>
+            </div>
+          </div>
+          <div class="notif unread" data-kind="course">
+            <div class="notif-ico"><svg class="icon"><use href="#i-refresh"/></svg></div>
+            <div>
+              <div class="notif-title">Lesson updated: Joins</div>
+              <p class="notif-body">Your instructor revised the transcript (version 3). Search already shows the new text.</p>
+              <div class="notif-meta"><span>SQL Foundations</span><span>Yesterday</span><span class="ch"><svg class="icon"><use href="#i-monitor"/></svg>In-app</span></div>
+            </div>
+          </div>
+          <div class="notif" data-kind="feedback">
+            <div class="notif-ico"><svg class="icon"><use href="#i-check"/></svg></div>
+            <div>
+              <div class="notif-title">Feedback ready: FizzBuzz</div>
+              <p class="notif-body">All 5 tests passed on attempt 2.</p>
+              <div class="notif-meta"><span>Python for Data</span><span>Thu 5 Nov</span><span class="ch"><svg class="icon"><use href="#i-monitor"/></svg>In-app</span></div>
+            </div>
+          </div>
+        </div>
+        <div class="card-foot"><svg class="icon"><use href="#i-info"/></svg><span>A reminder sent at 23:10 was held during your quiet hours (22:00–07:00) and delivered at 07:00. Duplicate reminders are never sent twice. <a href="#" onclick="return false">Notification settings</a></span></div>
+      </article>
+
+      <article class="card">
+        <div class="card-head"><div><h2 class="card-title">Due this week</h2></div></div>
+        <div class="deadline">
+          <div class="date-chip"><span>Sat</span><b>7</b></div>
+          <div><div class="strong">Sum of even numbers</div><div class="muted small">Python for Data · 23:59</div></div>
+          <span class="badge b-crit"><svg class="icon"><use href="#i-clock"/></svg>11 h left</span>
+        </div>
+        <div class="deadline">
+          <div class="date-chip"><span>Wed</span><b>11</b></div>
+          <div><div class="strong">Week 3 practice set</div><div class="muted small">SQL Foundations · 23:59</div></div>
+          <span class="badge b-neutral"><svg class="icon"><use href="#i-calendar"/></svg>4 days</span>
+        </div>
+      </article>
+
+      <article class="card">
+        <div class="card-head"><div><h2 class="card-title">Last 30 days</h2></div></div>
+        <div class="mini-stats">
+          <div><b>14</b><span>Active days</span></div>
+          <div><b>78%</b><span>Avg. tests passed</span></div>
+          <div><b>4 / 6</b><span>Lessons done</span></div>
+        </div>
+      </article>
+    </div>
+  </div>
+</section>
+
+<!-- ===================================================================== -->
+<!-- LEARNER · CODE LAB (BR3 detailed feedback)                             -->
+<!-- ===================================================================== -->
+<section class="screen" data-screen="learner-lab" hidden>
+  <div class="page-head">
+    <div>
+      <p class="eyebrow">Python for Data <svg class="icon" style="width:12px;height:12px"><use href="#i-arrow-right"/></svg> Assignments</p>
+      <h1>Sum of even numbers</h1>
+      <div class="chips" style="margin-top:8px"><span class="chip">Python 3.11</span><span class="chip">5 tests</span><span class="chip" id="attempt-chip">Attempt 3</span><span class="badge b-crit"><svg class="icon"><use href="#i-clock"/></svg>Due today, 23:59</span></div>
+    </div>
+    <div class="head-actions"><button class="btn ghost" data-go="learner-home">Back to home</button></div>
+  </div>
+
+  <div class="grid-1-1">
+    <article class="card">
+      <div class="card-head"><div><h2 class="card-title">Task</h2></div></div>
+      <p>Write <code class="mono">sum_even(nums)</code> that returns the sum of the even numbers in the list.</p>
+      <p class="small muted" style="margin:6px 0 14px">Example: <code class="mono">sum_even([1, 2, 3, 4])</code> returns <code class="mono">6</code>.</p>
+      <div class="editor">
+        <div class="editor-bar"><span class="editor-tab"><svg class="icon" style="width:14px;height:14px"><use href="#i-file"/></svg>solution.py</span><span>Sandbox: 2 s · 128 MB</span></div>
+        <div class="code" role="textbox" aria-label="Code editor (mock)" aria-readonly="true">
+          <div class="cl"><span class="ln">1</span><code><span class="k">def</span> <span class="f">sum_even</span>(nums):</code></div>
+          <div class="cl"><span class="ln">2</span><code>    total = <span class="n">0</span></code></div>
+          <div class="cl"><span class="ln">3</span><code>    <span class="k">for</span> n <span class="k">in</span> nums:</code></div>
+          <div class="cl"><span class="ln">4</span><code>        <span class="k">if</span> n % <span class="n">2</span> == <span class="n">0</span> <span class="k">and</span> n &gt; <span class="n">0</span>:</code></div>
+          <div class="cl"><span class="ln">5</span><code>            total += n</code></div>
+          <div class="cl"><span class="ln">6</span><code>    <span class="k">return</span> total</code></div>
+          <div class="cl"><span class="ln">7</span><code></code></div>
+        </div>
+      </div>
+      <div class="actions">
+        <button class="btn primary" id="submit-code"><svg class="icon"><use href="#i-upload"/></svg>Submit for grading</button>
+        <button class="btn ghost" data-toast="Starter code restored">Reset to starter code</button>
+        <span class="grading" id="grading" hidden></span>
+      </div>
+    </article>
+
+    <article class="card" id="feedback-card">
+      <div class="card-head">
+        <div><h2 class="card-title">Feedback <span class="br">BR3</span></h2><p class="card-sub" id="graded-at">Attempt 3 · graded today at 11:48</p></div>
+      </div>
+      <div class="result-head">
+        <div class="result-score">3<small> / 5 tests passed</small></div>
+        <span class="badge b-warn"><svg class="icon"><use href="#i-alert"/></svg>Partly correct</span>
+      </div>
+      <div class="segbar" style="margin-top:12px;max-width:420px" role="img" aria-label="3 passed, 2 failed">
+        <i style="width:60%;background:var(--good)"></i><i style="width:40%;background:var(--critical)"></i>
+      </div>
+      <div class="kv">
+        <div><span>Runtime</span><b class="num">41 ms</b></div>
+        <div><span>Memory</span><b class="num">9.4 MB</b></div>
+        <div><span>Exit code</span><b class="num">0</b></div>
+        <div><span>Graded in</span><b class="num">1.2 s</b></div>
+      </div>
+
+      <div class="callout warn" style="margin-top:14px">
+        <svg class="icon"><use href="#i-sparkle"/></svg>
+        <div><b>What to fix.</b> Negative even numbers count too: <code class="mono">-2 % 2 == 0</code> in Python. The extra <code class="mono">n &gt; 0</code> check skips them, so <span class="mono">t3_negative</span> returns 0 instead of -2.</div>
+      </div>
+      <div class="callout info" style="margin-top:8px">
+        <svg class="icon"><use href="#i-flag"/></svg>
+        <div><b>t5_pairs is under review.</b> Almost every learner fails this test, which suggests its expected value is wrong. Your instructor has been notified; it will not count against you until it is fixed.</div>
+      </div>
+
+      <div class="table-wrap" style="margin-top:14px">
+        <table class="t">
+          <thead><tr><th></th><th>Test</th><th>Result</th><th class="r">Time</th></tr></thead>
+          <tbody>
+            <tr><td><span class="status-ico pass" title="Passed"><svg class="icon"><use href="#i-check"/></svg></span></td><td><span class="mono strong">t1_mixed</span><span class="sub mono">sum_even([1, 2, 3, 4])</span></td><td class="small">Passed</td><td class="r num nowrap">3 ms</td></tr>
+            <tr><td><span class="status-ico pass" title="Passed"><svg class="icon"><use href="#i-check"/></svg></span></td><td><span class="mono strong">t2_empty</span><span class="sub mono">sum_even([])</span></td><td class="small">Passed</td><td class="r num nowrap">1 ms</td></tr>
+            <tr><td><span class="status-ico fail" title="Failed"><svg class="icon"><use href="#i-x"/></svg></span></td><td><span class="mono strong">t3_negative</span><span class="sub mono">sum_even([-2, -3])</span></td><td><div class="diff"><span class="exp">expected -2</span><span class="act">got&nbsp;&nbsp;&nbsp;&nbsp; 0</span></div></td><td class="r num nowrap">2 ms</td></tr>
+            <tr><td><span class="status-ico pass" title="Passed"><svg class="icon"><use href="#i-check"/></svg></span></td><td><span class="mono strong">t4_zero</span><span class="sub mono">sum_even([0, 1])</span></td><td class="small">Passed</td><td class="r num nowrap">1 ms</td></tr>
+            <tr><td><span class="status-ico fail" title="Failed"><svg class="icon"><use href="#i-x"/></svg></span></td><td><span class="mono strong">t5_pairs</span> <span class="badge b-info"><svg class="icon"><use href="#i-flag"/></svg>Under review</span><span class="sub mono">sum_even([2, 4])</span></td><td><div class="diff"><span class="exp">expected 7</span><span class="act">got&nbsp;&nbsp;&nbsp;&nbsp; 6</span></div></td><td class="r num nowrap">1 ms</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <details class="data-table"><summary>Program output (stderr)</summary><p class="muted small" style="margin-top:6px">No errors were written to stderr.</p></details>
+    </article>
+  </div>
+
+  <article class="card" style="margin-top:16px">
+    <div class="card-head"><div><h2 class="card-title">Previous attempts</h2><p class="card-sub">Every submission is graded in an isolated sandbox and kept here.</p></div></div>
+    <div class="table-wrap">
+      <table class="t">
+        <thead><tr><th>Attempt</th><th>Submitted</th><th>Status</th><th>Tests passed</th><th>Summary</th></tr></thead>
+        <tbody id="attempts">
+          <tr><td class="num strong">3</td><td class="num">Today, 11:48</td><td><span class="badge b-good"><svg class="icon"><use href="#i-check"/></svg>Graded</span></td><td><div class="meter"><div class="meter-track"><div class="meter-fill" style="width:60%"></div></div><span class="num">3 / 5</span></div></td><td class="muted">Negative numbers are skipped; t5_pairs under review.</td></tr>
+          <tr><td class="num strong">2</td><td class="num">Today, 11:31</td><td><span class="badge b-good"><svg class="icon"><use href="#i-check"/></svg>Graded</span></td><td><div class="meter"><div class="meter-track"><div class="meter-fill" style="width:40%"></div></div><span class="num">2 / 5</span></div></td><td class="muted">Odd numbers were added to the total.</td></tr>
+          <tr><td class="num strong">1</td><td class="num">Yesterday, 21:05</td><td><span class="badge b-crit"><svg class="icon"><use href="#i-octagon"/></svg>Error</span></td><td><div class="meter"><div class="meter-track"><div class="meter-fill" style="width:0%"></div></div><span class="num">0 / 5</span></div></td><td class="muted">NameError: name 'total' is not defined (line 4).</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </article>
+</section>
+
+<!-- ===================================================================== -->
+<!-- INSTRUCTOR · ASSESSMENT HEALTH (BR4)                                   -->
+<!-- ===================================================================== -->
+<section class="screen" data-screen="instructor-assess" hidden>
+  <div class="page-head">
+    <div>
+      <p class="eyebrow">Instructor <span class="br">BR4</span></p>
+      <h1>Assessment health</h1>
+      <p class="lede">Questions and test cases whose pass rate is abnormal: below the threshold, far below the other tests, or dropping since the previous window.</p>
+    </div>
+    <div class="head-actions"><button class="btn"><svg class="icon"><use href="#i-download"/></svg>Export</button></div>
+  </div>
+  <div class="filters">
+    <label class="field">Course<select class="select"><option>Python for Data</option><option>SQL Foundations</option></select></label>
+    <label class="field">Window<select class="select"><option>Last 14 days vs previous 14</option><option>Last 7 days vs previous 7</option><option>Last 30 days vs previous 30</option></select></label>
+    <div class="field">Item type<div class="seg" role="group" aria-label="Item type" id="assess-type"><button aria-pressed="true" data-t="all">All</button><button aria-pressed="false" data-t="Question">Questions</button><button aria-pressed="false" data-t="Test case">Test cases</button></div></div>
+    <label class="switch inline-toggle" style="gap:8px">Flagged only <input type="checkbox" id="flagged-only"></label>
+  </div>
+  <div class="tiles">
+    <div class="tile"><div class="tile-label">Items monitored</div><div class="tile-value">23</div><div class="tile-delta">14 test cases · 9 questions</div></div>
+    <div class="tile"><div class="tile-label">Flagged for review</div><div class="tile-value">3</div><div class="tile-delta"><span class="badge b-crit"><svg class="icon"><use href="#i-octagon"/></svg>1 high</span><span class="badge b-warn"><svg class="icon"><use href="#i-alert"/></svg>2 medium</span></div></div>
+    <div class="tile"><div class="tile-label">Learners evaluated</div><div class="tile-value">214</div><div class="tile-delta">items need at least 20 learners</div></div>
+    <div class="tile"><div class="tile-label">Last evaluated</div><div class="tile-value" style="font-size:20px;padding-top:4px">4 seconds ago</div><div class="tile-delta">from live grade changes</div></div>
+  </div>
+  <div class="grid-3-2">
+    <article class="card">
+      <div class="card-head"><div><h2 class="card-title">Questions and test cases</h2><p class="card-sub">Flagged items first. Select a row to see why it was flagged.</p></div></div>
+      <div class="table-wrap">
+        <table class="t">
+          <thead><tr><th style="min-width:190px">Item</th><th class="r">Learners</th><th>Pass rate</th><th class="r">Change</th><th>State</th></tr></thead>
+          <tbody id="assess-rows"></tbody>
+        </table>
+      </div>
+      <div class="card-foot"><svg class="icon"><use href="#i-info"/></svg><span>Rules: a test case is flagged below 20% (questions below 30%), when it sits 50 points or more under the median of the other required tests, or when it drops 30 points or more from the previous window.</span></div>
+    </article>
+    <article class="card sticky" id="assess-detail" aria-live="polite"></article>
+  </div>
+</section>
+
+<!-- ===================================================================== -->
+<!-- INSTRUCTOR · VIDEO INSIGHTS (BR7)                                      -->
+<!-- ===================================================================== -->
+<section class="screen" data-screen="instructor-video" hidden>
+  <div class="page-head">
+    <div>
+      <p class="eyebrow">Instructor <span class="br">BR7</span></p>
+      <h1>Video insights</h1>
+      <p class="lede">Where learners pause, rewind and stop watching in each lesson video. Built per video version from pseudonymised viewing events; today's activity streams in live.</p>
+    </div>
+  </div>
+  <div class="filters">
+    <label class="field">Course<select class="select"><option>SQL Foundations</option><option>Python for Data</option></select></label>
+    <label class="field">Lesson video<select class="select"><option>2 · Joins (version 2, 7:00)</option><option>2 · Joins (version 1, 6:20)</option><option>1 · Selecting rows (4:00)</option><option>3 · Grouping and aggregates (6:00)</option></select></label>
+    <label class="field">Period<select class="select"><option>Last 7 days</option><option>Last 30 days</option></select></label>
+    <label class="switch inline-toggle" style="gap:8px">Include today (live) <input type="checkbox" id="live-overlay" checked></label>
+  </div>
+  <div class="tiles">
+    <div class="tile"><div class="tile-label">Viewers</div><div class="tile-value" id="v-viewers">164</div><div class="tile-delta">distinct learners, last 7 days</div></div>
+    <div class="tile"><div class="tile-label">Average watched</div><div class="tile-value" id="v-watched">–</div><div class="tile-delta">of the video's length</div></div>
+    <div class="tile"><div class="tile-label">Pauses</div><div class="tile-value" id="v-pauses">–</div><div class="tile-delta" id="v-pauses-live"></div></div>
+    <div class="tile"><div class="tile-label">Rewinds</div><div class="tile-value" id="v-rewinds">–</div><div class="tile-delta">jumps backwards of 3 s or more</div></div>
+  </div>
+  <div class="grid-2-1">
+    <article class="card">
+      <div class="card-head">
+        <div><h2 class="card-title">Joins · version 2 · 7:00</h2><p class="card-sub">5-second buckets. Version 1 (6:20) has its own heatmap; positions are never mixed across versions.</p></div>
+        <span class="badge b-info" id="live-chip"><svg class="icon"><use href="#i-activity"/></svg>Live · +37 interactions today</span>
+      </div>
+      <div class="legend" style="margin-bottom:10px">
+        <span class="key"><span class="sw-line" style="background:var(--s1)"></span>Learners still watching</span>
+        <span class="key">Fewer <span class="ramp"><i style="background:var(--h1)"></i><i style="background:var(--h2)"></i><i style="background:var(--h3)"></i><i style="background:var(--h4)"></i><i style="background:var(--h5)"></i><i style="background:var(--h6)"></i></span> More events</span>
+        <span class="key"><span class="pin-badge" style="width:16px;height:16px;font-size:10px">A</span>Moment to review</span>
+      </div>
+      <div class="chart-host" id="heatmap"></div>
+      <details class="data-table"><summary>View as table</summary><div class="table-wrap" id="heatmap-table"></div></details>
+    </article>
+    <article class="card">
+      <div class="card-head"><div><h2 class="card-title">Moments to review</h2><p class="card-sub">Ranked by how far they stand out from the rest of the video.</p></div></div>
+      <div id="moments"></div>
+      <div class="card-foot"><svg class="icon"><use href="#i-file"/></svg><span>Fix a confusing explanation in <a href="#instructor-content" data-go="instructor-content">Content &amp; search</a>. A new version starts its own heatmap.</span></div>
+    </article>
+  </div>
+</section>
+
+<!-- ===================================================================== -->
+<!-- INSTRUCTOR · ENGAGEMENT TREND (BR8)                                    -->
+<!-- ===================================================================== -->
+<section class="screen" data-screen="instructor-engagement" hidden>
+  <div class="page-head">
+    <div>
+      <p class="eyebrow">Instructor <span class="br">BR8</span></p>
+      <h1>Engagement trend</h1>
+      <p class="lede">Weekly engagement per learner compared with the course average. Learners appear by pseudonym; refer one to an advisor to reveal who they are.</p>
+    </div>
+  </div>
+  <div class="filters">
+    <label class="field">Course<select class="select"><option>Python for Data</option><option>SQL Foundations</option></select></label>
+    <label class="field">Weeks<select class="select"><option>8 weeks to Sun 1 Nov</option><option>12 weeks to Sun 1 Nov</option></select></label>
+  </div>
+  <div class="tiles">
+    <div class="tile"><div class="tile-label">Active learners last week</div><div class="tile-value">58</div><div class="tile-delta"><span class="delta-bad">−4</span> vs the week before</div></div>
+    <div class="tile"><div class="tile-label">Course average</div><div class="tile-value">6.2 <small>pts</small></div><div class="tile-delta"><span class="delta-bad">−0.3</span> vs the week before</div></div>
+    <div class="tile"><div class="tile-label">Declining learners</div><div class="tile-value">5</div><div class="tile-delta">down 30%+ two weeks running</div></div>
+    <div class="tile"><div class="tile-label">Active today</div><div class="tile-value">21</div><div class="tile-delta"><span class="badge b-info"><svg class="icon"><use href="#i-activity"/></svg>Live</span> avg 1.4 pts so far</div></div>
+  </div>
+  <article class="card">
+    <div class="card-head"><div><h2 class="card-title">Course average engagement</h2><p class="card-sub">Points per learner per week, from lesson views, submissions and time on task.</p></div></div>
+    <div class="chart-host" id="eng-avg"></div>
+    <details class="data-table"><summary>View as table</summary><div class="table-wrap" id="eng-avg-table"></div></details>
+  </article>
+  <article class="card" style="margin-top:16px">
+    <div class="card-head">
+      <div><h2 class="card-title">Declining learners <span class="badge b-crit"><svg class="icon"><use href="#i-trend-down"/></svg>5</span></h2><p class="card-sub">Score fell by at least 30% in each of the last two weeks. Same scale in every panel.</p></div>
+      <div class="legend"><span class="key"><span class="sw-line" style="background:var(--s1)"></span>Learner</span><span class="key"><span class="sw-line" style="background:var(--ref)"></span>Course average</span></div>
+    </div>
+    <div class="minis" id="minis"></div>
+    <div class="actions"><button class="btn">Show all 58 learners</button></div>
+  </article>
+</section>
+
+<!-- ===================================================================== -->
+<!-- INSTRUCTOR · CONTENT & SEARCH (BR8 sync)                               -->
+<!-- ===================================================================== -->
+<section class="screen" data-screen="instructor-content" hidden>
+  <div class="page-head">
+    <div>
+      <p class="eyebrow">Instructor <span class="br">BR8</span></p>
+      <h1>Content &amp; search</h1>
+      <p class="lede">Publish a new version and follow it until the cache, the transcript chunks and the search index all serve it.</p>
+    </div>
+  </div>
+  <article class="card">
+    <div class="card-head"><div><h2 class="card-title">SQL Foundations · content</h2><p class="card-sub">Select an item to edit it.</p></div></div>
+    <div class="table-wrap">
+      <table class="t">
+        <thead><tr><th style="min-width:180px">Content</th><th class="r">Published</th><th class="r">Searchable</th><th class="r">Chunks</th><th>Cache</th><th>Search</th></tr></thead>
+        <tbody id="content-rows">
+          <tr class="clickable" aria-selected="true" data-row="joins"><td class="title-cell">Joins<span class="sub">Lesson 2 · transcript</span></td><td class="r num" data-col="lms">v3</td><td class="r num" data-col="idx">v3</td><td class="r num" data-col="chunks">14</td><td data-col="cache"><span class="badge b-good"><svg class="icon"><use href="#i-check"/></svg>Warm</span></td><td data-col="state"><span class="badge b-good"><svg class="icon"><use href="#i-check"/></svg>In sync</span></td></tr>
+          <tr class="clickable" data-row="select"><td class="title-cell">Selecting rows<span class="sub">Lesson 1 · transcript</span></td><td class="r num">v1</td><td class="r num">v1</td><td class="r num">9</td><td><span class="badge b-good"><svg class="icon"><use href="#i-check"/></svg>Warm</span></td><td><span class="badge b-good"><svg class="icon"><use href="#i-check"/></svg>In sync</span></td></tr>
+          <tr class="clickable" data-row="group"><td class="title-cell">Grouping and aggregates<span class="sub">Lesson 3 · transcript</span></td><td class="r num">v2</td><td class="r num">v2</td><td class="r num">12</td><td><span class="badge b-good"><svg class="icon"><use href="#i-check"/></svg>Warm</span></td><td><span class="badge b-good"><svg class="icon"><use href="#i-check"/></svg>In sync</span></td></tr>
+          <tr class="clickable" data-row="practice"><td class="title-cell">Week 3 practice set<span class="sub">Assignment brief</span></td><td class="r num">v1</td><td class="r num">v1</td><td class="r num">3</td><td><span class="badge b-good"><svg class="icon"><use href="#i-check"/></svg>Warm</span></td><td><span class="badge b-good"><svg class="icon"><use href="#i-check"/></svg>In sync</span></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </article>
+  <div class="grid-1-1" style="margin-top:16px">
+    <article class="card">
+      <div class="card-head"><div><h2 class="card-title">Edit · Joins</h2><p class="card-sub" id="editing-from">Editing from version 3 (served from cache)</p></div></div>
+      <label class="field">Title<input class="input full" value="Joins"></label>
+      <label class="field" style="margin-top:12px">Transcript
+        <textarea class="textarea" rows="9" id="transcript">In this lesson we combine two tables. An INNER JOIN returns only the rows that match in both tables.
+
+A LEFT JOIN keeps every row from the left table. When there is no match, the columns from the right table are NULL.
+
+Be careful with filters: a condition on the right table in WHERE removes those NULL rows and turns your left join into an inner join. Put the condition in the ON clause instead.</textarea>
+      </label>
+      <div class="actions">
+        <button class="btn primary" id="publish"><svg class="icon"><use href="#i-upload"/></svg><span id="publish-label">Publish version 4</span></button>
+        <span class="small muted" style="align-self:center">Each version is saved permanently; learners are notified of the change.</span>
+      </div>
+    </article>
+    <div class="stack">
+      <article class="card">
+        <div class="card-head"><div><h2 class="card-title">Sync status <span class="br">BR8</span></h2><p class="card-sub" id="sync-sub">Version 3 · published Mon 2 Nov, 14:06</p></div><span id="sync-badge" class="badge b-good"><svg class="icon"><use href="#i-check"/></svg>Searchable in 2.6 s</span></div>
+        <ol class="steps" id="sync-steps"></ol>
+      </article>
+      <article class="card">
+        <div class="card-head"><div><h2 class="card-title">Search preview</h2><p class="card-sub">What learners get when they search this course.</p></div></div>
+        <div class="filters" style="margin-bottom:6px">
+          <label class="field" style="flex:1;min-width:180px">Query<input class="input full" id="search-q" value="left join null"></label>
+          <div class="field">Ranking<div class="seg" role="group" aria-label="Ranking" id="search-mode"><button aria-pressed="true" data-m="hybrid">Hybrid</button><button aria-pressed="false" data-m="keyword">Keyword</button></div></div>
+        </div>
+        <div id="hits"></div>
+      </article>
+    </div>
+  </div>
+</section>
+
+<!-- ===================================================================== -->
+<!-- ADVISOR · LEARNERS TO SUPPORT (BR5)                                    -->
+<!-- ===================================================================== -->
+<section class="screen" data-screen="advisor-risk" hidden>
+  <div class="page-head">
+    <div>
+      <p class="eyebrow">Advisor <span class="br">BR5</span></p>
+      <h1>Learners to support</h1>
+      <p class="lede">Risk points come from simple rules on activity, deadlines and submissions. They show who may need a check-in; they are not a dropout probability.</p>
+    </div>
+    <div class="head-actions"><button class="btn"><svg class="icon"><use href="#i-refresh"/></svg>Refresh</button></div>
+  </div>
+  <div class="filters">
+    <label class="field">Course<select class="select" id="adv-course"><option value="">All my courses</option><option>Python for Data</option><option>SQL Foundations</option><option>Data Engineering Basics</option></select></label>
+    <label class="field">Risk level<select class="select" id="adv-level"><option value="">All levels</option><option>CRITICAL</option><option>HIGH</option><option>MEDIUM</option><option>LOW</option></select></label>
+    <label class="field">Alert status<select class="select" id="adv-status"><option value="">All</option><option>NEW</option><option>ACKNOWLEDGED</option><option>RESOLVED</option></select></label>
+  </div>
+  <div class="tiles">
+    <div class="tile"><div class="tile-label">Learners monitored</div><div class="tile-value">48</div><div class="tile-delta">across 3 courses</div></div>
+    <div class="tile"><div class="tile-label">Open alerts</div><div class="tile-value" id="open-alerts">2</div><div class="tile-delta" id="open-alerts-sub">1 new · 1 acknowledged</div></div>
+    <div class="tile"><div class="tile-label">Resolved this week</div><div class="tile-value" id="resolved-week">3</div><div class="tile-delta">median 1.5 days to resolve</div></div>
+    <div class="tile wide">
+      <div class="tile-label">Risk levels now</div>
+      <div class="segbar" style="margin-top:12px" role="img" aria-label="Critical 1, High 1, Medium 2, Low 43, not yet eligible 1">
+        <i style="flex:1;background:var(--critical)"></i><i style="flex:1;background:var(--serious)"></i><i style="flex:2;background:var(--warning)"></i><i style="flex:43;background:var(--good)"></i><i style="flex:1;background:var(--border-strong)"></i>
+      </div>
+      <div class="levels">
+        <span><i class="sw-box" style="background:var(--critical)"></i>Critical 1</span>
+        <span><i class="sw-box" style="background:var(--serious)"></i>High 1</span>
+        <span><i class="sw-box" style="background:var(--warning)"></i>Medium 2</span>
+        <span><i class="sw-box" style="background:var(--good)"></i>Low 43</span>
+        <span><i class="sw-box" style="background:var(--border-strong)"></i>Not yet eligible 1</span>
+      </div>
+    </div>
+  </div>
+  <div class="grid-1-1">
+    <article class="card">
+      <div class="card-head"><div><h2 class="card-title">Risk queue</h2><p class="card-sub">Highest points first. An alert opens at 60 points and is not repeated for 72 hours.</p></div></div>
+      <div id="queue" role="list"></div>
+    </article>
+    <article class="card sticky" id="risk-detail" aria-live="polite"></article>
+  </div>
+</section>
+
+<!-- ===================================================================== -->
+<!-- ORG ADMIN · ORGANISATION PROGRESS (BR6)                                -->
+<!-- ===================================================================== -->
+<section class="screen" data-screen="admin-progress" hidden>
+  <div class="page-head">
+    <div>
+      <p class="eyebrow">Org admin <span class="br">BR6</span></p>
+      <h1>Organisation progress</h1>
+      <p class="lede">Skill progress and course completion for your organisation's learners. Built daily from pseudonymised data.</p>
+    </div>
+    <div class="head-actions"><button class="btn"><svg class="icon"><use href="#i-download"/></svg>Export CSV</button></div>
+  </div>
+  <div class="filters">
+    <div class="field">Organisation<div class="seg" role="group" aria-label="Organisation" id="org-seg"><button aria-pressed="true" data-org="acme">Acme Learning</button><button aria-pressed="false" data-org="globex">Globex Academy</button></div></div>
+    <label class="field">Report date<select class="select"><option>Fri 6 Nov 2026</option><option>Thu 5 Nov 2026</option><option>Wed 4 Nov 2026</option></select></label>
+  </div>
+  <div class="callout neutral" style="margin-bottom:16px">
+    <svg class="icon" style="color:var(--brand-ink)"><use href="#i-shield"/></svg>
+    <div><b>Privacy protection.</b> Any group with fewer than 5 learners is hidden so no individual can be singled out. Learner names never appear in this report.</div>
+  </div>
+  <div class="tiles" id="org-tiles"></div>
+  <div class="grid-2-1">
+    <article class="card">
+      <div class="card-head"><div><h2 class="card-title">Courses</h2><p class="card-sub" id="org-built">Report for Fri 6 Nov, built Sat 7 Nov at 02:15</p></div></div>
+      <div class="table-wrap">
+        <table class="t">
+          <thead><tr><th style="min-width:180px">Course</th><th class="r">Learners</th><th class="r">Completed</th><th>Completion</th><th>Mastery</th></tr></thead>
+          <tbody id="org-rows"></tbody>
+        </table>
+      </div>
+      <div class="card-foot"><svg class="icon"><use href="#i-info"/></svg><span>Completion is the average share of a course's lessons finished. Mastery is the average test pass rate of graded submissions; learners without graded work count as 0.</span></div>
+    </article>
+    <article class="card">
+      <div class="card-head"><div><h2 class="card-title">Average mastery by skill</h2><p class="card-sub">Only groups of 5 or more learners.</p></div></div>
+      <div id="skill-bars"></div>
+    </article>
+  </div>
+</section>
+
+<!-- ===================================================================== -->
+<!-- DATA PLATFORM · PIPELINE HEALTH                                        -->
+<!-- ===================================================================== -->
+<section class="screen" data-screen="platform-health" hidden>
+  <div class="page-head">
+    <div>
+      <p class="eyebrow">Data platform</p>
+      <h1>Pipeline health</h1>
+      <p class="lede">The pipeline behind every other screen: ingestion, the lakehouse layers, the reporting tables and the stores that serve them.</p>
+    </div>
+    <div class="head-actions"><button class="btn"><svg class="icon"><use href="#i-refresh"/></svg>Refresh</button></div>
+  </div>
+  <div class="tiles">
+    <div class="tile"><div class="tile-label">Events, last 24 h</div><div class="tile-value">1.42M</div><div class="tile-delta"><span class="delta-good">+6%</span> vs the day before</div></div>
+    <div class="tile"><div class="tile-label">Rejected to dead letters</div><div class="tile-value">0.41%</div><div class="tile-delta">5,812 events · limit 1%</div></div>
+    <div class="tile"><div class="tile-label">Late events accepted</div><div class="tile-value">2.1%</div><div class="tile-delta">placed by event time, not arrival</div></div>
+    <div class="tile"><div class="tile-label">Quality checks</div><div class="tile-value">9 <small>of 10 passing</small></div><div class="tile-delta"><span class="badge b-warn"><svg class="icon"><use href="#i-alert"/></svg>1 warning</span></div></div>
+  </div>
+  <article class="card">
+    <div class="card-head"><div><h2 class="card-title">Data flow</h2><p class="card-sub">Each box shows its current state. Personal identifiers are pseudonymised before the silver layer.</p></div></div>
+    <div class="flow">
+      <div class="flow-col"><h4>Sources</h4>
+        <div class="node"><div class="node-top"><i class="dot ok"></i><span>Clickstream telemetry</span></div><small>web, mobile · 980 events/min</small></div>
+        <div class="node"><div class="node-top"><i class="dot ok"></i><span>LMS database</span></div><small>PostgreSQL change capture</small></div>
+        <div class="node"><div class="node-top"><i class="dot ok"></i><span>Course content</span></div><small>transcripts, slides</small></div>
+        <div class="node"><div class="node-top"><i class="dot ok"></i><span>Code sandbox</span></div><small>execution logs</small></div>
+      </div>
+      <div class="flow-col"><h4>Ingest</h4>
+        <div class="node"><div class="node-top"><i class="dot ok"></i><span>Kafka + Debezium</span></div><small>28 topics · max lag 1.2 s</small></div>
+        <div class="node"><div class="node-top"><i class="dot ok"></i><span>Schema validation</span></div><small>v1.0 and v1.1 accepted</small></div>
+      </div>
+      <div class="flow-col"><h4>Process</h4>
+        <div class="node"><div class="node-top"><i class="dot ok"></i><span>Spark streaming</span></div><small>bronze, silver, risk windows</small></div>
+        <div class="node"><div class="node-top"><i class="dot ok"></i><span>Spark batch</span></div><small>gold and reports, nightly</small></div>
+        <div class="node"><div class="node-top"><i class="dot ok"></i><span>Flink</span></div><small>live video and engagement</small></div>
+      </div>
+      <div class="flow-col"><h4>Lakehouse</h4>
+        <div class="node"><div class="node-top"><i class="dot ok"></i><span>Bronze · raw</span></div><small>1.42M rows today</small></div>
+        <div class="node"><div class="node-top"><i class="dot ok"></i><span>Silver · cleaned</span></div><small>pseudonymised · 1.41M</small></div>
+        <div class="node"><div class="node-top"><i class="dot warn"></i><span>Gold · star schema</span></div><small>23 tables · 3 unknown keys</small></div>
+        <div class="node"><div class="node-top"><i class="dot ok"></i><span>Report tables</span></div><small>4 marts · 1 feature table</small></div>
+      </div>
+      <div class="flow-col"><h4>Serve</h4>
+        <div class="node"><div class="node-top"><i class="dot ok"></i><span>Redis</span></div><small>risk, live overlays, dedup</small></div>
+        <div class="node"><div class="node-top"><i class="dot ok"></i><span>Trino</span></div><small>reports for admin, instructor</small></div>
+        <div class="node"><div class="node-top"><i class="dot ok"></i><span>OpenSearch</span></div><small>course search</small></div>
+        <div class="node"><div class="node-top"><i class="dot ok"></i><span>PostgreSQL</span></div><small>assessment, risk results</small></div>
+      </div>
+    </div>
+  </article>
+  <div class="grid-1-1" style="margin-top:16px">
+    <article class="card">
+      <div class="card-head"><div><h2 class="card-title">Events accepted per minute</h2><p class="card-sub">Last 60 minutes, all sources.</p></div></div>
+      <div class="chart-host" id="throughput"></div>
+      <details class="data-table"><summary>View as table</summary><div class="table-wrap" id="throughput-table"></div></details>
+    </article>
+    <article class="card">
+      <div class="card-head"><div><h2 class="card-title">Report freshness</h2><p class="card-sub">The tables behind each screen.</p></div></div>
+      <div class="table-wrap">
+        <table class="t">
+          <thead><tr><th>Table</th><th>Used by</th><th>Last built</th><th>State</th></tr></thead>
+          <tbody>
+            <tr><td class="mono">mart.assessment_item_stats</td><td class="small">Assessment health</td><td class="small num">4 min ago</td><td><span class="badge b-good"><svg class="icon"><use href="#i-check"/></svg>Fresh</span></td></tr>
+            <tr><td class="mono">gold.fct_risk_score_daily</td><td class="small">Learners to support</td><td class="small num">38 min ago</td><td><span class="badge b-good"><svg class="icon"><use href="#i-check"/></svg>Fresh</span></td></tr>
+            <tr><td class="mono">mart.org_progress</td><td class="small">Organisation progress</td><td class="small num">Today 02:15</td><td><span class="badge b-good"><svg class="icon"><use href="#i-check"/></svg>Fresh</span></td></tr>
+            <tr><td class="mono">mart.video_heatmap</td><td class="small">Video insights</td><td class="small num">Today 02:21</td><td><span class="badge b-good"><svg class="icon"><use href="#i-check"/></svg>Fresh</span></td></tr>
+            <tr><td class="mono">mart.engagement_trend</td><td class="small">Engagement trend</td><td class="small num">Mon 2 Nov 03:12</td><td><span class="badge b-good"><svg class="icon"><use href="#i-check"/></svg>Weekly</span></td></tr>
+            <tr><td class="mono">features.learner_longterm</td><td class="small">Learner features</td><td class="small num">Yesterday 02:40</td><td><span class="badge b-warn"><svg class="icon"><use href="#i-alert"/></svg>Late 9 h</span></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </article>
+  </div>
+  <div class="grid-1-1" style="margin-top:16px">
+    <article class="card">
+      <div class="card-head"><div><h2 class="card-title">Quality checks</h2><p class="card-sub">Run after every warehouse build.</p></div></div>
+      <div id="checks"></div>
+    </article>
+    <article class="card">
+      <div class="card-head"><div><h2 class="card-title">Dead-letter queue</h2><p class="card-sub">Latest rejected events and why.</p></div><button class="btn sm"><svg class="icon"><use href="#i-refresh"/></svg>Replay selected</button></div>
+      <div class="table-wrap">
+        <table class="t">
+          <thead><tr><th>Time</th><th>Topic</th><th>Reason</th></tr></thead>
+          <tbody>
+            <tr><td class="num small">11:58:41</td><td class="mono">telemetry.events.raw.v1</td><td class="small">Unsupported schema_version "0.9"</td></tr>
+            <tr><td class="num small">11:57:03</td><td class="mono">telemetry.events.raw.v1</td><td class="small">Missing required field learner_id</td></tr>
+            <tr><td class="num small">11:54:19</td><td class="mono">telemetry.events.raw.v1</td><td class="small">occurred_at is 2 h in the future</td></tr>
+            <tr><td class="num small">11:49:55</td><td class="mono">telemetry.events.raw.v1</td><td class="small">Malformed JSON at position 214</td></tr>
+            <tr><td class="num small">11:41:12</td><td class="mono">grading.sandbox_result.raw.v1</td><td class="small">Unknown submission_id</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </article>
+  </div>
+</section>
+
+    </main>
+  </div>
+</div>
+
+<div class="tt" id="tt" hidden></div>
+<div class="toast" id="toast" role="status" hidden></div>
+
+<script>
+(function () {
+  "use strict";
+  var $ = function (s, r) { return (r || document).querySelector(s); };
+  var $$ = function (s, r) { return Array.prototype.slice.call((r || document).querySelectorAll(s)); };
+  function icon(n, extra) { return '<svg class="icon' + (extra ? " " + extra : "") + '" aria-hidden="true"><use href="#i-' + n + '"/></svg>'; }
+  function esc(s) { return String(s).replace(/[&<>"]/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]; }); }
+  function badge(cls, ic, text) { return '<span class="badge ' + cls + '">' + icon(ic) + text + "</span>"; }
+  function fmt(n) { return n.toLocaleString("en-US"); }
+  function mmss(s) { return Math.floor(s / 60) + ":" + String(s % 60).padStart(2, "0"); }
+  function rng(seed) { return function () { seed |= 0; seed = seed + 0x6D2B79F5 | 0; var t = Math.imul(seed ^ seed >>> 15, 1 | seed); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+  function store(k, v) { try { if (v === undefined) return localStorage.getItem(k); localStorage.setItem(k, v); } catch (e) { return null; } return null; }
+
+  /* ---------- tooltip & toast ---------- */
+  var tt = $("#tt");
+  function showTip(e, html) {
+    tt.innerHTML = html; tt.hidden = false;
+    var pad = 14, r = tt.getBoundingClientRect(), x = e.clientX + pad, y = e.clientY + pad;
+    if (x + r.width > innerWidth - 8) x = e.clientX - r.width - pad;
+    if (y + r.height > innerHeight - 8) y = e.clientY - r.height - pad;
+    tt.style.left = Math.max(8, x) + "px"; tt.style.top = Math.max(8, y) + "px";
+  }
+  function hideTip() { tt.hidden = true; }
+  function tipRow(color, label, value, line) {
+    var sw = color ? '<i class="' + (line ? "sw-line" : "sw-box") + '" style="background:' + color + '"></i>' : "";
+    return '<div class="tt-row"><span>' + sw + label + "</span><b>" + value + "</b></div>";
+  }
+  var toastTimer;
+  function toast(msg) {
+    var t = $("#toast"); t.innerHTML = icon("check") + esc(msg); t.hidden = false;
+    clearTimeout(toastTimer); toastTimer = setTimeout(function () { t.hidden = true; }, 2600);
+  }
+  function dataTable(head, rows) {
+    return '<table class="t"><thead><tr>' + head.map(function (h, i) { return "<th" + (i ? ' class="r"' : "") + ">" + h + "</th>"; }).join("") +
+      "</tr></thead><tbody>" + rows.map(function (r) { return "<tr>" + r.map(function (c, i) { return "<td" + (i ? ' class="r num"' : "") + ">" + c + "</td>"; }).join("") + "</tr>"; }).join("") + "</tbody></table>";
+  }
+
+  /* ---------- generic line chart (single y-axis, crosshair tooltip) ---------- */
+  function lineChart(host, o) {
+    var W = Math.max(280, host.clientWidth), H = o.height || 220;
+    var m = { l: 40, r: o.endLabel ? 52 : 14, t: 14, b: 28 };
+    var iw = W - m.l - m.r, ih = H - m.t - m.b, n = o.x.length, y0 = o.yMin || 0;
+    function X(i) { return m.l + (n < 2 ? iw / 2 : i * iw / (n - 1)); }
+    function Y(v) { return m.t + ih - (v - y0) / (o.yMax - y0) * ih; }
+    var s = '<svg class="chart" viewBox="0 0 ' + W + " " + H + '" width="100%" height="' + H + '" role="img" aria-label="' + esc(o.label) + '">';
+    o.yTicks.forEach(function (t) {
+      if (t !== y0) s += '<line class="gridline" x1="' + m.l + '" x2="' + (W - m.r) + '" y1="' + Y(t) + '" y2="' + Y(t) + '"/>';
+      s += '<text class="tick" x="' + (m.l - 8) + '" y="' + Y(t) + '" dy="0.32em" text-anchor="end">' + (o.yFmt ? o.yFmt(t) : t) + "</text>";
+    });
+    (o.refs || []).forEach(function (r) {
+      s += '<line class="ref" x1="' + m.l + '" x2="' + (W - m.r) + '" y1="' + Y(r.y) + '" y2="' + Y(r.y) + '"/>' +
+        '<text class="ref-label" x="' + (m.l + 6) + '" y="' + (Y(r.y) - 5) + '">' + r.label + "</text>";
+    });
+    s += '<line class="axis" x1="' + m.l + '" x2="' + (W - m.r) + '" y1="' + Y(y0) + '" y2="' + Y(y0) + '"/>';
+    var every = Math.max(1, Math.ceil(n / Math.max(2, Math.floor(iw / 64))));
+    if (o.xEvery) every = Math.ceil(every / o.xEvery) * o.xEvery;
+    for (var i = 0; i < n; i += every) {
+      var anchor = i === 0 ? "start" : (i + every >= n && i === n - 1 ? "end" : "middle");
+      s += '<text class="tick" x="' + X(i) + '" y="' + (H - 8) + '" text-anchor="' + anchor + '">' + o.x[i] + "</text>";
+    }
+    o.series.forEach(function (se) {
+      var d = se.values.map(function (v, i) { return (i ? "L" : "M") + X(i).toFixed(1) + "," + Y(v).toFixed(1); }).join("");
+      if (se.wash) s += '<path d="' + d + "L" + X(n - 1) + "," + Y(y0) + "L" + X(0) + "," + Y(y0) + 'Z" fill="' + se.wash + '"/>';
+      s += '<path d="' + d + '" fill="none" stroke="' + se.color + '" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>';
+      var lx = X(n - 1), ly = Y(se.values[n - 1]);
+      s += '<circle cx="' + lx + '" cy="' + ly + '" r="4" fill="' + se.color + '" stroke="var(--chart-surface)" stroke-width="2"/>';
+      if (o.endLabel) s += '<text class="end-label" x="' + (lx + 9) + '" y="' + ly + '" dy="0.32em">' + (o.yFmt ? o.yFmt(se.values[n - 1]) : se.values[n - 1]) + "</text>";
+    });
+    s += '<g class="hover" visibility="hidden"><line class="crosshair" y1="' + m.t + '" y2="' + (m.t + ih) + '"/>' +
+      o.series.map(function (se) { return '<circle r="5" fill="' + se.color + '" stroke="var(--chart-surface)" stroke-width="2"/>'; }).join("") + "</g>";
+    s += '<rect class="hit" x="' + (m.l - 10) + '" y="0" width="' + (iw + 20) + '" height="' + (H - m.b) + '" fill="transparent"/></svg>';
+    host.innerHTML = s;
+    var svg = host.querySelector("svg"), g = svg.querySelector(".hover"), cross = g.querySelector("line"), dots = g.querySelectorAll("circle"), hit = svg.querySelector(".hit");
+    hit.addEventListener("mousemove", function (e) {
+      var b = svg.getBoundingClientRect(), px = (e.clientX - b.left) * (W / b.width);
+      var i = Math.max(0, Math.min(n - 1, Math.round((px - m.l) / (n > 1 ? iw / (n - 1) : 1))));
+      g.setAttribute("visibility", "visible"); cross.setAttribute("x1", X(i)); cross.setAttribute("x2", X(i));
+      o.series.forEach(function (se, k) { dots[k].setAttribute("cx", X(i)); dots[k].setAttribute("cy", Y(se.values[i])); });
+      showTip(e, o.tip(i));
+    });
+    hit.addEventListener("mouseleave", function () { g.setAttribute("visibility", "hidden"); hideTip(); });
+  }
+
+  /* ---------- small multiple (no axes, shared scale) ---------- */
+  function miniChart(learner, avg, max) {
+    var W = 240, H = 64, P = 6, n = avg.length;
+    function X(i) { return P + i * (W - 2 * P) / (n - 1); }
+    function Y(v) { return H - P - v / max * (H - 2 * P); }
+    function path(a) { return a.map(function (v, i) { return (i ? "L" : "M") + X(i).toFixed(1) + "," + Y(v).toFixed(1); }).join(""); }
+    return '<svg class="chart" viewBox="0 0 ' + W + " " + H + '" width="100%" height="' + H + '" preserveAspectRatio="none" aria-hidden="true">' +
+      '<line class="axis" x1="' + P + '" x2="' + (W - P) + '" y1="' + (H - P) + '" y2="' + (H - P) + '" vector-effect="non-scaling-stroke"/>' +
+      '<path d="' + path(avg) + '" fill="none" stroke="var(--ref)" stroke-width="1.5" vector-effect="non-scaling-stroke"/>' +
+      '<path d="' + path(learner) + '" fill="none" stroke="var(--s1)" stroke-width="2" stroke-linejoin="round" vector-effect="non-scaling-stroke"/></svg>';
+  }
+
+  /* ================= Workspaces & navigation ================= */
+  var WS = [
+    { id: "learner", label: "Learner", who: "An Pham", initials: "AP", icon: "cap", pages: [
+      { id: "learner-home", label: "Home", icon: "home", br: "BR1 · BR2" },
+      { id: "learner-lab", label: "Code lab", icon: "code", br: "BR3" }] },
+    { id: "instructor", label: "Instructor", who: "Hoa Nguyen", initials: "HN", icon: "board", pages: [
+      { id: "instructor-assess", label: "Assessment health", icon: "flag", br: "BR4" },
+      { id: "instructor-video", label: "Video insights", icon: "video", br: "BR7" },
+      { id: "instructor-engagement", label: "Engagement trend", icon: "trend-down", br: "BR8" },
+      { id: "instructor-content", label: "Content & search", icon: "file", br: "BR8" }] },
+    { id: "advisor", label: "Advisor", who: "Thu Nguyen", initials: "TN", icon: "buoy", pages: [
+      { id: "advisor-risk", label: "Learners to support", icon: "users", br: "BR5" }] },
+    { id: "admin", label: "Org admin", who: "Tuan Vu · Acme Learning", initials: "TV", icon: "building", pages: [
+      { id: "admin-progress", label: "Organisation progress", icon: "chart", br: "BR6" }] },
+    { id: "platform", label: "Data platform", who: "Platform team", initials: "DP", icon: "database", pages: [
+      { id: "platform-health", label: "Pipeline health", icon: "activity", br: "Ops" }] }
+  ];
+  var BELL = {
+    learner: { n: 3, items: [["clock", "Due in 12 hours: Sum of even numbers", "Python for Data · 11:52", "learner-lab"], ["file", "New assignment: Week 3 practice set", "SQL Foundations · 10:05", "learner-home"], ["refresh", "Lesson updated: Joins", "SQL Foundations · yesterday", "learner-home"]] },
+    instructor: { n: 2, items: [["flag", "t5_pairs flagged as a suspicious test case", "Python for Data · Mon 2 Nov", "instructor-assess"], ["trend-down", "5 learners are declining in Python for Data", "Weekly trend · Mon 2 Nov", "instructor-engagement"]] },
+    advisor: { n: 1, items: [["octagon", "Dung Vo reached 80 points (critical)", "Python for Data · Thu 5 Nov, 09:00", "advisor-risk"]] },
+    admin: { n: 1, items: [["chart", "The daily report for Fri 6 Nov is ready", "Today, 02:15", "admin-progress"]] },
+    platform: { n: 1, items: [["alert", "features.learner_longterm is 9 hours late", "Expected today 02:00", "platform-health"]] }
+  };
+  var current = { ws: "learner", page: "learner-home" };
+
+  function wsOfPage(pid) { for (var i = 0; i < WS.length; i++) for (var j = 0; j < WS[i].pages.length; j++) if (WS[i].pages[j].id === pid) return WS[i]; return null; }
+  function renderNav() {
+    $("#ws-nav").innerHTML = WS.map(function (w) {
+      return '<button class="nav-btn" data-ws="' + w.id + '" aria-current="' + (w.id === current.ws) + '"><span class="ws-ico">' + icon(w.icon) + '</span><span class="grow">' + w.label + '<span class="who">' + w.who + "</span></span></button>";
+    }).join("");
+    var ws = WS.filter(function (w) { return w.id === current.ws; })[0];
+    $("#page-nav").innerHTML = ws.pages.map(function (p) {
+      return '<button class="nav-btn" data-page="' + p.id + '" aria-current="' + (p.id === current.page) + '">' + icon(p.icon) + '<span class="grow">' + esc(p.label) + '</span><span class="br">' + p.br + "</span></button>";
+    }).join("");
+  }
+  function go(pageId, push) {
+    var ws = wsOfPage(pageId); if (!ws) { ws = WS[0]; pageId = ws.pages[0].id; }
+    current.ws = ws.id; current.page = pageId;
+    $$(".screen").forEach(function (s) { s.hidden = s.getAttribute("data-screen") !== pageId; });
+    renderNav();
+    var page = ws.pages.filter(function (p) { return p.id === pageId; })[0];
+    $("#crumbs").innerHTML = esc(ws.label) + " " + icon("arrow-right") + " <b>" + esc(page.label) + "</b>";
+    $("#avatar").textContent = ws.initials; $("#avatar").title = ws.who;
+    var b = BELL[ws.id]; $("#bell-count").textContent = b.n; $("#bell-count").hidden = !b.n;
+    $("#bell-pop").hidden = true; $("#bell").setAttribute("aria-expanded", "false");
+    $("#global-search").placeholder = { learner: "Search courses and lessons", instructor: "Search content, items, videos", advisor: "Search learners", admin: "Search courses and skills", platform: "Search tables and topics" }[ws.id];
+    document.title = page.label + " · EduPlatform UI Mockup";
+    if (push !== false) { try { history.replaceState(null, "", "#" + pageId); } catch (e) { location.hash = pageId; } }
+    window.scrollTo(0, 0);
+    renderCharts();
+  }
+  document.addEventListener("click", function (e) {
+    var t = e.target.closest("[data-ws],[data-page],[data-go],[data-toast],[data-enroll]");
+    if (!t) return;
+    if (t.hasAttribute("data-ws")) { var w = WS.filter(function (x) { return x.id === t.getAttribute("data-ws"); })[0]; go(w.pages[0].id); }
+    else if (t.hasAttribute("data-page")) go(t.getAttribute("data-page"));
+    else if (t.hasAttribute("data-go")) { e.preventDefault(); go(t.getAttribute("data-go")); }
+    else if (t.hasAttribute("data-toast")) toast(t.getAttribute("data-toast"));
+    else if (t.hasAttribute("data-enroll")) { t.disabled = true; t.innerHTML = icon("check") + "Enrolled"; toast("Enrolled in " + t.getAttribute("data-enroll")); }
+  });
+
+  /* bell popover */
+  $("#bell").addEventListener("click", function (e) {
+    e.stopPropagation();
+    var pop = $("#bell-pop"), b = BELL[current.ws];
+    pop.innerHTML = "<h3>Notifications</h3>" + b.items.map(function (it) {
+      return '<div class="notif" style="cursor:pointer" data-go="' + it[3] + '"><div class="notif-ico">' + icon(it[0]) + '</div><div><div class="notif-title" style="font-size:13px">' + esc(it[1]) + '</div><div class="notif-meta" style="margin-top:2px">' + esc(it[2]) + "</div></div></div>";
+    }).join("");
+    pop.hidden = !pop.hidden; this.setAttribute("aria-expanded", String(!pop.hidden));
+  });
+  document.addEventListener("click", function (e) { if (!e.target.closest("#bell-pop") && !e.target.closest("#bell")) $("#bell-pop").hidden = true; });
+
+  /* requirement tags & theme */
+  var brToggle = $("#br-toggle");
+  brToggle.addEventListener("change", function () { document.body.classList.toggle("hide-br", !brToggle.checked); store("mock-br", brToggle.checked ? "1" : "0"); });
+  if (store("mock-br") === "0") { brToggle.checked = false; document.body.classList.add("hide-br"); }
+  var themeToggle = $("#theme-toggle");
+  function isDark() { var t = document.documentElement.getAttribute("data-theme"); return t ? t === "dark" : matchMedia("(prefers-color-scheme: dark)").matches; }
+  var savedTheme = store("mock-theme"); if (savedTheme) document.documentElement.setAttribute("data-theme", savedTheme);
+  themeToggle.checked = isDark();
+  window.addEventListener("pageshow", function () { themeToggle.checked = isDark(); brToggle.checked = !document.body.classList.contains("hide-br"); });
+  matchMedia("(prefers-color-scheme: dark)").addEventListener("change", function () { themeToggle.checked = isDark(); });
+  themeToggle.addEventListener("change", function () { var v = themeToggle.checked ? "dark" : "light"; document.documentElement.setAttribute("data-theme", v); store("mock-theme", v); });
+
+  /* live ticker (operational data refreshes every 5 s) */
+  var age = 2;
+  setInterval(function () { age = (age + 1) % 6; $("#live-text").textContent = "Live · updated " + (age || 1) + " s ago"; }, 1000);
+
+  /* ================= Learner ================= */
+  $("#notif-filter").addEventListener("click", function (e) {
+    var b = e.target.closest("button"); if (!b) return;
+    $$("#notif-filter button").forEach(function (x) { x.setAttribute("aria-pressed", String(x === b)); });
+    var f = b.getAttribute("data-f");
+    $$("#notif-list .notif").forEach(function (n) { n.hidden = f !== "all" && n.getAttribute("data-kind") !== f; });
+  });
+  $("#mark-read").addEventListener("click", function () {
+    $$("#notif-list .notif").forEach(function (n) { n.classList.remove("unread"); });
+    BELL.learner.n = 0; $("#bell-count").hidden = true; toast("All notifications marked as read");
+  });
+  var attempt = 3;
+  $("#submit-code").addEventListener("click", function () {
+    var btn = this, g = $("#grading"); btn.disabled = true; g.hidden = false;
+    var steps = ["Queued", "Running in the sandbox", "Grading tests"], i = 0;
+    (function next() {
+      if (i < steps.length) { g.innerHTML = '<span class="spinner"></span>' + steps[i++] + "…"; setTimeout(next, 550); return; }
+      attempt++; g.innerHTML = icon("check") + "Graded in 1.1 s"; btn.disabled = false;
+      $("#attempt-chip").textContent = "Attempt " + attempt;
+      $("#graded-at").textContent = "Attempt " + attempt + " · graded just now";
+      var row = document.createElement("tr");
+      row.innerHTML = '<td class="num strong">' + attempt + '</td><td class="num">Just now</td><td>' + badge("b-good", "check", "Graded") + '</td><td><div class="meter"><div class="meter-track"><div class="meter-fill" style="width:60%"></div></div><span class="num">3 / 5</span></div></td><td class="muted">Same result as attempt ' + (attempt - 1) + ".</td>";
+      $("#attempts").insertBefore(row, $("#attempts").firstChild);
+      var fc = $("#feedback-card"); fc.animate && fc.animate([{ opacity: .4 }, { opacity: 1 }], { duration: 400 });
+    })();
+  });
+
+  /* ================= Instructor · Assessment health (BR4) ================= */
+  var SUM_EVEN_PEERS = [["t1_mixed", 92.4], ["t2_empty", 95.2], ["t3_negative", 71.0], ["t4_zero", 88.6], ["t5_pairs", 4.3]];
+  var FIZZ_PEERS = [["t1_small", 96.1], ["t2_fizzbuzz", 58.1], ["t3_empty", 97.0], ["t4_fizz", 90.4], ["t5_buzz", 91.2]];
+  var ITEMS = [
+    { id: "t5_pairs", kind: "Test case", parent: "Sum of even numbers", learners: 186, rate: 4.3, prev: 5.4, state: "SUSPICIOUS", threshold: 20, peers: SUM_EVEN_PEERS,
+      reasons: ["Pass rate 4.3% below 20.0%", "Pass rate is 86.2% below the median of other required tests"],
+      spec: [["Input", '<code class="mono">sum_even([2, 4])</code>'], ["Expected", '<code class="mono">7</code>'], ["Most common answer", '<code class="mono">6</code> · 172 of 178 failing submissions']],
+      insight: "Almost every failing learner returns the same value. That usually means the expected value is wrong, not the learners.", flagged: "Mon 2 Nov, 09:40" },
+    { id: "Q4", label: "Q4 · File modes", kind: "Question", parent: "Quiz: Working with files", learners: 142, rate: 24.6, prev: 27.6, state: "LOW_PASS", threshold: 30,
+      peers: [["Q1", 83.1], ["Q2", 77.4], ["Q3", 69.0], ["Q4", 24.6], ["Q5", 72.8]],
+      reasons: ["Pass rate 24.6% below 30.0%"],
+      spec: [["Question", "Which mode opens a file for appending without erasing it?"], ["Correct answer", '<code class="mono">"a"</code>'], ["Most common answer", '<code class="mono">"w+"</code> · 58% of learners']],
+      insight: "Learners mix up append and write modes. The lesson video covers modes in under 20 seconds.", flagged: "Wed 4 Nov, 16:05" },
+    { id: "t2_fizzbuzz", kind: "Test case", parent: "FizzBuzz", learners: 203, rate: 58.1, prev: 93.1, state: "NEEDS_REVIEW", threshold: 20, peers: FIZZ_PEERS,
+      reasons: ["Pass rate decreased by 35.0% from the preceding equal window"],
+      spec: [["Input", '<code class="mono">fizzbuzz(15)[14]</code>'], ["Expected", '<code class="mono">\'FizzBuzz\'</code>'], ["Most common answer", '<code class="mono">\'Fizz\'</code> · 71 of 85 failing submissions']],
+      insight: "The drop started on Fri 30 Oct, the day the FizzBuzz task description was edited.", flagged: "Sat 31 Oct, 08:15" },
+    { id: "t3_negative", kind: "Test case", parent: "Sum of even numbers", learners: 186, rate: 71.0, prev: 68.6, state: "NORMAL", threshold: 20, peers: SUM_EVEN_PEERS, reasons: [] },
+    { id: "Q2", label: "Q2 · List slicing", kind: "Question", parent: "Quiz: Lists and loops", learners: 151, rate: 81.5, prev: 80.2, state: "NORMAL", threshold: 30, peers: [["Q1", 88.0], ["Q2", 81.5], ["Q3", 74.3], ["Q4", 79.9]], reasons: [] },
+    { id: "t4_zero", kind: "Test case", parent: "Sum of even numbers", learners: 186, rate: 88.6, prev: 87.9, state: "NORMAL", threshold: 20, peers: SUM_EVEN_PEERS, reasons: [] },
+    { id: "t1_small", kind: "Test case", parent: "FizzBuzz", learners: 203, rate: 96.1, prev: 95.7, state: "NORMAL", threshold: 20, peers: FIZZ_PEERS, reasons: [] },
+    { id: "t6_large", kind: "Test case", parent: "FizzBuzz", learners: 12, rate: null, prev: null, state: "INSUFFICIENT", threshold: 20, peers: [],
+      reasons: ["12 evaluated students; at least 20 required"], insight: "Added on Thu 5 Nov. It will be evaluated once 20 learners have attempted it." }
+  ];
+  var STATE = {
+    SUSPICIOUS: ["b-crit", "octagon", "Suspicious test case", "High"],
+    LOW_PASS: ["b-warn", "alert", "Low pass rate", "Medium"],
+    NEEDS_REVIEW: ["b-warn", "alert", "Needs review", "Medium"],
+    NORMAL: ["b-good", "check", "Normal", ""],
+    INSUFFICIENT: ["b-neutral", "info", "Insufficient data", ""]
+  };
+  var assessSel = "t5_pairs", assessType = "all";
+  function renderAssess() {
+    var flaggedOnly = $("#flagged-only").checked;
+    var rows = ITEMS.filter(function (it) { return (assessType === "all" || it.kind === assessType) && (!flaggedOnly || ["SUSPICIOUS", "LOW_PASS", "NEEDS_REVIEW"].indexOf(it.state) >= 0); });
+    $("#assess-rows").innerHTML = rows.map(function (it) {
+      var st = STATE[it.state], delta = it.rate != null && it.prev != null ? it.rate - it.prev : null;
+      return '<tr class="clickable" tabindex="0" data-item="' + it.id + '" aria-selected="' + (it.id === assessSel) + '">' +
+        '<td><span class="title-cell mono">' + esc(it.label || it.id) + '</span><span class="sub">' + esc(it.parent) + " · " + it.kind + "</span></td>" +
+        '<td class="r num">' + it.learners + "</td>" +
+        "<td>" + (it.rate == null ? '<span class="muted small">Not enough learners</span>' : '<div class="meter"><div class="meter-track"><div class="meter-fill" style="width:' + it.rate + '%"></div></div><span class="num">' + it.rate.toFixed(1) + "%</span></div>") + "</td>" +
+        '<td class="r num small">' + (delta == null ? "–" : '<span class="' + (delta <= -30 ? "delta-bad" : "") + '">' + (delta > 0 ? "+" : delta < 0 ? "−" : "") + Math.abs(delta).toFixed(1) + "</span>") + "</td>" +
+        "<td>" + badge(st[0], st[1], st[2]) + "</td></tr>";
+    }).join("") || '<tr><td colspan="5" class="muted">No items match these filters.</td></tr>';
+    renderAssessDetail();
+  }
+  function renderAssessDetail() {
+    var it = ITEMS.filter(function (x) { return x.id === assessSel; })[0], st = STATE[it.state];
+    var h = '<div class="detail-head"><div><p class="eyebrow">' + esc(it.kind) + " · " + esc(it.parent) + '</p><h2 style="font-size:20px" class="mono">' + esc(it.label || it.id) + "</h2></div>" +
+      '<div class="chips">' + badge(st[0], st[1], st[2]) + (st[3] ? '<span class="chip">' + st[3] + " severity</span>" : "") + "</div></div>";
+    if (it.reasons.length) h += '<ul class="reason-list">' + it.reasons.map(function (r) { return "<li>" + icon("arrow-right") + "<span>" + esc(r) + "</span></li>"; }).join("") + "</ul>";
+    if (it.spec) h += '<dl class="spec">' + it.spec.map(function (p) { return "<dt>" + p[0] + "</dt><dd>" + p[1] + "</dd>"; }).join("") + "</dl>";
+    if (it.insight) h += '<div class="callout ' + (it.state === "INSUFFICIENT" ? "neutral" : "info") + '" style="margin-top:12px">' + icon("sparkle") + "<div>" + esc(it.insight) + "</div></div>";
+    if (it.peers.length) {
+      h += '<h3 style="margin:18px 0 4px;font-size:13px">Pass rate of every ' + (it.kind === "Question" ? "question in this quiz" : "test in this assignment") + "</h3>" +
+        '<p class="xs muted" style="margin-bottom:10px">Vertical line: ' + it.threshold + "% threshold</p><div class=\"hbars\">" +
+        it.peers.map(function (p) {
+          var on = p[0] === it.id || (it.label && it.label.indexOf(p[0]) === 0);
+          return '<div class="hbar-row"><span class="hbar-label mono' + (on ? " strong" : "") + '">' + p[0] + '</span><div class="hbar-track"><div class="hbar' + (on ? " on" : "") + '" style="width:' + p[1] + '%"></div><div class="hbar-ref" style="left:' + it.threshold + '%"></div></div><span class="hbar-val num">' + p[1].toFixed(1) + "%</span></div>";
+        }).join("") +
+        '<div class="hbar-axis"><span></span><div><span style="left:0">0%</span><span style="left:50%">50%</span><span style="left:100%">100%</span></div><span></span></div></div>';
+    }
+    if (["SUSPICIOUS", "LOW_PASS", "NEEDS_REVIEW"].indexOf(it.state) >= 0) {
+      h += '<div class="actions"><button class="btn primary" data-toast="Opening the editor for ' + esc(it.label || it.id) + '">' + icon("file") + (it.kind === "Question" ? "Edit question" : "Edit test case") + '</button>' +
+        (it.kind === "Test case" ? '<button class="btn" data-toast="' + esc(it.id) + ' excluded from grading">Exclude from grading</button>' : "") +
+        '<button class="btn ghost" data-toast="Marked as reviewed">Mark as reviewed</button></div>' +
+        '<p class="xs muted" style="margin-top:12px">Flagged ' + it.flagged + ". Re-evaluated automatically when grades change.</p>";
+    }
+    $("#assess-detail").innerHTML = h;
+  }
+  $("#assess-rows").addEventListener("click", function (e) { var tr = e.target.closest("tr[data-item]"); if (tr) { assessSel = tr.getAttribute("data-item"); renderAssess(); } });
+  $("#assess-rows").addEventListener("keydown", function (e) { var tr = e.target.closest("tr[data-item]"); if (tr && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); assessSel = tr.getAttribute("data-item"); renderAssess(); var again = $('#assess-rows tr[data-item="' + assessSel + '"]'); if (again) again.focus(); } });
+  $("#assess-type").addEventListener("click", function (e) { var b = e.target.closest("button"); if (!b) return; $$("#assess-type button").forEach(function (x) { x.setAttribute("aria-pressed", String(x === b)); }); assessType = b.getAttribute("data-t"); renderAssess(); });
+  $("#flagged-only").addEventListener("change", renderAssess);
+
+  /* ================= Instructor · Video heatmap (BR7) ================= */
+  var VID = (function () {
+    var r = rng(7), N = 84, ret = [], pau = [], rew = [], skp = [], live = [];
+    var v = 100;
+    for (var i = 0; i < N; i++) {
+      v -= 0.18 + r() * 0.12;
+      if (i >= 33 && i <= 38) v -= 0.35;
+      if (i === 74) v -= 9;
+      if (i > 74) v -= 0.25;
+      ret.push(Math.round(v * 10) / 10);
+      var p = 2 + Math.round(r() * 3), w = 1 + Math.round(r() * 2), s = Math.round(r() * 1.2);
+      if (i >= 33 && i <= 38) { p += 9 + Math.round(r() * 6); w += 11 + Math.round(r() * 7); }
+      if (i >= 64 && i <= 67) { p += 11 + Math.round(r() * 5); w += 3 + Math.round(r() * 3); }
+      if (i <= 3) s += 7 + Math.round(r() * 5);
+      if (i >= 76 && i <= 81) s += 4 + Math.round(r() * 4);
+      pau.push(p); rew.push(w); skp.push(s); live.push(Math.round(r() * 1.4));
+    }
+    return { N: N, ret: ret, pau: pau, rew: rew, skp: skp, live: live, moments: [
+      { pin: "A", from: 33, to: 38, title: "LEFT JOIN with NULL rows", quote: "…a LEFT JOIN keeps every row from the left table. When there is no match, the columns from the right table are NULL…" },
+      { pin: "B", from: 64, to: 67, title: "Joining on two keys", quote: "…both conditions go in the ON clause, joined with AND…" },
+      { pin: "C", from: 74, to: 74, title: "Drop-off at the recap", quote: "…to recap, we have seen three kinds of joins…" }] };
+  })();
+  function sum(a, f, t) { var s = 0; for (var i = f || 0; i <= (t == null ? a.length - 1 : t); i++) s += a[i]; return s; }
+  function vidSeries(name) { var withLive = $("#live-overlay").checked; return VID[name].map(function (v, i) { return name === "pau" && withLive ? v + VID.live[i] : v; }); }
+  function renderHeatmap() {
+    var host = $("#heatmap"), W = Math.max(320, host.clientWidth), N = VID.N;
+    var padL = 84, padR = 10, top = 28, retH = 118, gap1 = 16, rowH = 22, rowGap = 6, axisH = 22;
+    var rowsY = top + retH + gap1, H = rowsY + 3 * rowH + 2 * rowGap + axisH;
+    var iw = W - padL - padR, cw = iw / N, cg = cw > 7 ? 2 : 1;
+    function X(i) { return padL + i * cw; }
+    function RY(v) { return top + retH - v / 100 * retH; }
+    var pau = vidSeries("pau"), rows = [["Pauses", pau], ["Rewinds", VID.rew], ["Skips ahead", VID.skp]];
+    var s = '<svg class="chart" viewBox="0 0 ' + W + " " + H + '" width="100%" height="' + H + '" role="img" aria-label="Video heatmap for Joins version 2: learners still watching, pauses, rewinds and skips per 5-second bucket">';
+    VID.moments.forEach(function (mo) {
+      var x1 = X(mo.from), x2 = X(mo.to + 1), cx = (x1 + x2) / 2;
+      s += '<rect class="band" x="' + x1 + '" y="' + top + '" width="' + (x2 - x1) + '" height="' + (H - axisH - top) + '"/>' +
+        '<circle class="pin" cx="' + cx + '" cy="' + (top - 14) + '" r="9"/><text class="pin-text" x="' + cx + '" y="' + (top - 14) + '" dy="0.35em" text-anchor="middle">' + mo.pin + "</text>";
+    });
+    [0, 50, 100].forEach(function (t) {
+      if (t) s += '<line class="gridline" x1="' + padL + '" x2="' + (W - padR) + '" y1="' + RY(t) + '" y2="' + RY(t) + '"/>';
+      s += '<text class="tick" x="' + (padL - 8) + '" y="' + RY(t) + '" dy="0.32em" text-anchor="end">' + t + "%</text>";
+    });
+    s += '<line class="axis" x1="' + padL + '" x2="' + (W - padR) + '" y1="' + RY(0) + '" y2="' + RY(0) + '"/>';
+    var d = VID.ret.map(function (v, i) { return (i ? "L" : "M") + (X(i) + cw / 2).toFixed(1) + "," + RY(v).toFixed(1); }).join("");
+    s += '<path d="' + d + "L" + (X(N - 1) + cw / 2) + "," + RY(0) + "L" + (X(0) + cw / 2) + "," + RY(0) + 'Z" fill="var(--s1-wash)"/>';
+    s += '<path d="' + d + '" fill="none" stroke="var(--s1)" stroke-width="2" stroke-linejoin="round"/>';
+    var lastY = RY(VID.ret[N - 1]);
+    s += '<circle cx="' + (X(N - 1) + cw / 2) + '" cy="' + lastY + '" r="4" fill="var(--s1)" stroke="var(--chart-surface)" stroke-width="2"/>';
+    rows.forEach(function (row, k) {
+      var y = rowsY + k * (rowH + rowGap), max = Math.max.apply(null, row[1]);
+      s += '<text class="row-label" x="' + (padL - 8) + '" y="' + (y + rowH / 2) + '" dy="0.32em" text-anchor="end">' + row[0] + "</text>";
+      row[1].forEach(function (v, i) {
+        var lvl = v <= 0 ? 0 : Math.max(1, Math.ceil(v / max * 6));
+        s += '<rect x="' + (X(i) + cg / 2).toFixed(1) + '" y="' + y + '" width="' + Math.max(1, cw - cg).toFixed(1) + '" height="' + rowH + '" rx="2" fill="var(--h' + lvl + ')"/>';
+      });
+    });
+    var stepSec = iw < 420 ? 120 : 60;
+    for (var sec = 0; sec <= 420; sec += stepSec) {
+      var bx = X(sec / 5), anchor = sec === 0 ? "start" : sec === 420 ? "end" : "middle";
+      s += '<text class="tick" x="' + bx + '" y="' + (H - 6) + '" text-anchor="' + anchor + '">' + mmss(sec) + "</text>";
+    }
+    s += '<g class="hover" visibility="hidden"><line class="crosshair" y1="' + top + '" y2="' + (H - axisH) + '"/><circle r="5" fill="var(--s1)" stroke="var(--chart-surface)" stroke-width="2"/></g>';
+    s += '<rect class="hit" x="' + padL + '" y="0" width="' + iw + '" height="' + (H - axisH) + '" fill="transparent"/></svg>';
+    host.innerHTML = s;
+    var svg = host.querySelector("svg"), g = svg.querySelector(".hover"), cross = g.querySelector("line"), dot = g.querySelector("circle");
+    svg.querySelector(".hit").addEventListener("mousemove", function (e) {
+      var b = svg.getBoundingClientRect(), px = (e.clientX - b.left) * (W / b.width), i = Math.max(0, Math.min(N - 1, Math.floor((px - padL) / cw)));
+      var cx = X(i) + cw / 2; g.setAttribute("visibility", "visible"); cross.setAttribute("x1", cx); cross.setAttribute("x2", cx);
+      dot.setAttribute("cx", cx); dot.setAttribute("cy", RY(VID.ret[i]));
+      showTip(e, '<div class="tt-title">' + mmss(i * 5) + "–" + mmss(i * 5 + 5) + "</div>" + tipRow("var(--s1)", "Still watching", VID.ret[i].toFixed(0) + "%", true) +
+        tipRow(null, "Pauses", pau[i]) + tipRow(null, "Rewinds", VID.rew[i]) + tipRow(null, "Skips ahead", VID.skp[i]));
+    });
+    svg.querySelector(".hit").addEventListener("mouseleave", function () { g.setAttribute("visibility", "hidden"); hideTip(); });
+
+    /* tiles, moments, table — computed from the same data */
+    var avgWatched = VID.ret.reduce(function (a, b) { return a + b; }, 0) / N;
+    $("#v-watched").textContent = Math.round(avgWatched) + "%";
+    $("#v-pauses").textContent = fmt(sum(pau)); $("#v-rewinds").textContent = fmt(sum(VID.rew));
+    var liveCount = sum(VID.live);
+    $("#v-pauses-live").innerHTML = $("#live-overlay").checked ? "incl. " + liveCount + " live today" : "today excluded";
+    $("#live-chip").hidden = !$("#live-overlay").checked;
+    $("#live-chip").innerHTML = icon("activity") + "Live · +" + liveCount + " pauses today";
+    var avgP = sum(pau) / N, avgR = sum(VID.rew) / N;
+    $("#moments").innerHTML = VID.moments.map(function (mo) {
+      var len = mo.to - mo.from + 1, p = sum(pau, mo.from, mo.to), w = sum(VID.rew, mo.from, mo.to), stats;
+      if (mo.pin === "C") {
+        var before = VID.ret[mo.from - 1], after = VID.ret[mo.from + 1];
+        stats = '<span class="badge b-warn">' + icon("trend-down") + Math.round(before - after) + " pts of viewers leave</span>";
+      } else {
+        stats = '<span class="chip">' + w + " rewinds · " + (w / len / avgR).toFixed(1) + "× usual</span>" + '<span class="chip">' + p + " pauses · " + (p / len / avgP).toFixed(1) + "× usual</span>";
+      }
+      var range = mo.from === mo.to ? mmss(mo.from * 5) : mmss(mo.from * 5) + "–" + mmss(mo.to * 5 + 5);
+      return '<div class="moment"><span class="pin-badge">' + mo.pin + '</span><div><div class="strong">' + range + " · " + esc(mo.title) + '</div><div class="chips" style="margin-top:6px">' + stats + '</div><div class="quote">' + esc(mo.quote) + '</div><button class="btn sm ghost" style="margin-top:6px;padding-left:0" data-toast="Playing from ' + mmss(mo.from * 5) + '">' + icon("play") + "Play from " + mmss(mo.from * 5) + "</button></div></div>";
+    }).join("");
+    var trows = [];
+    for (var j = 0; j < N; j += 6) {
+      var to = Math.min(N - 1, j + 5), sub = VID.ret.slice(j, to + 1);
+      trows.push([mmss(j * 5) + "–" + mmss(to * 5 + 5), Math.round(sub.reduce(function (a, b) { return a + b; }, 0) / sub.length) + "%", sum(pau, j, to), sum(VID.rew, j, to), sum(VID.skp, j, to)]);
+    }
+    $("#heatmap-table").innerHTML = dataTable(["Segment", "Still watching", "Pauses", "Rewinds", "Skips ahead"], trows);
+  }
+  $("#live-overlay").addEventListener("change", renderHeatmap);
+
+  /* ================= Instructor · Engagement (BR8) ================= */
+  var WEEKS = ["7 Sep", "14 Sep", "21 Sep", "28 Sep", "5 Oct", "12 Oct", "19 Oct", "26 Oct"];
+  var COURSE_AVG = [5.1, 5.8, 6.4, 6.9, 6.6, 6.8, 6.5, 6.2];
+  var ACTIVE = [61, 63, 64, 66, 63, 64, 62, 58];
+  var DECLINING = [
+    ["lp_7f3a91c2", [6.2, 7.0, 7.4, 7.9, 7.6, 7.2, 4.6, 2.9]],
+    ["lp_8e6b3f55", [7.8, 8.1, 8.4, 8.0, 7.6, 6.8, 4.4, 3.0]],
+    ["lp_c04be118", [5.5, 5.9, 6.8, 6.1, 6.5, 6.0, 3.9, 1.8]],
+    ["lp_19d2e7a0", [4.2, 4.8, 5.1, 5.6, 5.2, 4.9, 3.1, 2.0]],
+    ["lp_a2f0d9b4", [3.9, 4.4, 4.0, 4.6, 4.1, 3.7, 2.5, 1.2]]
+  ];
+  function renderEngagement() {
+    lineChart($("#eng-avg"), {
+      x: WEEKS.map(function (w) { return "Wk of " + w; }), yMax: 10, yTicks: [0, 2, 4, 6, 8, 10], height: 230, endLabel: true,
+      yFmt: function (v) { return v % 1 ? v.toFixed(1) : v; }, label: "Course average engagement by week, from 5.1 to 6.2 points",
+      series: [{ values: COURSE_AVG, color: "var(--s1)", wash: "var(--s1-wash)" }],
+      tip: function (i) { return '<div class="tt-title">Week of ' + WEEKS[i] + "</div>" + tipRow("var(--s1)", "Course average", COURSE_AVG[i].toFixed(1) + " pts", true) + tipRow(null, "Active learners", ACTIVE[i]); }
+    });
+    $("#eng-avg-table").innerHTML = dataTable(["Week of", "Course average (pts)", "Active learners"], WEEKS.map(function (w, i) { return [w, COURSE_AVG[i].toFixed(1), ACTIVE[i]]; }));
+    $("#minis").innerHTML = DECLINING.map(function (d) {
+      var sc = d[1], n = sc.length, drop = Math.round((1 - sc[n - 1] / sc[n - 3]) * 100);
+      return '<div class="mini"><div class="mini-top"><span class="mono strong">' + d[0] + "</span>" + badge("b-crit", "trend-down", "−" + drop + "% in 2 wks") + "</div>" + miniChart(sc, COURSE_AVG, 10) +
+        '<div class="xs muted num">Last week ' + sc[n - 1].toFixed(1) + " pts · course " + COURSE_AVG[n - 1].toFixed(1) + '</div><button class="btn sm" data-toast="Referred ' + d[0] + ' to the learner\'s advisor">' + icon("buoy") + "Refer to advisor</button></div>";
+    }).join("");
+  }
+
+  /* ================= Instructor · Content sync (BR8) ================= */
+  var STEPS = [
+    ["Version saved", "Immutable copy in object storage and the LMS", 0.0],
+    ["Change captured", "Picked up from the LMS database (CDC)", 0.4],
+    ["Cache invalidated", "Old lesson entries dropped from Redis", 0.5],
+    ["Re-chunked and embedded", "14 passages from the new transcript", 1.9],
+    ["Search index refreshed", "OpenSearch now serves the new version", 2.6]
+  ];
+  function renderSteps(doneCount, activeIdx) {
+    $("#sync-steps").innerHTML = STEPS.map(function (st, i) {
+      var cls = i < doneCount ? "done" : i === activeIdx ? "active" : "pending";
+      return '<li class="step ' + cls + '"><span class="step-dot">' + (cls === "done" ? icon("check") : "") + '</span><div><div class="step-title">' + st[0] + '</div><div class="step-sub">' + st[1] + '</div></div><span class="step-time">' + (i < doneCount ? "+" + st[2].toFixed(1) + " s" : "") + "</span></li>";
+    }).join("");
+  }
+  var version = 3, publishing = false;
+  function setRow(col, html) { var c = $('#content-rows tr[data-row="joins"] [data-col="' + col + '"]'); if (c) c.innerHTML = html; }
+  $("#publish").addEventListener("click", function () {
+    if (publishing) return; publishing = true; version++;
+    var btn = this; btn.disabled = true;
+    $("#sync-sub").textContent = "Version " + version + " · published just now";
+    $("#sync-badge").className = "badge b-info"; $("#sync-badge").innerHTML = '<span class="spinner" style="width:11px;height:11px"></span>Syncing';
+    setRow("lms", "v" + version); setRow("cache", badge("b-warn", "refresh", "Invalidated")); setRow("state", badge("b-info", "clock", "Syncing"));
+    var i = 0;
+    (function next() {
+      renderSteps(i, i);
+      if (i === 3) setRow("chunks", "…");
+      if (i < STEPS.length) { var wait = i === 0 ? 400 : (STEPS[i][2] - STEPS[i - 1][2]) * 1000; i++; setTimeout(next, Math.max(250, wait)); return; }
+      renderSteps(STEPS.length, -1);
+      setRow("idx", "v" + version); setRow("chunks", "14"); setRow("cache", badge("b-good", "check", "Warm")); setRow("state", badge("b-good", "check", "In sync"));
+      $("#sync-badge").className = "badge b-good"; $("#sync-badge").innerHTML = icon("check") + "Searchable in 2.6 s";
+      $("#editing-from").textContent = "Editing from version " + version + " (served from cache)";
+      $("#publish-label").textContent = "Publish version " + (version + 1);
+      btn.disabled = false; publishing = false; toast("Version " + version + " is searchable. Learners were notified.");
+    })();
+  });
+  $("#content-rows").addEventListener("click", function (e) {
+    var tr = e.target.closest("tr[data-row]"); if (!tr) return;
+    $$("#content-rows tr").forEach(function (r) { r.setAttribute("aria-selected", String(r === tr)); });
+    if (tr.getAttribute("data-row") !== "joins") toast("In this mockup only Joins is editable");
+  });
+  var HITS = {
+    hybrid: [
+      ["Joins", 3, "Outer joins › LEFT JOIN", "…a <mark>LEFT JOIN</mark> keeps every row from the left table. When there is no match, the columns from the right table are <mark>NULL</mark>…"],
+      ["Joins", 3, "Outer joins › Filtering", "…a condition in WHERE removes those <mark>NULL</mark> rows and turns your <mark>left join</mark> into an inner join…"],
+      ["Grouping and aggregates", 2, "COUNT and missing values", "…COUNT(column) skips <mark>NULL</mark> values, while COUNT(*) counts every row…"]],
+    keyword: [
+      ["Joins", 3, "Outer joins › LEFT JOIN", "…a <mark>LEFT JOIN</mark> keeps every row from the left table. When there is no match, the columns from the right table are <mark>NULL</mark>…"],
+      ["Joins", 3, "Outer joins › Filtering", "…a condition in WHERE removes those <mark>NULL</mark> rows and turns your <mark>left join</mark> into an inner join…"]]
+  };
+  var searchMode = "hybrid";
+  function renderHits() {
+    var q = $("#search-q").value.trim(), list = q ? HITS[searchMode] : [];
+    $("#hits").innerHTML = list.length ? list.map(function (h) {
+      var v = h[0] === "Joins" ? version : h[1];
+      return '<div class="hit"><div class="hit-title">' + esc(h[0]) + ' <span class="chip">v' + v + '</span><span class="xs muted">' + esc(h[2]) + '</span></div><p class="small" style="margin-top:4px">' + h[3] + "</p></div>";
+    }).join("") : '<p class="muted small">Type a query to preview results.</p>';
+  }
+  $("#search-mode").addEventListener("click", function (e) { var b = e.target.closest("button"); if (!b) return; $$("#search-mode button").forEach(function (x) { x.setAttribute("aria-pressed", String(x === b)); }); searchMode = b.getAttribute("data-m"); renderHits(); });
+  $("#search-q").addEventListener("input", renderHits);
+
+  /* ================= Advisor (BR5) ================= */
+  var SIGNAL = {
+    inactivity: ["var(--s1)", "No activity", false],
+    missed_deadlines: ["var(--s2)", "Missed deadlines", false],
+    low_completion: ["var(--s3)", "Low submission rate", false],
+    activity_decline: ["var(--s4)", "Activity decline", true]
+  };
+  var LEVEL = { CRITICAL: ["b-crit", "octagon", "Critical"], HIGH: ["b-serious", "alert", "High"], MEDIUM: ["b-warn", "alert", "Medium"], LOW: ["b-good", "check", "Low"], NA: ["b-neutral", "minus", "Not yet eligible"] };
+  var ALERT = { NEW: ["b-info", "bell", "New alert"], ACKNOWLEDGED: ["b-neutral", "check", "Acknowledged"], RESOLVED: ["b-good", "check", "Resolved"] };
+  var DAYS = ["25 Oct", "26 Oct", "27 Oct", "28 Oct", "29 Oct", "30 Oct", "31 Oct", "1 Nov", "2 Nov", "3 Nov", "4 Nov", "5 Nov", "6 Nov", "7 Nov"];
+  var RISK = [
+    { id: "l-004", name: "Dung Vo", initials: "DV", course: "Python for Data", score: 80, level: "CRITICAL", alert: "NEW", alertAt: "Thu 5 Nov, 09:00",
+      reasons: [["inactivity", 35, "No meaningful learning activity for at least 7 days"], ["missed_deadlines", 30, "2 required assignments remain unsubmitted after their deadlines"], ["activity_decline", 15, "Learning activity decreased by 100% from the preceding 7-day window"]],
+      facts: [["Activity, last / previous 7 days", "0 / 23 events"], ["Last meaningful activity", "Thu 29 Oct (9 days ago)"], ["Required deadlines missed", "2 in 14 days"], ["Due-assignment submission rate", "67%"]],
+      history: [0, 0, 0, 0, 0, 0, 0, 15, 15, 45, 45, 80, 80, 80],
+      log: [["Thu 5 Nov, 09:00", "Alert opened at 80 points (critical)."], ["Tue 3 Nov, 09:00", "Missed deadline: Lists and loops exercise."]] },
+    { id: "l-006", name: "Khoa Bui", initials: "KB", course: "SQL Foundations", score: 65, level: "HIGH", alert: "ACKNOWLEDGED", alertAt: "Wed 4 Nov, 13:00",
+      reasons: [["missed_deadlines", 30, "2 required assignments remain unsubmitted after their deadlines"], ["low_completion", 20, "Recent due-assignment submission rate 33% is below 50%"], ["activity_decline", 15, "Learning activity decreased by 62% from the preceding 7-day window"]],
+      facts: [["Activity, last / previous 7 days", "5 / 13 events"], ["Last meaningful activity", "Thu 5 Nov (2 days ago)"], ["Required deadlines missed", "2 in 14 days"], ["Due-assignment submission rate", "33%"]],
+      history: [0, 0, 0, 0, 15, 15, 15, 15, 35, 35, 65, 65, 65, 65],
+      log: [["Fri 6 Nov, 14:20", "Acknowledged by Thu Nguyen. Emailed to offer a check-in."], ["Wed 4 Nov, 13:00", "Alert opened at 65 points (high)."]] },
+    { id: "l-002", name: "Binh Le", initials: "BL", course: "Python for Data", score: 50, level: "MEDIUM", alert: null,
+      reasons: [["missed_deadlines", 30, "3 required assignments remain unsubmitted after their deadlines"], ["low_completion", 20, "Recent due-assignment submission rate 25% is below 50%"]],
+      facts: [["Activity, last / previous 7 days", "9 / 11 events"], ["Last meaningful activity", "Fri 6 Nov (yesterday)"], ["Required deadlines missed", "3 in 14 days"], ["Due-assignment submission rate", "25%"]],
+      history: [0, 0, 0, 0, 0, 0, 20, 20, 20, 50, 50, 50, 50, 50], log: [] },
+    { id: "l-005", name: "Ha Dang", initials: "HD", course: "Data Engineering Basics", score: 35, level: "MEDIUM", alert: null,
+      reasons: [["inactivity", 35, "No meaningful learning activity for at least 7 days"]],
+      facts: [["Activity, last / previous 7 days", "0 / 2 events"], ["Last meaningful activity", "Fri 30 Oct (8 days ago)"], ["Required deadlines missed", "0 in 14 days"], ["Due-assignment submission rate", "100%"]],
+      history: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 35, 35], log: [] },
+    { id: "l-003", name: "Chi Hoang", initials: "CH", course: "Python for Data", score: 15, level: "LOW", alert: null,
+      reasons: [["activity_decline", 15, "Learning activity decreased by 54% from the preceding 7-day window"]],
+      facts: [["Activity, last / previous 7 days", "6 / 13 events"], ["Last meaningful activity", "Today, 09:12"], ["Required deadlines missed", "0 in 14 days"], ["Due-assignment submission rate", "100%"]],
+      history: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 15, 15, 15, 15], log: [] },
+    { id: "l-001", name: "An Pham", initials: "AP", course: "Python for Data", score: 0, level: "LOW", alert: null, reasons: [],
+      facts: [["Activity, last / previous 7 days", "14 / 12 events"], ["Last meaningful activity", "Today, 11:48"], ["Required deadlines missed", "0 in 14 days"], ["Due-assignment submission rate", "100%"]],
+      history: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], log: [] },
+    { id: "l-010", name: "Quynh Mai", initials: "QM", course: "SQL Foundations", score: null, level: "NA", alert: null, reasons: [],
+      facts: [["Enrolled", "Wed 4 Nov"], ["Why no score", "Not enough history yet"], ["Activity, last 7 days", "6 events"], ["First evaluation", "Wed 11 Nov"]],
+      history: [], log: [] }
+  ];
+  var riskSel = "l-004";
+  function renderQueue() {
+    var c = $("#adv-course").value, l = $("#adv-level").value, st = $("#adv-status").value;
+    var rows = RISK.filter(function (r) { return (!c || r.course === c) && (!l || r.level === l) && (!st || r.alert === st); });
+    $("#queue").innerHTML = rows.map(function (r) {
+      var lv = LEVEL[r.level];
+      var chips = r.reasons.map(function (x) { return '<span class="chip"><i class="sw-box" style="background:' + SIGNAL[x[0]][0] + '"></i>' + SIGNAL[x[0]][1] + "</span>"; }).join("");
+      if (!r.reasons.length) chips = '<span class="xs muted">' + (r.level === "NA" ? "Enrolled 3 days ago" : "No risk signals") + "</span>";
+      return '<button class="queue-row" role="listitem" data-l="' + r.id + '" aria-pressed="' + (r.id === riskSel) + '"><span class="avatar sm">' + r.initials + '</span><span style="min-width:0"><span class="queue-name">' + esc(r.name) + (r.alert ? " " + badge(ALERT[r.alert][0], ALERT[r.alert][1], ALERT[r.alert][2]) : "") + '</span><span class="xs muted">' + esc(r.course) + '</span><span class="queue-reasons">' + chips + '</span></span><span class="score-cell">' +
+        (r.score == null ? '<span class="xs muted">–</span>' : '<b class="num">' + r.score + '</b><span class="xs muted"> / 100</span><div class="meter-track"><div class="meter-fill" style="width:' + r.score + '%"></div></div>') +
+        '<div style="margin-top:6px">' + badge(lv[0], lv[1], lv[2]) + "</div></span></button>";
+    }).join("") || '<p class="muted small" style="padding:12px">No learners match these filters.</p>';
+    renderRiskDetail();
+    var open = RISK.filter(function (r) { return r.alert === "NEW" || r.alert === "ACKNOWLEDGED"; });
+    $("#open-alerts").textContent = open.length;
+    $("#open-alerts-sub").textContent = RISK.filter(function (r) { return r.alert === "NEW"; }).length + " new · " + RISK.filter(function (r) { return r.alert === "ACKNOWLEDGED"; }).length + " acknowledged";
+  }
+  function renderRiskDetail() {
+    var r = RISK.filter(function (x) { return x.id === riskSel; })[0], lv = LEVEL[r.level];
+    var h = '<div class="detail-head"><div style="display:flex;gap:12px;align-items:center"><span class="avatar">' + r.initials + '</span><div><h2 style="font-size:20px">' + esc(r.name) + '</h2><p class="small muted">' + esc(r.course) + " · learner " + r.id + "</p></div></div>" +
+      '<div class="head-actions"><button class="btn sm" data-toast="Message drafted to ' + esc(r.name) + '">' + icon("message") + 'Message</button><button class="btn sm" data-toast="Check-in scheduled with ' + esc(r.name) + '">' + icon("calendar") + "Check-in</button></div></div>";
+    if (r.score == null) {
+      h += '<div class="callout neutral" style="margin-top:16px">' + icon("info") + "<div><b>Not scored yet.</b> " + esc(r.name) + " enrolled recently, so there is not enough history to judge activity fairly. Scoring starts automatically.</div></div>";
+      h += '<div class="facts">' + r.facts.map(function (f) { return "<div><span>" + f[0] + "</span><b>" + f[1] + "</b></div>"; }).join("") + "</div>";
+      $("#risk-detail").innerHTML = h; return;
+    }
+    h += '<div style="display:flex;gap:16px;align-items:flex-end;justify-content:space-between;flex-wrap:wrap;margin-top:18px"><div><div class="tile-label">Risk points</div><div class="big-score"><b>' + r.score + "</b><span>/ 100</span></div></div><div>" + badge(lv[0], lv[1], lv[2]) +
+      (r.alert ? " " + badge(ALERT[r.alert][0], ALERT[r.alert][1], ALERT[r.alert][2]) : "") + "</div></div>";
+    h += '<p class="xs muted" style="margin-top:6px">Rule-based points that show who may need support. Not a dropout probability. Evaluated today at 11:00.</p>';
+    if (r.reasons.length) {
+      h += '<div class="segbar tall" style="margin-top:14px" role="img" aria-label="' + r.reasons.map(function (x) { return SIGNAL[x[0]][1] + " " + x[1] + " points"; }).join(", ") + '">' +
+        r.reasons.map(function (x) { var sg = SIGNAL[x[0]]; return '<i class="' + (sg[2] ? "dark-text" : "") + '" style="width:' + x[1] + "%;background:" + sg[0] + '" title="' + sg[1] + ": " + x[1] + ' points">' + (x[1] >= 12 ? x[1] : "") + "</i>"; }).join("") +
+        (r.score < 100 ? '<i class="rest" style="flex:1"></i>' : "") + "</div>";
+      h += '<ul class="reason-list">' + r.reasons.map(function (x) { return '<li><i class="sw-box" style="background:' + SIGNAL[x[0]][0] + ';margin-top:4px;flex:none"></i><span style="flex:1">' + esc(x[2]) + '</span><b class="num">+' + x[1] + "</b></li>"; }).join("") + "</ul>";
+    } else {
+      h += '<div class="callout good" style="margin-top:14px">' + icon("check") + "<div>No risk signals. Activity and submissions are on track.</div></div>";
+    }
+    h += '<div class="facts">' + r.facts.map(function (f) { return "<div><span>" + f[0] + "</span><b>" + f[1] + "</b></div>"; }).join("") + "</div>";
+    h += '<h3 style="margin:18px 0 6px;font-size:13px">Risk points, last 14 days</h3><div class="chart-host" id="risk-chart"></div>' +
+      '<details class="data-table"><summary>View as table</summary><div class="table-wrap">' + dataTable(["Day", "Points"], DAYS.map(function (d, i) { return [d, r.history[i]]; })) + "</div></details>";
+    if (r.alert) {
+      h += '<div class="divider"></div><div style="display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;align-items:center"><div><h3 style="font-size:13px">Alert</h3><p class="xs muted">Opened ' + r.alertAt + ". No repeat alert for 72 hours.</p></div>" +
+        '<div class="head-actions"><button class="btn sm" id="ack" ' + (r.alert !== "NEW" ? "disabled" : "") + ">Acknowledge</button>" +
+        '<button class="btn sm primary" id="resolve" ' + (r.alert === "RESOLVED" ? "disabled" : "") + ">Resolve</button></div></div>";
+    }
+    h += '<div class="divider"></div><h3 style="font-size:13px">Interventions</h3>' +
+      '<textarea class="textarea" rows="2" id="note" placeholder="Add a note, e.g. called and agreed on a study plan" style="margin-top:8px"></textarea><div class="actions" style="margin-top:8px"><button class="btn sm" id="add-note">Add note</button></div>' +
+      '<ul class="log">' + (r.log.length ? r.log.map(function (x) { return '<li><div><b class="xs">' + x[0] + '</b><div class="small">' + esc(x[1]) + "</div></div></li>"; }).join("") : '<li><div class="small muted">No interventions yet.</div></li>') + "</ul>";
+    $("#risk-detail").innerHTML = h;
+    lineChart($("#risk-chart"), {
+      x: DAYS, yMax: 100, yTicks: [0, 50, 100], height: 190, label: "Risk points for " + r.name + " over 14 days",
+      refs: [{ y: 30, label: "Medium 30" }, { y: 60, label: "High 60 · alert" }, { y: 80, label: "Critical 80" }],
+      series: [{ values: r.history, color: "var(--s1)" }],
+      tip: function (i) { var v = r.history[i]; return '<div class="tt-title">' + DAYS[i] + "</div>" + tipRow("var(--s1)", "Risk points", v, true) + tipRow(null, "Level", v >= 80 ? "Critical" : v >= 60 ? "High" : v >= 30 ? "Medium" : "Low"); }
+    });
+    var ack = $("#ack"), res = $("#resolve");
+    if (ack) ack.addEventListener("click", function () { r.alert = "ACKNOWLEDGED"; r.log.unshift(["Just now", "Acknowledged by Thu Nguyen."]); renderQueue(); toast("Alert acknowledged"); });
+    if (res) res.addEventListener("click", function () { r.alert = "RESOLVED"; r.log.unshift(["Just now", "Resolved by Thu Nguyen."]); $("#resolved-week").textContent = String(Number($("#resolved-week").textContent) + 1); renderQueue(); toast("Alert resolved"); });
+    $("#add-note").addEventListener("click", function () { var v = $("#note").value.trim(); if (!v) return; r.log.unshift(["Just now", v]); renderRiskDetail(); toast("Note added"); });
+  }
+  $("#queue").addEventListener("click", function (e) { var b = e.target.closest("[data-l]"); if (b) { riskSel = b.getAttribute("data-l"); renderQueue(); } });
+  ["#adv-course", "#adv-level", "#adv-status"].forEach(function (s) { $(s).addEventListener("change", renderQueue); });
+
+  /* ================= Org admin (BR6) ================= */
+  var ORGS = {
+    acme: { name: "Acme Learning", rows: [
+      ["SQL Foundations", "SQL", 96, 71, 78, 74], ["Python for Data", "Python", 88, 52, 66, 69], ["Data Engineering Basics", "Data engineering", 41, 18, 52, 63],
+      ["Product Analytics", "Analytics", 34, 22, 71, 80], ["Introduction to AI", "AI", 27, 17, 68, 76], ["Machine Learning", "Machine learning", 22, 9, 48, 64],
+      ["Cloud Data Pipelines", "Cloud", 19, 7, 44, 61], ["ML Engineering", "Machine learning", 12, 3, 31, 55], ["Streaming Data Engineering", "Data engineering", 9, 2, 29, 52],
+      ["Natural Language Processing", "NLP", 6, 1, 25, 58], ["Deep Learning", "Deep learning", 4, null, null, null], ["Computer Vision", "Computer vision", 3, null, null, null]] },
+    globex: { name: "Globex Academy", rows: [["SQL Foundations", "SQL", 2, null, null, null], ["Python for Data", "Python", 2, null, null, null]] }
+  };
+  var org = "acme";
+  function meter(v) { return '<div class="meter"><div class="meter-track"><div class="meter-fill" style="width:' + v + '%"></div></div><span class="num">' + v + "%</span></div>"; }
+  function renderAdmin() {
+    var o = ORGS[org], shown = o.rows.filter(function (r) { return r[2] >= 5; });
+    var learners = o.rows.reduce(function (a, r) { return a + r[2]; }, 0);
+    function wavg(k) { var n = 0, s = 0; shown.forEach(function (r) { n += r[2]; s += r[k] * r[2]; }); return n ? Math.round(s / n) + "%" : "–"; }
+    $("#org-tiles").innerHTML =
+      '<div class="tile"><div class="tile-label">Enrolments</div><div class="tile-value">' + fmt(learners) + '</div><div class="tile-delta">across ' + o.rows.length + " courses</div></div>" +
+      '<div class="tile"><div class="tile-label">Courses reported</div><div class="tile-value">' + shown.length + " <small>of " + o.rows.length + '</small></div><div class="tile-delta">' + (o.rows.length - shown.length) + " hidden for privacy</div></div>" +
+      '<div class="tile"><div class="tile-label">Average completion</div><div class="tile-value">' + wavg(4) + '</div><div class="tile-delta">weighted by learners</div></div>' +
+      '<div class="tile"><div class="tile-label">Average mastery</div><div class="tile-value">' + wavg(5) + '</div><div class="tile-delta">test pass rate</div></div>';
+    $("#org-rows").innerHTML = o.rows.map(function (r) {
+      if (r[2] < 5) return '<tr><td class="title-cell">' + esc(r[0]) + '<span class="sub">' + esc(r[1]) + '</span></td><td class="r small muted">Fewer than 5</td><td colspan="3"><span class="badge b-neutral">' + icon("lock") + "Hidden to protect privacy</span></td></tr>";
+      return '<tr><td class="title-cell">' + esc(r[0]) + '<span class="sub">' + esc(r[1]) + '</span></td><td class="r num">' + r[2] + '</td><td class="r num">' + r[3] + "</td><td>" + meter(r[4]) + "</td><td>" + meter(r[5]) + "</td></tr>";
+    }).join("");
+    var skills = {};
+    shown.forEach(function (r) { var k = r[1]; if (!skills[k]) skills[k] = [0, 0]; skills[k][0] += r[2]; skills[k][1] += r[5] * r[2]; });
+    var list = Object.keys(skills).map(function (k) { return [k, Math.round(skills[k][1] / skills[k][0]), skills[k][0]]; }).sort(function (a, b) { return b[1] - a[1]; });
+    $("#skill-bars").innerHTML = list.length ? '<div class="hbars">' + list.map(function (s) {
+      return '<div class="hbar-row" title="' + s[2] + ' learners"><span class="hbar-label">' + esc(s[0]) + '</span><div class="hbar-track"><div class="hbar on" style="width:' + s[1] + '%"></div></div><span class="hbar-val num">' + s[1] + "%</span></div>";
+    }).join("") + '<div class="hbar-axis"><span></span><div><span style="left:0">0%</span><span style="left:50%">50%</span><span style="left:100%">100%</span></div><span></span></div></div>'
+      : '<div class="callout neutral">' + icon("shield") + "<div>Every group in " + esc(o.name) + " has fewer than 5 learners, so nothing can be shown yet. Figures appear as soon as a course reaches 5 learners.</div></div>";
+  }
+  $("#org-seg").addEventListener("click", function (e) { var b = e.target.closest("button"); if (!b) return; $$("#org-seg button").forEach(function (x) { x.setAttribute("aria-pressed", String(x === b)); }); org = b.getAttribute("data-org"); renderAdmin(); $("#avatar").title = "Tuan Vu · " + ORGS[org].name; });
+
+  /* ================= Data platform ================= */
+  var TP = (function () { var r = rng(11), a = []; for (var i = 0; i <= 60; i++) { var v = 960 + Math.sin(i / 7) * 60 + r() * 70; if (i >= 41 && i <= 44) v += 260 - Math.abs(i - 42.5) * 70; a.push(Math.round(v)); } return a; })();
+  var TP_X = TP.map(function (_, i) { var m = 60 - i; return m === 0 ? "now" : "−" + m + " min"; });
+  function renderPlatform() {
+    lineChart($("#throughput"), {
+      x: TP_X, xEvery: 10, yMax: 1500, yTicks: [0, 500, 1000, 1500], height: 210, endLabel: true,
+      yFmt: function (v) { return fmt(v); }, label: "Events accepted per minute over the last hour, around 1,000 per minute",
+      series: [{ values: TP, color: "var(--s1)", wash: "var(--s1-wash)" }],
+      tip: function (i) { return '<div class="tt-title">' + (TP_X[i] === "now" ? "This minute" : TP_X[i].replace("−", "") + " ago") + "</div>" + tipRow("var(--s1)", "Events accepted", fmt(TP[i]), true); }
+    });
+    var rows = []; for (var i = 0; i <= 60; i += 5) rows.push([TP_X[i], fmt(TP[i])]);
+    $("#throughput-table").innerHTML = dataTable(["Minute", "Events accepted"], rows);
+  }
+  var CHECKS = [
+    ["silver_no_raw_identifiers", "No raw names or emails in silver", true],
+    ["silver_event_id_unique", "Every event stored once", true],
+    ["bronze_dlq_rate", "Rejected events 0.41% (limit 1%)", true],
+    ["gold_orphan_keys", "Every fact points to a dimension row", true],
+    ["gold_dim_learner_scd2", "One current row per learner", true],
+    ["gold_unresolved_learners", "3 events with an unknown learner key", false],
+    ["mart_org_progress_k_anonymity", "No group under 5 learners exposed", true],
+    ["mart_org_progress_unresolved_dims", "Every report row has a course and skill", true],
+    ["mart_rates_in_range", "All rates between 0 and 1", true],
+    ["mart_video_heatmap_unversioned", "Every heatmap bucket has a video version", true]
+  ];
+  $("#checks").innerHTML = CHECKS.map(function (c) {
+    return '<div class="check-row"><span class="status-ico ' + (c[2] ? "pass" : "") + '" style="' + (c[2] ? "" : "background:var(--warn-bg);color:var(--warn-ink)") + '">' + icon(c[2] ? "check" : "alert") + '</span><div style="min-width:0"><div class="mono" style="overflow-wrap:anywhere">' + c[0] + '</div><div class="xs muted">' + c[1] + "</div></div>" + (c[2] ? badge("b-good", "check", "Pass") : badge("b-warn", "alert", "Warning")) + "</div>";
+  }).join("");
+
+  /* ================= chart lifecycle ================= */
+  function renderCharts() {
+    var p = current.page;
+    if (p === "instructor-assess") renderAssess();
+    if (p === "instructor-video") renderHeatmap();
+    if (p === "instructor-engagement") renderEngagement();
+    if (p === "instructor-content") { renderSteps(STEPS.length, -1); renderHits(); }
+    if (p === "advisor-risk") renderQueue();
+    if (p === "admin-progress") renderAdmin();
+    if (p === "platform-health") renderPlatform();
+  }
+  var rt; window.addEventListener("resize", function () { clearTimeout(rt); rt = setTimeout(function () { hideTip(); renderCharts(); }, 120); });
+  window.addEventListener("hashchange", function () { var id = location.hash.slice(1); if (id && id !== current.page && wsOfPage(id)) go(id, false); });
+
+  go(wsOfPage(location.hash.slice(1)) ? location.hash.slice(1) : "learner-home");
+})();
+</script>
+</body>
+</html>

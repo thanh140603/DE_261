@@ -2,13 +2,13 @@ import { expect, test } from "@playwright/test";
 import { execFileSync } from "node:child_process";
 
 test("Instructor reads actual metrics, drills down and refreshes after a PostgreSQL correction", async ({ page, request }) => {
-  await page.goto("/instructor");
+  await page.goto("/instructor/assessments");
   await page.getByLabel("instructor access token").fill("instructor-demo");
   await page.getByRole("button", { name: "Connect", exact: true }).click();
   const question = page.getByRole("row").filter({ has: page.getByRole("button", { name: /SYNTHETIC: Sum even numbers/ }) });
   await expect(question).toContainText("8%");
   await question.getByRole("button").click();
-  await expect(page.getByRole("region", { name: "Selected question test cases" }).getByText("SUSPICIOUS TEST CASE", { exact: true })).toBeVisible();
+  await expect(page.getByRole("region", { name: "Selected question test cases" }).getByText("Suspicious test case", { exact: true })).toBeVisible();
   await expect(page.getByText(/below the median of other required tests/)).toBeVisible();
   await page.screenshot({ path: "../../docs/evidence/br45/instructor-desktop.png", fullPage: true });
   const correct = (status: string) => execFileSync("docker", ["compose", "exec", "-T", "br45-cdc", "python", "-c", `from edu_platform.br45.db import connect\nwith connect() as c:\n c.execute("UPDATE br45.evaluations SET status=%s WHERE id=%s", ("${status}", "br45-demo-evaluation-2-1"))`], { cwd: "../..", timeout: 30000 });
@@ -29,13 +29,15 @@ test("Advisor manages an actual alert and sees CDC recovery without refreshing t
   await page.goto("/advisor");
   await page.getByLabel("advisor access token").fill("advisor-demo");
   await page.getByRole("button", { name: "Connect", exact: true }).click();
-  const riskRow = page.getByRole("row").filter({ has: page.getByRole("button", { name: "br45-demo-at-risk", exact: true }) }).first();
+  const riskRow = page.getByRole("button", { name: "br45-demo-at-risk", exact: true });
   await expect(riskRow).toContainText("100");
-  await expect(riskRow).toContainText("CRITICAL");
-  const alertRow = page.getByRole("row").filter({ has: page.getByRole("button", { name: "br45-demo-at-risk", exact: true }) }).last();
-  if (await alertRow.getByRole("button", { name: "Acknowledge", exact: true }).isEnabled()) {
-    await alertRow.getByRole("button", { name: "Acknowledge", exact: true }).click();
-    await expect(alertRow).toContainText("ACKNOWLEDGED");
+  await expect(riskRow).toContainText("Critical");
+  await riskRow.click();
+  const detail = page.getByRole("region", { name: "Risk detail for br45-demo-at-risk" });
+  const acknowledge = detail.getByRole("button", { name: "Acknowledge", exact: true });
+  if (await acknowledge.isEnabled()) {
+    await acknowledge.click();
+    await expect(detail).toContainText("Acknowledged");
   }
   await page.screenshot({ path: "../../docs/evidence/br45/advisor-desktop.png", fullPage: true });
   const response = await request.get("/api/advisor/students/br45-demo-at-risk/risk", { headers: { Authorization: "Bearer advisor-demo" } });
@@ -45,9 +47,9 @@ test("Advisor manages an actual alert and sees CDC recovery without refreshing t
     expect(written.status()).toBe(202);
   }
   await expect(riskRow).toContainText("50");
-  await expect(riskRow).toContainText("MEDIUM");
-  await expect(alertRow).toContainText("RESOLVED");
-  await riskRow.getByRole("button").click();
+  await expect(riskRow).toContainText("Medium");
+  await expect(detail).toContainText("Resolved");
+  await riskRow.click();
   await expect(page.getByText("Risk history · points out of 100")).toBeVisible();
   await page.setViewportSize({ width: 390, height: 844 });
   await page.evaluate(() => window.scrollTo(0, 0));

@@ -1,0 +1,23 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "web-dev",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["--prefix", "apps/web", "run", "dev"],
+      "port": 5173
+    },
+    {
+      "name": "api-src",
+      "runtimeExecutable": "sh",
+      "runtimeArgs": ["-c", "EDU_POSTGRES_DSN=postgresql://lms:lms@localhost:5433/lms EDU_BR45_DSN=postgresql://lms:lms@localhost:5433/lms EDU_TRINO_HOST=localhost EDU_TRINO_PORT=8091 EDU_REDIS_URL=redis://localhost:6379/0 EDU_KAFKA_BOOTSTRAP_SERVERS=localhost:9092 EDU_PII_HMAC_SECRET=demo-secret EDU_S3_ENDPOINT=http://localhost:9000 EDU_S3_ACCESS_KEY=minioadmin EDU_S3_SECRET_KEY=minioadmin EDU_BR45_AUTH='{\"instructor-demo\":{\"id\":\"instructor-local\",\"role\":\"instructor\",\"courses\":[\"c-py-201\",\"c-sql-101\",\"c-de-301\"]},\"advisor-demo\":{\"id\":\"advisor-local\",\"role\":\"advisor\",\"courses\":[\"c-py-201\"]},\"learner-demo\":{\"id\":\"br45-demo-at-risk\",\"role\":\"learner\",\"courses\":[\"c-py-201\"]},\"admin-demo\":{\"id\":\"admin-local\",\"role\":\"admin\",\"organisations\":[\"org-acme\",\"org-globex\"]},\"acme-admin-demo\":{\"id\":\"acme-admin-local\",\"role\":\"admin\",\"organisations\":[\"org-acme\"]}}' PYTHONPATH=src .venv/bin/python -m uvicorn edu_platform.entrypoints.api.main:app --port 8001"],
+      "port": 8001
+    },
+    {
+      "name": "web-dev-src",
+      "runtimeExecutable": "sh",
+      "runtimeArgs": ["-c", "API_URL=http://localhost:8001 npm --prefix apps/web run dev -- --port 5174"],
+      "port": 5174
+    }
+  ]
+}

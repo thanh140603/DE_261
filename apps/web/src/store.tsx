@@ -10,6 +10,8 @@ interface Store {
   overview: Overview | null;
   overviewError: string | null;
   lastEventAt: number; // monotonic tick used by views to refetch after live changes
+  learnerId: string; // learner the Learner workspace is showing (demo has no learner sign-in)
+  setLearnerId: (id: string) => void;
 }
 
 const StoreContext = createContext<Store | null>(null);
@@ -24,6 +26,17 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const [overviewError, setOverviewError] = useState<string | null>(null);
   const [lastEventAt, setLastEventAt] = useState(0);
   const retryRef = useRef(1000);
+  const [learnerId, setLearnerIdState] = useState(() => {
+    try { return sessionStorage.getItem("learner-id") ?? ""; } catch { return ""; }
+  });
+  const setLearnerId = useCallback((id: string) => {
+    setLearnerIdState(id);
+    try { sessionStorage.setItem("learner-id", id); } catch { /* private mode */ }
+  }, []);
+  useEffect(() => {
+    const learners = overview?.learners ?? [];
+    if (learners.length && !learners.some((l) => l.id === learnerId)) setLearnerId(learners[0].id);
+  }, [overview, learnerId, setLearnerId]);
 
   const refreshStats = useCallback(async () => {
     try {
@@ -81,8 +94,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const value = useMemo<Store>(
-    () => ({ stats, refreshStats, connected, events, overview, overviewError, lastEventAt }),
-    [stats, refreshStats, connected, events, overview, overviewError, lastEventAt],
+    () => ({ stats, refreshStats, connected, events, overview, overviewError, lastEventAt, learnerId, setLearnerId }),
+    [stats, refreshStats, connected, events, overview, overviewError, lastEventAt, learnerId, setLearnerId],
   );
   return <StoreContext.Provider value={value}>{children}</StoreContext.Provider>;
 }
