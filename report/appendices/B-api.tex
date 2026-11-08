@@ -1,0 +1,35 @@
+\chapter{Tóm tắt API}
+\label{app:api}
+
+Tất cả endpoint có tiền tố \code{/api}. Tài liệu OpenAPI đầy đủ ở \code{http://localhost:8000/docs}; hợp đồng chi tiết ở \code{docs/api.md}. Các endpoint phân tích yêu cầu token Bearer; sai hoặc thiếu token trả 401, sai vai trò hoặc ngoài phạm vi trả 403, dữ liệu không có trả 404, truy vấn sai trả 422, kho không sẵn sàng trả 503.
+
+{\small
+\begin{longtable}{@{}L{1.0cm}L{1.6cm}L{7.6cm}L{4.4cm}@{}}
+\caption{Các endpoint chính}\label{tab:api}\\
+\toprule
+\textbf{BR} & \textbf{Phương thức} & \textbf{Đường dẫn} & \textbf{Mục đích} \\
+\midrule
+\endfirsthead
+\toprule
+\textbf{BR} & \textbf{Phương thức} & \textbf{Đường dẫn} & \textbf{Mục đích} \\
+\midrule
+\endhead
+1 & GET & \code{/learners/{id}/notifications} & Thông báo của người học \\
+2 & GET & \code{/learners/{id}/recommendations} & Gợi ý và khoá đã ghi danh \\
+3 & POST & \code{/submissions} & Nộp bài (202, xếp hàng) \\
+3 & GET & \code{/submissions/{id}} & Kết quả và phản hồi \\
+4 & GET & \code{/instructor/courses/{course}/questions/statistics} & Thống kê câu hỏi \\
+4 & GET & \code{/instructor/questions/{question}/test-cases} & Thống kê test case \\
+5 & GET & \code{/advisor/courses/{course}/at-risk-students} & Hàng đợi rủi ro, tóm tắt mức \\
+5 & GET & \code{/advisor/students/{student}/risk-history} & Lịch sử điểm \\
+5 & GET & \code{/advisor/alerts} & Danh sách cảnh báo \\
+5 & PATCH & \code{/advisor/alerts/{id}/acknowledge}, \code{/resolve} & Vòng đời cảnh báo \\
+6 & GET & \code{/admin/organisations/{org}/skill-progress} & Báo cáo tổ chức (k = 5) \\
+7 & GET & \code{/instructor/courses/{course}/videos} & Video và phiên bản \\
+7 & GET & \code{/instructor/videos/{id}/interaction-heatmap} & Heatmap kèm lớp phủ \\
+8 & GET & \code{/instructor/courses/{course}/engagement-trend} & Xu hướng tương tác \\
+8 & POST & \code{/instructor/content/{id}/versions} & Xuất bản phiên bản (202) \\
+8 & GET & \code{/instructor/courses/{course}/search} & Tìm kiếm lai hoặc từ khoá \\
+-- & GET & \code{/events} & Server-Sent Events cho sự kiện trực tiếp \\
+\bottomrule
+\end{longtable}}

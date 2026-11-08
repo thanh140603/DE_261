@@ -1,0 +1,10 @@
+sessions,repeat,raw_events,target_content,target_interactions,publish_ms,event_to_api_ms,events_per_s,exact
+25,1,233,v-sql-select,51,326.61,7262.36,32.1,True
+25,2,258,v-sql-group,40,3.75,7191.7,35.9,True
+25,3,210,v-sql-select,45,3.01,7354.86,28.6,True
+100,1,909,v-sql-group,141,7.29,6951.59,130.8,True
+100,2,865,v-sql-select,133,12.97,7361.21,117.5,True
+100,3,889,v-sql-select,141,6.79,7383.85,120.4,True
+400,1,3548,v-sql-select,530,16.41,5694.93,623.0,True
+400,2,3607,v-sql-group,530,17.27,8025.45,449.4,True
+400,3,3712,v-sql-group,579,30.59,7624.64,486.8,True

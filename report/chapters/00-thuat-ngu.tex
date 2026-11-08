@@ -1,0 +1,33 @@
+\chapter*{Danh mục thuật ngữ và từ viết tắt}
+\addcontentsline{toc}{chapter}{Danh mục thuật ngữ và từ viết tắt}
+\markboth{Thuật ngữ}{Thuật ngữ}
+
+{\small
+\begin{longtable}{@{}L{3.4cm}L{11.2cm}@{}}
+\toprule
+\textbf{Thuật ngữ} & \textbf{Giải thích} \\
+\midrule
+\endhead
+ADR & \en{Architecture Decision Record}: tài liệu ghi lại một quyết định kiến trúc, bối cảnh, phương án bị loại và hệ quả. \\
+BR & \en{Business Requirement}: yêu cầu nghiệp vụ (BR1--BR8) trong đề bài. \\
+Bronze / Silver / Gold & Ba lớp của kiến trúc medallion: dữ liệu thô, dữ liệu đã làm sạch và khử định danh, dữ liệu mô hình hoá cho phân tích. \\
+CDC & \en{Change Data Capture}: bắt các thay đổi cấp dòng từ nhật ký giao dịch (WAL) của cơ sở dữ liệu. \\
+CDF & \en{Change Data Feed}: tính năng của Delta Lake ghi lại các thay đổi cấp dòng của bảng. \\
+DDD & \en{Domain-Driven Design}: thiết kế hướng miền nghiệp vụ, chia hệ thống thành các \en{bounded context}. \\
+DLQ & \en{Dead-Letter Queue}: nơi lưu sự kiện bị từ chối kèm lý do để xử lý lại. \\
+Event time & Thời điểm sự kiện xảy ra tại nguồn, khác với thời điểm hệ thống nhận được. \\
+Exactly-once & Đảm bảo mỗi bản ghi tác động lên kết quả đúng một lần dù có lỗi hoặc gửi lại. \\
+Hexagonal & Kiến trúc lục giác (ports and adapters): lõi nghiệp vụ chỉ phụ thuộc vào các cổng trừu tượng. \\
+HMS & Hive Metastore: dịch vụ danh mục (catalog) chung cho các bảng Delta. \\
+Idempotent & Thực thi lặp lại nhiều lần cho cùng kết quả như thực thi một lần. \\
+k-anonymity & Nguyên tắc không công bố số liệu của nhóm có ít hơn $k$ cá thể; ở đây $k = 5$. \\
+LSN & \en{Log Sequence Number}: vị trí trong WAL của PostgreSQL, dùng để sắp thứ tự thay đổi. \\
+Mart & Bảng tổng hợp phục vụ một yêu cầu nghiệp vụ cụ thể. \\
+Medallion & Mô hình tổ chức lakehouse theo các lớp chất lượng tăng dần. \\
+OLTP & \en{Online Transaction Processing}: cơ sở dữ liệu giao dịch của hệ thống quản lý học tập (LMS). \\
+PII & \en{Personally Identifiable Information}: thông tin định danh cá nhân. \\
+Pseudonym & Bút danh: giá trị băm có khoá (HMAC) thay cho định danh thật. \\
+SCD & \en{Slowly Changing Dimension}: chiến lược lưu lịch sử thay đổi của bảng chiều (loại 1 ghi đè, loại 2 lưu phiên bản). \\
+Watermark & Ngưỡng thời gian sự kiện mà engine streaming coi là đã nhận đủ dữ liệu trước đó. \\
+\bottomrule
+\end{longtable}}

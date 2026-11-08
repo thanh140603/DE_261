@@ -1,0 +1,12 @@
+\chapter{Kết luận}
+\label{chap:conclusion}
+
+Báo cáo đã trình bày DE\_261, một nền tảng kỹ thuật dữ liệu biến bốn nguồn dữ liệu rời rạc của một hệ thống giáo dục trực tuyến thành các kho dữ liệu phục vụ tám yêu cầu nghiệp vụ.
+
+Về kiến trúc, nền tảng bám sát kiến trúc tham chiếu của đề bài: Kafka và Debezium cho tiếp nhận, Spark cho xử lý, Delta Lake cho lakehouse, Redis cho phục vụ độ trễ thấp. Lớp gold được mô hình hoá thành kho dữ liệu Kimball và phục vụ qua Trino. Các điểm điều chỉnh, quan trọng nhất là dùng Spark Structured Streaming thay Flink cho BR5 và các lớp phủ, đều được ghi lại bằng ADR kèm lý do và hệ quả. Tổ chức mã theo DDD và kiến trúc lục giác cho phép cùng một logic nghiệp vụ chạy trên nhiều engine và được kiểm thử độc lập.
+
+Về hiện thực, BR4--BR8 chạy trên hạ tầng thật với các tính chất mà một hệ thống dữ liệu cần có: xử lý theo thời gian sự kiện, chịu được dữ liệu trễ, trùng lặp và sai thứ tự, chạy lại idempotent, khử định danh ở ranh giới silver, k-anonymity cho báo cáo tổ chức, và cổng kiểm tra chất lượng sau mỗi lớp. BR1--BR3 có logic nghiệp vụ hoàn chỉnh và chạy trong runtime demo. Một giao diện web mới đưa kết quả đến đúng từng nhóm người dùng.
+
+Về đánh giá, hệ thống có hơn 360 test tự động ở nhiều tầng và các kịch bản kiểm chứng nghiệp vụ được quan sát đến tận giao diện. Các số đo cho thấy độ trễ phù hợp với từng yêu cầu: cảnh báo bỏ học khoảng 10 giây sau thay đổi nguồn, nội dung mới tìm kiếm được sau khoảng nửa giây, mart được phục vụ trong vài mili-giây khi có cache.
+
+Bài học lớn nhất của nhóm là giá trị của việc kiểm chứng bằng dữ liệu và số đo. Nhiều lỗi quan trọng chỉ lộ ra khi chạy hệ thống thật và đo đạc. Việc ghi rõ phần nào đã chạy, phần nào còn là thiết kế giúp nhóm và người đọc đánh giá đúng mức độ hoàn thiện, và định hướng cho các bước phát triển tiếp theo.
