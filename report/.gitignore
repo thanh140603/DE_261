@@ -1,0 +1,16 @@
+*.aux
+*.bbl
+*.blg
+*.log
+*.out
+*.toc
+*.lof
+*.lot
+*.fls
+*.fdb_latexmk
+*.synctex.gz
+*.xdv
+
+# The root .gitignore excludes every data/ folder; the report needs its
+# chart data (chapter 7 reads data/content_sync_latency.csv), so re-include it.
+!data/

@@ -1,0 +1,52 @@
+\chapter{Giới thiệu}
+\label{chap:intro}
+
+\section{Bối cảnh}
+
+Các nền tảng giáo dục trực tuyến quy mô lớn sinh ra dữ liệu liên tục và đa dạng. Mỗi lần người học mở bài giảng, tua video, nộp bài lập trình hay thảo luận đều để lại dấu vết. Hệ thống quản lý học tập (LMS) ghi nhận tiến độ, bài nộp và điểm số. Kho học liệu gồm transcript video, slide và tài liệu PDF được cập nhật theo từng phiên bản. Các sandbox chấm bài sinh ra nhật ký thực thi chi tiết. Những dữ liệu này có giá trị lớn cho \en{learning analytics}: giúp giảng viên biết bài tập nào có vấn đề, giúp cố vấn học tập phát hiện sớm người học có nguy cơ bỏ dở, và giúp người học nhận phản hồi và gợi ý kịp thời.
+
+Tuy vậy, các nguồn này rời rạc, khác nhau về định dạng, tốc độ và độ tin cậy. Telemetry từ thiết bị di động có thể đến trễ nhiều ngày hoặc sai thứ tự. Thay đổi trong cơ sở dữ liệu giao dịch phải được bắt theo đúng thứ tự mà không làm nặng hệ thống production. Tài liệu học tập cần được chia đoạn và quản lý phiên bản. Dữ liệu cá nhân của người học cần được bảo vệ, nhất là khi báo cáo cho các tổ chức đối tác (B2B). Đây là bài toán kỹ thuật dữ liệu điển hình, đòi hỏi kết hợp xử lý luồng, xử lý theo lô, lưu trữ phân tích và phục vụ độ trễ thấp~\cite{kleppmann2017}.
+
+\section{Phát biểu bài toán}
+
+Đề bài DE\_261 yêu cầu xây dựng một nền tảng dữ liệu biến bốn nguồn dữ liệu thô thành các kho dữ liệu phục vụ ba mục tiêu: phân tích học tập, hệ thống gợi ý thích ứng và phát hiện sớm nguy cơ bỏ học. Đề bài xác định tám yêu cầu nghiệp vụ (BR1--BR8) cho bốn nhóm người dùng (người học, giảng viên, cố vấn học tập, quản trị viên tổ chức). Đề bài cũng gợi ý một kiến trúc tham chiếu gồm Kafka và Debezium cho tiếp nhận, Flink cho xử lý luồng, Spark cho xử lý lô, Delta Lake hoặc Iceberg cho lakehouse, và Redis hoặc Cassandra cho tầng phục vụ. Chương~\ref{chap:requirements} phân tích chi tiết các yêu cầu này.
+
+\section{Mục tiêu và phạm vi}
+
+Nhóm đặt ra các mục tiêu sau:
+\begin{enumerate}
+  \item Thiết kế một kiến trúc dữ liệu đầu cuối bao phủ cả tám yêu cầu nghiệp vụ, bám sát kiến trúc tham chiếu. Mọi điểm điều chỉnh đều có lý do và được ghi lại.
+  \item Hiện thực các pipeline chạy được trên máy cá nhân bằng Docker Compose: tiếp nhận CDC thật qua Debezium, lakehouse Delta Lake với kho dữ liệu dạng hình sao, các data mart theo từng BR, và các đường xử lý thời gian thực.
+  \item Bảo đảm các tính chất quan trọng của hệ thống dữ liệu: xử lý theo thời gian sự kiện, chịu được dữ liệu trễ và trùng lặp, khả năng chạy lại idempotent, khử định danh và k-anonymity, kiểm tra chất lượng dữ liệu.
+  \item Cung cấp API và giao diện web cho từng nhóm người dùng, để kết quả của pipeline thực sự được sử dụng.
+  \item Đánh giá tính đúng đắn và hiệu năng bằng kiểm thử tự động và đo đạc có thể tái lập.
+\end{enumerate}
+
+Về phạm vi: toàn bộ dữ liệu dùng trong báo cáo là \textbf{dữ liệu tổng hợp} (synthetic). Hệ thống được triển khai trên một máy, không nhằm chứng minh khả năng mở rộng ngang hay độ sẵn sàng cao. Các số đo hiệu năng là quan sát cục bộ, không phải cam kết năng lực.
+
+\section{Đóng góp chính}
+
+\begin{itemize}
+  \item Một \textbf{lakehouse Delta Lake} ba lớp với 50 bảng và 43 model SQL. Lớp gold là kho dữ liệu Kimball gồm 9 bảng chiều và 11 bảng sự kiện, dùng khoá thay thế tất định. Các mart cho BR4, BR6, BR7, BR8 và một kho đặc trưng ngoại tuyến cho BR2. Kho được lập danh mục bằng Hive Metastore và phục vụ qua Trino có phân quyền theo vai trò.
+  \item Một đường \textbf{CDC thật}: PostgreSQL WAL, rồi Debezium, Kafka, Spark Structured Streaming, đến các mart, trạng thái rủi ro và cảnh báo cho BR4/BR5. Đường này chịu được phát lại (replay), cập nhật và xoá, và khởi động lại checkpoint.
+  \item Đồng bộ nội dung \textbf{BR8 dựa trên CDC}: vô hiệu hoá cache Redis, chia đoạn và nhúng vector vào OpenSearch, tìm kiếm lai, với ngữ nghĩa idempotent theo phiên bản.
+  \item \textbf{Lớp phủ thời gian thực} cho heatmap video (BR7) và điểm tương tác (BR8) trên Redis, ghép với mart theo ngày.
+  \item Mười bốn \textbf{ADR}, một kiến trúc phần mềm DDD/hexagonal có test bảo vệ ranh giới, và một bộ kiểm thử nhiều tầng có kèm bằng chứng đo đạc.
+  \item Một \textbf{giao diện web} mới cho năm không gian làm việc (workspace), thiết kế từ mockup và nối với API thật.
+\end{itemize}
+
+\section{Phương pháp thực hiện}
+
+Nhóm làm việc theo vòng lặp ngắn: phân tích yêu cầu, ghi quyết định kiến trúc (ADR), hiện thực, rồi kiểm chứng bằng test và số đo. Lõi nghiệp vụ (các \en{policy} và \en{use case}) được viết trước, kiểm thử độc lập với engine. Sau đó các adapter cho Kafka, Spark, Delta, Redis, PostgreSQL và OpenSearch được bổ sung dần. Mỗi nhóm BR có một tài liệu kế hoạch và một tài liệu hiện thực trong thư mục \code{docs/}. Các tài liệu này ghi rõ cái gì đã chạy thật, cái gì còn là demo, và các lỗi tìm ra trong quá trình kiểm chứng.
+
+\section{Cấu trúc báo cáo}
+
+\begin{itemize}
+  \item Chương~\ref{chap:requirements} phân tích các bên liên quan, yêu cầu nghiệp vụ, nguồn dữ liệu và yêu cầu phi chức năng.
+  \item Chương~\ref{chap:architecture} trình bày kiến trúc tổng thể, lựa chọn công nghệ và các quyết định kiến trúc.
+  \item Chương~\ref{chap:lakehouse} mô tả lakehouse và kho dữ liệu: mô hình medallion, khử định danh, mô hình chiều, data mart và kiểm tra chất lượng.
+  \item Chương~\ref{chap:impl} đi qua thiết kế và hiện thực của từng yêu cầu BR1--BR8.
+  \item Chương~\ref{chap:ui} trình bày giao diện người dùng.
+  \item Chương~\ref{chap:eval} trình bày kiểm thử và đánh giá hiệu năng.
+  \item Chương~\ref{chap:limits} nêu các hạn chế và hướng phát triển; Chương~\ref{chap:conclusion} kết luận.
+\end{itemize}

@@ -1,0 +1,57 @@
+\chapter{Hướng dẫn chạy và tái lập kết quả}
+\label{app:run}
+
+\section{Yêu cầu}
+
+Docker (khuyến nghị 8 GB RAM cho VM), Python 3.11 trở lên, Node.js 20 trở lên. Postgres của dự án mặc định ở cổng 5433 để tránh xung đột với các dự án khác.
+
+\section{Khởi động}
+
+\begin{lstlisting}[language=bash]
+# BR4/BR5: CDC thật + Spark Structured Streaming
+docker compose --profile br45 up -d --build demo br45-init br45-cdc br45-stream
+docker compose exec -T br45-cdc python -m edu_platform.br45.cli seed
+
+# BR6/BR7/BR8: kho dữ liệu, đồng bộ nội dung, lớp phủ trực tiếp
+docker compose --profile br678 up -d --build     # lần đầu khoảng 4-5 phút
+docker compose exec demo edu telemetry simulate --sessions 50
+
+# Kho dữ liệu với dữ liệu tổng hợp
+docker compose run --rm spark-jobs edu warehouse bootstrap
+docker compose run --rm spark-jobs edu warehouse seed-bronze --end-date 2026-10-17 --days 35
+docker compose run --rm spark-jobs edu warehouse run --run-date 2026-10-17 --start-date 2026-08-01
+docker exec -it de261-trino trino --user analyst --catalog lakehouse
+\end{lstlisting}
+
+Mở ứng dụng tại \code{http://localhost:8000}. Token demo cục bộ: \code{instructor-demo}, \code{advisor-demo}, \code{admin-demo} (cả hai tổ chức), \code{acme-admin-demo} (chỉ Acme).
+
+\section{Kiểm thử}
+
+\begin{lstlisting}[language=bash]
+.venv/bin/ruff check src tests && .venv/bin/mypy
+.venv/bin/python -m pytest tests/unit                       # 346 test đơn vị
+.venv/bin/python -m pytest -m spark tests/integration       # cần JDK
+EDU_BR45_E2E=1 .venv/bin/python -m pytest tests/e2e/test_br45.py
+cd apps/web && npm ci && npm run build && npx playwright install chromium
+BR45_BASE_URL=http://localhost:8000 npx playwright test
+\end{lstlisting}
+
+\section{Đo hiệu năng}
+
+\begin{lstlisting}[language=bash]
+.venv/bin/python -m edu_platform.br45.cli benchmark          # BR4
+.venv/bin/python -m edu_platform.br45.stream_benchmark       # BR5
+uv run edu benchmark serving --out docs/evidence/br678/serving_latency.csv
+uv run edu benchmark content --out docs/evidence/br678/content_sync_latency.csv
+uv run edu benchmark live    --out docs/evidence/br678/live_overlay.csv
+\end{lstlisting}
+
+Các file CSV gốc dùng trong Chương~\ref{chap:eval} được chép vào thư mục \code{report/data/}: \code{br4_benchmark.csv}, \code{br5_stream_benchmark.csv}, \code{serving_latency.csv}, \code{content_sync_latency.csv}, \code{live_overlay.csv}, \code{mart_build.csv}.
+
+\section{Biên dịch báo cáo}
+
+\begin{lstlisting}[language=bash]
+cd report
+tectonic main.tex            # hoặc: latexmk -xelatex main.tex
+\end{lstlisting}
+Trên Overleaf, chọn trình biên dịch XeLaTeX.
