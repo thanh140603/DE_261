@@ -21,8 +21,8 @@ from edu_platform.contexts.grading.infrastructure.kafka_queue import (
     KafkaSubmissionQueue,
     NullPublisher,
 )
-from edu_platform.contexts.grading.infrastructure.postgres_projection import (
-    PostgresGradingProjection,
+from edu_platform.contexts.grading.infrastructure.postgres_grading_store import (
+    PostgresGradingStore,
 )
 from edu_platform.contexts.grading.infrastructure.redis_repository import (
     RedisCodeStore,
@@ -54,7 +54,7 @@ def build_app(settings: Settings) -> FastAPI:
     )
     queue = KafkaSubmissionQueue(publisher)
     enqueue = EnqueueSubmission(repo, queue, code_store, NullPublisher())
-    projection = PostgresGradingProjection(settings.postgres_dsn.get_secret_value())
+    projection = PostgresGradingStore(settings.postgres_dsn.get_secret_value())
 
     app = FastAPI(title="Grading Ingestion Service (BR3)")
 

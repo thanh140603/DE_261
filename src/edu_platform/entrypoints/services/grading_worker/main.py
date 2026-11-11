@@ -67,6 +67,7 @@ def main() -> None:
         dlq_publisher=lambda topic, payload: publisher.publish_raw(
             topic, key=None, payload=payload
         ),
+        resilient=True,
     )
     loop.run(_handler(publisher, client, code_store, repo))
 

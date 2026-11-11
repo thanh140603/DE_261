@@ -11,7 +11,7 @@ recommendation and early drop-out detection. Requirements: `docs/DE_261.pdf`.
 |----|-------------|------|-----------------|---------|
 | BR1 | Learner | Real-time course notifications | `notification` | Kafka consumer service + Redis |
 | BR2 | Learner | Next-step / next-course recommendation | `recommendation` | Rule-based ranking + two-branch online feature context (Spark batch long-term, streaming session) in Redis; no ML |
-| BR3 | Learner | Detailed feedback on code/SQL submissions | `grading` | Kafka-buffered ingestion service + worker + normalizer, Postgres projection |
+| BR3 | Learner | Detailed feedback on code/SQL submissions | `grading` | Kafka-buffered ingestion service + worker + normalizer, `grading.*` store, optional LMS projector |
 | BR4 | Instructor | Abnormal fail-rate questions / test cases | `analytics` + `br45` | CDC -> SQL -> PostgreSQL marts (serving); history in lakehouse `mart.assessment_item_stats` |
 | BR5 | Advisor | Early drop-out warning | `risk` + `br45` | Debezium CDC -> Spark event-time windows -> alerts; history in `gold.fct_risk_score_daily` / `fct_dropout_alert` |
 | BR6 | Admin / B2B | Org skill progress & completion | `telemetry` + `analytics` | Medallion (bronze/silver/gold), PII pseudonymisation, `mart.org_progress` with min-cohort k=5 |
@@ -105,9 +105,20 @@ docker compose -f docker-compose.yml -f docker-compose.br13.yml up -d --build
 
 The overlay sets `EDU_BR13_MODE=service` on the demo API and points it at
 `grading-ingest`. It also runs a one-shot `kafka-init` because consumers cannot
-auto-create topics on subscribe. Session features are computed by
+auto-create topics on subscribe, and `br13-init` to create the BR3-owned
+`grading.*` schema. Session features are computed by
 `edu stream telemetry-live` (or `edu stream session-features` separately); the
 offline branch is materialised with `edu batch features-online`.
+
+BR3 writes `grading.submissions`/`grading.grades`, not the LMS `public.*` tables.
+To copy grading outcomes to the LMS (and therefore CDC/BR4/BR6), start the
+opt-in projector; this will change downstream data and requires a report
+re-baseline:
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.br13.yml \
+  --profile br13-project up -d grading-projector
+```
 
 ## Layout
 

@@ -74,6 +74,14 @@ def content_sync() -> None:
     main()
 
 
+@service_app.command("grading-projector")
+def grading_projector() -> None:
+    """BR3: grading.* events -> LMS public submissions/grades (opt-in projector)."""
+    from edu_platform.entrypoints.services.grading_projector.main import main
+
+    main()
+
+
 @batch_app.command("content-reindex")
 def content_reindex(
     content_id: list[str] = typer.Option(None, help="Only these content ids (repeatable)"),

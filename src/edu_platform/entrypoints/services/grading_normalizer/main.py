@@ -13,8 +13,8 @@ from edu_platform.contexts.grading.application.normalize_execution_log import (
     NormalizeExecutionLogCommand,
 )
 from edu_platform.contexts.grading.domain.feedback_policy import FeedbackPolicy
-from edu_platform.contexts.grading.infrastructure.postgres_projection import (
-    PostgresGradingProjection,
+from edu_platform.contexts.grading.infrastructure.postgres_grading_store import (
+    PostgresGradingStore,
 )
 from edu_platform.contexts.grading.infrastructure.redis_repository import RedisSubmissionRepository
 from edu_platform.contexts.grading.infrastructure.sandbox_log_parser import SandboxLogParser
@@ -32,7 +32,7 @@ def _handler(
     publisher: KafkaEventPublisher,
     repo: RedisSubmissionRepository,
     client: Any,
-    projection: PostgresGradingProjection,
+    projection: PostgresGradingStore,
 ) -> Any:
     grade = NormalizeExecutionLog(repo, SandboxLogParser(), FeedbackPolicy(), publisher)
 
@@ -64,7 +64,7 @@ def main() -> None:
     settings = get_settings()
     client = create_redis_client(settings.redis_url)
     repo = RedisSubmissionRepository(client)
-    projection = PostgresGradingProjection(settings.postgres_dsn.get_secret_value())
+    projection = PostgresGradingStore(settings.postgres_dsn.get_secret_value())
     publisher = KafkaEventPublisher(
         settings.kafka.bootstrap_servers, client_id="edu-grading-normalizer"
     )
@@ -75,6 +75,7 @@ def main() -> None:
         dlq_publisher=lambda topic, payload: publisher.publish_raw(
             topic, key=None, payload=payload
         ),
+        resilient=True,
     )
     loop.run(_handler(publisher, repo, client, projection))
 

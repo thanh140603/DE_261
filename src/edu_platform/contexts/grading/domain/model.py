@@ -126,5 +126,9 @@ class Submission(AggregateRoot[SubmissionId]):
                 learner_id=self.learner_id,
                 assignment_id=self.assignment_id,
                 pass_rate=result.pass_rate,
+                language=self.language.value,
+                code_ref=self.code_ref,
+                attempt_number=self.attempt_number,
+                submitted_at=self.submitted_at,
             )
         )

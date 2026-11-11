@@ -37,6 +37,20 @@ services:
       kafka: { condition: service_healthy }
     restart: "no"
 
+  # One-shot BR3 schema. The grading services own grading.*; public.* stays
+  # untouched unless the optional projector profile is enabled.
+  br13-init:
+    image: postgres:16-alpine
+    container_name: de261-br13-init
+    environment:
+      PGPASSWORD: lms
+    volumes:
+      - ./infra/postgres/br13.sql:/br13.sql:ro
+    command: ["psql", "-h", "postgres", "-U", "lms", "-d", "lms", "-f", "/br13.sql"]
+    depends_on:
+      postgres: { condition: service_healthy }
+    restart: "no"
+
   grading-ingest:
     build: { context: ., dockerfile: Dockerfile }
     image: de261/demo:local
@@ -56,6 +70,7 @@ services:
     depends_on:
       kafka: { condition: service_healthy }
       kafka-init: { condition: service_completed_successfully }
+      br13-init: { condition: service_completed_successfully }
       redis: { condition: service_started }
     restart: unless-stopped
 
@@ -69,6 +84,7 @@ services:
     depends_on:
       kafka: { condition: service_healthy }
       kafka-init: { condition: service_completed_successfully }
+      br13-init: { condition: service_completed_successfully }
       redis: { condition: service_started }
     restart: unless-stopped
 
@@ -82,7 +98,28 @@ services:
     depends_on:
       kafka: { condition: service_healthy }
       kafka-init: { condition: service_completed_successfully }
+      br13-init: { condition: service_completed_successfully }
       redis: { condition: service_started }
+    restart: unless-stopped
+
+  # Opt-in: explicitly copies grading.* outcomes into LMS public.*.
+  # Enable with: docker compose ... --profile br13-project up -d grading-projector
+  grading-projector:
+    build: { context: ., dockerfile: Dockerfile }
+    image: de261/demo:local
+    container_name: de261-grading-projector
+    profiles: ["br13-project"]
+    environment:
+      <<: *br13-environment
+      EDU_GRADING_PROJECT_TO_LMS: "true"
+    command: ["python", "-m", "edu_platform.entrypoints.services.grading_projector.main"]
+    healthcheck: { disable: true }
+    depends_on:
+      kafka: { condition: service_healthy }
+      kafka-init: { condition: service_completed_successfully }
+      br13-init: { condition: service_completed_successfully }
+      redis: { condition: service_started }
+      postgres: { condition: service_healthy }
     restart: unless-stopped
 
   notification:
@@ -95,6 +132,7 @@ services:
     depends_on:
       kafka: { condition: service_healthy }
       kafka-init: { condition: service_completed_successfully }
+      br13-init: { condition: service_completed_successfully }
       redis: { condition: service_started }
       postgres: { condition: service_healthy }
     restart: unless-stopped

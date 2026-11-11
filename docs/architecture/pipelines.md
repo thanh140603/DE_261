@@ -62,7 +62,7 @@ flowchart LR
 | P9 | Session features | 2 | Spark Structured Streaming, 30 min inactivity gap, Redis-backed session state | `telemetry.learning_events.v1` → Redis + `features.session.v1` | 30 s | event_id claim + absolute Redis snapshots |
 | P10 | BR4/BR5 persistent runtime | 4, 5 | br45 CDC worker + Spark Structured Streaming (ADR 0009), `--profile br45` | `br45.*` tables → Debezium `br45.cdc.*` → PostgreSQL `analytics` marts, risk states, alerts → dashboards | ≈ 10 s | outbox ids + Spark checkpoints; see docs/BR4_BR5_IMPLEMENTATION.md |
 | P11 | Notification | 1 | Kafka consumer service | `lms.*`, `risk.*`, `grading.*` → push / in-app / email + `notification.*` | seconds | Redis dedup key + rate limit |
-| P12 | Grading ingestion | 3 | Kafka consumer service | `grading.submission_received.v1` → sandbox → `grading.sandbox_result.raw.v1`, `grading.submission_graded.v1` | seconds | (submission, worker_run) |
+| P12 | Grading ingestion | 3 | Kafka consumer service | `grading.submission_received.v1` → sandbox → `grading.sandbox_result.raw.v1`, `grading.submission_graded.v1`; BR3 store `grading.*`; optional projector → LMS `public.*` | seconds | (submission, worker_run) |
 | P13 | Content sync / embedding | 8 | service + Spark every 6 h | corpus versions → cache invalidation, OpenSearch, `content.*`, `silver.content_chunks` | minutes | (content_id, version) |
 | P14 | Lakehouse maintenance | ops | Spark batch, `lakehouse_maintenance` 04:00 | retention, OPTIMIZE / Z-order, VACUUM | daily | idempotent |
 

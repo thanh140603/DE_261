@@ -133,17 +133,8 @@ ON CONFLICT DO NOTHING;
 
 INSERT INTO courses (course_id, title, skill, level, owner_organisation_id) VALUES
   ('c-sql-101', 'SQL Foundations', 'sql', 'beginner', 'org-acme'),
-  ('c-py-201', 'Python for Data', 'python', 'beginner', 'org-acme'),
-  ('c-de-301', 'Data Engineering Basics', 'data_engineering', 'intermediate', 'org-acme'),
-  ('c-ml-301', 'ML Engineering', 'machine_learning', 'advanced', 'org-acme'),
-  ('c-an-101', 'Product Analytics', 'analytics', 'beginner', 'org-acme'),
-  ('c-cl-401', 'Cloud Data Pipelines', 'cloud', 'intermediate', 'org-acme'),
-  ('c-ai-101', 'Introduction to AI', 'ai', 'beginner', 'org-acme'),
-  ('c-ml-201', 'Machine Learning', 'machine_learning', 'intermediate', 'org-acme'),
-  ('c-dl-401', 'Deep Learning', 'deep_learning', 'advanced', 'org-acme'),
-  ('c-nlp-401', 'Natural Language Processing', 'nlp', 'advanced', 'org-acme'),
-  ('c-cv-401', 'Computer Vision', 'computer_vision', 'advanced', 'org-acme'),
-  ('c-de-401', 'Streaming Data Engineering', 'data_engineering', 'advanced', 'org-acme')
+  ('c-py-201', 'Python for Data', 'python', 'intermediate', 'org-acme'),
+  ('c-de-301', 'Data Engineering Basics', 'data_engineering', 'intermediate', 'org-acme')
 ON CONFLICT DO NOTHING;
 
 INSERT INTO course_content (content_id, course_id, content_type, title, version, object_key, duration_sec) VALUES

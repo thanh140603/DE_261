@@ -1,9 +1,10 @@
-"""PostgreSQL projection for grading (BR3 durable history).
+"""PostgreSQL store for BR3-owned grading history.
 
-Redis is the hot store (7-day TTL) and Kafka is the transport; the LMS Postgres
-is the durable system of record used by CDC/lakehouse and by the classroom. The
-projection is an idempotent UPSERT keyed by ``submission_id`` so a re-delivered
-queue/result message cannot create a second row.
+Redis is the hot store (7-day TTL) and Kafka is the transport. The durable
+submission/grade rows live in the ``grading`` schema, owned by this context; the
+optional grading projector copies them to the LMS ``public`` schema for
+CDC/lakehouse consumers. Every write is an idempotent UPSERT keyed by
+``submission_id``.
 """
 
 from __future__ import annotations
@@ -13,7 +14,7 @@ from datetime import UTC, datetime
 from edu_platform.contexts.grading.domain.model import Submission
 
 
-class PostgresGradingProjection:
+class PostgresGradingStore:
     def __init__(self, postgres_dsn: str) -> None:
         self._dsn = postgres_dsn
 
@@ -23,7 +24,7 @@ class PostgresGradingProjection:
         with psycopg.connect(self._dsn) as conn:
             conn.execute(
                 """
-                INSERT INTO submissions
+                INSERT INTO grading.submissions
                     (submission_id, learner_id, assignment_id, attempt_number,
                      language, code_ref, status, submitted_at, updated_at)
                 VALUES (%s, %s, %s, %s, %s, %s, %s, %s, now())
@@ -51,7 +52,7 @@ class PostgresGradingProjection:
         with psycopg.connect(self._dsn) as conn:
             conn.execute(
                 """
-                INSERT INTO submissions
+                INSERT INTO grading.submissions
                     (submission_id, learner_id, assignment_id, attempt_number,
                      language, code_ref, status, submitted_at, updated_at)
                 VALUES (%s, %s, %s, %s, %s, %s, %s, %s, now())
@@ -71,7 +72,7 @@ class PostgresGradingProjection:
             )
             conn.execute(
                 """
-                INSERT INTO grades (submission_id, score, pass_rate, graded_at)
+                INSERT INTO grading.grades (submission_id, score, pass_rate, graded_at)
                 VALUES (%s, %s, %s, %s)
                 ON CONFLICT (submission_id) DO UPDATE
                     SET score = EXCLUDED.score,

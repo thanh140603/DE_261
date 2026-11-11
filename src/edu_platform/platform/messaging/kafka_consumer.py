@@ -38,6 +38,7 @@ class KafkaConsumerLoop:
         codec: JsonCodec | None = None,
         dlq_publisher: Callable[[str, dict[str, Any]], None] | None = None,
         max_retries: int = 3,
+        resilient: bool = False,
     ) -> None:
         self._bootstrap_servers = bootstrap_servers
         self._group_id = group_id
@@ -45,6 +46,9 @@ class KafkaConsumerLoop:
         self._codec = codec or JsonCodec()
         self._dlq_publisher = dlq_publisher
         self._max_retries = max_retries
+        # BR1/3 opt in: a broker that is still starting must not crash-loop the
+        # service. BR8/content-sync keeps the original fail-fast behaviour.
+        self._resilient = resilient
 
     def _build(self) -> Any:
         from confluent_kafka import Consumer
@@ -107,12 +111,14 @@ class KafkaConsumerLoop:
                     consumer.commit(asynchronous=False)
                     backoff = 1.0
                 except Exception as exc:
-                    # A consumer must survive a broker that is still starting up or a
+                    # BR1/3 opt in: survive a broker that is still starting up or a
                     # topic that has not been created yet (UNKNOWN_TOPIC_OR_PART).
-                    # The old loop raised here and every service crash-looped on a fresh
-                    # stack before the topic catalogue was applied.
+                    # Other consumers (BR8 content-sync) keep the original fail-fast
+                    # behaviour so their orchestration/restart semantics do not change.
                     if not running:
                         break
+                    if not self._resilient:
+                        raise
                     log.warning(
                         "kafka consumer poll failed; retrying",
                         group_id=self._group_id,

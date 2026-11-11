@@ -66,6 +66,9 @@ class Settings(BaseSettings):
     postgres_dsn: SecretStr = SecretStr("postgresql://lms:lms@localhost:5432/lms")
     redis_url: str = "redis://localhost:6379/0"
     grading_service_url: str = "http://localhost:8001"
+    # Phase 5: the optional projector copies grading.* to public.*. Keep it off
+    # by default so BR4/BR6 lakehouse baselines are untouched unless explicitly enabled.
+    grading_project_to_lms: bool = False
     email_smtp_url: str | None = None
     email_from: str = "no-reply@edu.local"
     push_webhook_url: str | None = None
