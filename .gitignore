@@ -53,3 +53,10 @@ docs/BR1_BR3_EXECUTION_PLAN.md
 
 # Local LaTeX engine/cache
 .tectonic/
+
+# Local-only execution plans
+docs/ALTERNATIVE_STACK_BENCHMARK_PLAN.md
+
+# Local benchmark data (5 GiB files are not committed)
+benchmarks/alternatives/data/
+docs/REPORT_6PART_REWRITE_PLAN.md
