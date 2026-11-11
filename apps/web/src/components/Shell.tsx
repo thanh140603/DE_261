@@ -4,7 +4,7 @@ import { formatTime, initials, relTime } from "../hooks";
 import { notificationIcon, useNotifications } from "../notifications";
 import { useStore } from "../store";
 import type { SseMessage } from "../types";
-import { locate, WORKSPACES, type WorkspaceDef } from "../workspaces";
+import { locate, WORKSPACES, type PageDef, type WorkspaceDef } from "../workspaces";
 import { useAuth } from "./AnalyticsAccess";
 import { Icon } from "./Icon";
 import { Callout } from "./ui";
@@ -13,92 +13,123 @@ function stored(key: string) { try { return localStorage.getItem(key); } catch {
 function store(key: string, value: string | null) {
   try { if (value === null) localStorage.removeItem(key); else localStorage.setItem(key, value); } catch { /* private mode */ }
 }
-const systemDark = () => window.matchMedia("(prefers-color-scheme: dark)").matches;
 
+/**
+ * LMS-style shell: a global navigation rail on the left (Dashboard, Assignments, Teaching, ...),
+ * a course-style side menu for areas with several pages, and a breadcrumb bar on top.
+ */
 export function Shell({ children }: { children: ReactNode }) {
   const { overviewError } = useStore();
   const { pathname } = useLocation();
   const { ws, page } = locate(pathname);
+  const [menuOpen, setMenuOpen] = useState(() => stored("ui-menu") !== "0");
   useEffect(() => { document.title = `${page.label} · EduPlatform`; }, [page.label]);
   useEffect(() => { window.scrollTo(0, 0); }, [pathname]);
+  const hasMenu = !ws.flat && ws.pages.length > 1;
+  const toggleMenu = () => { store("ui-menu", menuOpen ? "0" : "1"); setMenuOpen(!menuOpen); };
   return (
     <div className="app">
-      <Sidebar current={ws} />
+      <GlobalNav ws={ws} page={page} />
       <div className="main-col">
-        <TopBar ws={ws} pageLabel={page.label} />
-        <main>
-          {overviewError && (
-            <div className="server-error">
-              <Callout tone="bad">The server is not reachable ({overviewError}). Start it with <code>uvicorn edu_platform.entrypoints.api.main:app</code> and reload.</Callout>
-            </div>
-          )}
-          {children}
-        </main>
+        <TopBar ws={ws} page={page} onMenu={hasMenu ? toggleMenu : undefined} menuOpen={menuOpen} />
+        <div className={`layout${hasMenu && menuOpen ? " with-menu" : ""}`}>
+          {hasMenu && menuOpen && <AreaMenu ws={ws} />}
+          <main>
+            {overviewError && (
+              <div className="server-error">
+                <Callout tone="bad">The server is not reachable ({overviewError}). Start it with <code>uvicorn edu_platform.entrypoints.api.main:app</code> and reload.</Callout>
+              </div>
+            )}
+            {children}
+          </main>
+        </div>
       </div>
     </div>
   );
 }
 
-function Sidebar({ current }: { current: WorkspaceDef }) {
-  const { overview, learnerId } = useStore();
-  const auth = useAuth();
-  const learnerName = overview?.learners.find((l) => l.id === learnerId)?.name;
-  const [showBr, setShowBr] = useState(() => stored("ui-br") !== "0");
-  const [theme, setTheme] = useState<string | null>(() => stored("ui-theme"));
-  const [dark, setDark] = useState(() => (theme ? theme === "dark" : systemDark()));
-  useLayoutEffect(() => { document.body.classList.toggle("hide-br", !showBr); }, [showBr]);
-  useLayoutEffect(() => {
-    if (theme) document.documentElement.setAttribute("data-theme", theme);
-    else document.documentElement.removeAttribute("data-theme");
-    setDark(theme ? theme === "dark" : systemDark());
-  }, [theme]);
-  useEffect(() => {
-    const mq = window.matchMedia("(prefers-color-scheme: dark)");
-    const sync = () => { if (!stored("ui-theme")) setDark(mq.matches); };
-    mq.addEventListener("change", sync);
-    return () => mq.removeEventListener("change", sync);
-  }, []);
-  const who = (w: WorkspaceDef) =>
-    w.id === "learner" ? learnerName ?? "Choose a learner"
-      : w.role ? (auth.identity(w.role) ?? (auth.token(w.role) ? "Signed in" : "Not signed in"))
-        : "Demo runtime";
+interface RailItem { key: string; label: string; icon: string; to: string; current: boolean; hint: string }
+
+function railItems(ws: WorkspaceDef, page: PageDef): RailItem[] {
+  return WORKSPACES.flatMap((w) => w.flat
+    ? w.pages.map((p) => ({ key: p.path, label: p.label, icon: p.icon, to: p.path, current: w.id === ws.id && p.path === page.path, hint: `${w.label}: ${p.label}` }))
+    : [{ key: w.id, label: w.nav, icon: w.icon, to: w.pages[0].path, current: w.id === ws.id, hint: `${w.label} workspace` }]);
+}
+
+function GlobalNav({ ws, page }: { ws: WorkspaceDef; page: PageDef }) {
   return (
-    <aside className="sidebar" aria-label="Workspaces and pages">
-      <div className="brand">
-        <div className="brand-mark"><Icon name="cap" /></div>
-        <div>EduPlatform<small>Learning analytics</small></div>
-      </div>
-      <div className="nav-label" id="ws-label">Workspace</div>
-      <nav className="nav-list" aria-labelledby="ws-label">
-        {WORKSPACES.map((w) => (
-          <Link key={w.id} to={w.pages[0].path} className={`nav-btn${w.id === current.id ? " current" : ""}`} aria-current={w.id === current.id ? "true" : undefined}>
-            <span className="ws-ico"><Icon name={w.icon} /></span>
-            <span className="grow">{w.label}<span className="who">{who(w)}</span></span>
-          </Link>
-        ))}
-      </nav>
-      <div className="nav-label" id="pg-label">Pages</div>
-      <nav className="nav-list" aria-labelledby="pg-label">
-        {current.pages.map((p) => (
-          <NavLink key={p.path} to={p.path} end className="nav-btn">
-            <Icon name={p.icon} /><span className="grow">{p.label}</span><span className="br">{p.br}</span>
-          </NavLink>
-        ))}
-      </nav>
-      <div className="sidebar-foot">
-        <label className="switch">Requirement tags
-          <input type="checkbox" checked={showBr} onChange={(e) => { setShowBr(e.target.checked); store("ui-br", e.target.checked ? "1" : "0"); }} />
-        </label>
-        <label className="switch">Dark theme
-          <input type="checkbox" checked={dark} onChange={(e) => { const v = e.target.checked ? "dark" : "light"; store("ui-theme", v); setTheme(v); }} />
-        </label>
-        <p className="xs muted foot-note">Each page is tagged with the business requirement it serves.</p>
-      </div>
-    </aside>
+    <nav className="rail" aria-label="Global navigation">
+      <Link to="/learner" className="rail-logo" aria-label="EduPlatform dashboard" title="EduPlatform">
+        <Icon name="cap" /><span>EduPlatform</span>
+      </Link>
+      <AccountMenu />
+      {railItems(ws, page).map((r) => (
+        <Link key={r.key} to={r.to} className="rail-item" aria-current={r.current ? "page" : undefined} title={r.hint}>
+          <Icon name={r.icon} /><span>{r.label}</span>
+        </Link>
+      ))}
+    </nav>
   );
 }
 
-function TopBar({ ws, pageLabel }: { ws: WorkspaceDef; pageLabel: string }) {
+/** Account tray: who is signed in where, plus display preferences. */
+function AccountMenu() {
+  const { overview, learnerId } = useStore();
+  const auth = useAuth();
+  const pop = usePopover();
+  const learnerName = overview?.learners.find((l) => l.id === learnerId)?.name ?? "Learner";
+  // Requirement tags help trace pages to BR1-BR8 during a demo; a real LMS hides them, so they start off.
+  const [showBr, setShowBr] = useState(() => stored("ui-br") === "1");
+  // Light is the default for everyone (an LMS is read in daylight, often for long sessions); dark is opt-in.
+  const [dark, setDark] = useState(() => stored("ui-theme") === "dark");
+  useLayoutEffect(() => { document.body.classList.toggle("hide-br", !showBr); }, [showBr]);
+  useLayoutEffect(() => { document.documentElement.setAttribute("data-theme", dark ? "dark" : "light"); }, [dark]);
+  const roles = WORKSPACES.filter((w) => w.role).map((w) => ({ w, id: auth.identity(w.role!) ?? (auth.token(w.role!) ? "signed in" : null) }));
+  return (
+    <div className="pop-anchor rail-account" ref={pop.ref}>
+      <button className="rail-item" onClick={() => pop.setOpen(!pop.open)} aria-expanded={pop.open} aria-haspopup="dialog">
+        <span className="avatar sm">{initials(learnerName)}</span><span>Account</span>
+      </button>
+      {pop.open && (
+        <div className="popover tray" role="dialog" aria-label="Account">
+          <div className="tray-head">
+            <span className="avatar">{initials(learnerName)}</span>
+            <div><b>{learnerName}</b><span className="small muted">Student · demo account</span></div>
+          </div>
+          <h3>Roles in this browser tab</h3>
+          <ul className="tray-list">
+            {roles.map(({ w, id }) => (
+              <li key={w.id}><span>{w.label}</span><span className={id ? "small" : "small muted"}>{id ?? "not signed in"}</span></li>
+            ))}
+          </ul>
+          <h3>Preferences</h3>
+          <label className="switch">Dark theme
+            <input type="checkbox" checked={dark} onChange={(e) => { setDark(e.target.checked); store("ui-theme", e.target.checked ? "dark" : "light"); }} />
+          </label>
+          <label className="switch">Show requirement tags (BR1–BR8)
+            <input type="checkbox" checked={showBr} onChange={(e) => { setShowBr(e.target.checked); store("ui-br", e.target.checked ? "1" : "0"); }} />
+          </label>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/** Course-style side menu for an area with several pages (Canvas-like course navigation). */
+function AreaMenu({ ws }: { ws: WorkspaceDef }) {
+  return (
+    <nav className="area-menu" aria-label={`${ws.nav} pages`}>
+      <div className="area-title">{ws.nav}</div>
+      {ws.pages.map((p) => (
+        <NavLink key={p.path} to={p.path} end className="area-link">
+          <span>{p.label}</span><span className="br">{p.br}</span>
+        </NavLink>
+      ))}
+    </nav>
+  );
+}
+
+function TopBar({ ws, page, onMenu, menuOpen }: { ws: WorkspaceDef; page: PageDef; onMenu?: () => void; menuOpen: boolean }) {
   const { overview, learnerId, setLearnerId } = useStore();
   const auth = useAuth();
   const identity = ws.role ? auth.identity(ws.role) : null;
@@ -106,23 +137,33 @@ function TopBar({ ws, pageLabel }: { ws: WorkspaceDef; pageLabel: string }) {
   const learnerName = learners.find((l) => l.id === learnerId)?.name ?? "";
   return (
     <header className="topbar">
-      <div className="crumbs">{ws.label} <Icon name="arrow-right" /> <b>{pageLabel}</b></div>
+      {onMenu && (
+        <button className="menu-btn" onClick={onMenu} aria-expanded={menuOpen} aria-label={menuOpen ? `Hide ${ws.nav} menu` : `Show ${ws.nav} menu`} title="Toggle menu">
+          <Icon name="menu" />
+        </button>
+      )}
+      <nav className="crumbs" aria-label="Breadcrumb">
+        {ws.flat
+          ? <span aria-current="page">{page.label}</span>
+          : <><Link to={ws.pages[0].path}>{ws.nav}</Link><Icon name="chevron-right" /><span aria-current="page">{page.label}</span></>}
+      </nav>
       <div className="top-tools">
         <LiveEvents />
         {ws.id === "learner" && (
           <>
-            <select className="top-select" aria-label="Learner" value={learnerId} onChange={(e) => setLearnerId(e.target.value)}>
-              {learners.map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}
-            </select>
+            <label className="act-as"><span>Student</span>
+              <select className="top-select" aria-label="Learner" value={learnerId} onChange={(e) => setLearnerId(e.target.value)}>
+                {learners.map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}
+              </select>
+            </label>
             <Bell learnerId={learnerId} />
             <span className="avatar" title={learnerName}>{learnerName ? initials(learnerName) : "?"}</span>
           </>
         )}
         {ws.role && identity && (
           <>
-            <span className="session-chip" title={`Signed in as ${identity}`}><Icon name="shield" />{identity}</span>
+            <span className="session-chip" title={`Signed in as ${identity}`}><Icon name="user" />{identity}</span>
             <button className="icon-btn" onClick={() => auth.signOut(ws.role!)} aria-label="Sign out" title="Sign out"><Icon name="logout" /></button>
-            <span className="avatar">{initials(identity)}</span>
           </>
         )}
       </div>

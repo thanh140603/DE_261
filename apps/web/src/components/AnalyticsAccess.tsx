@@ -1,7 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 import { analyticsApi, type LakehouseSession } from "../analytics";
 import { useFetch } from "../hooks";
-import { Icon } from "./Icon";
 import { Btn, Callout, Status } from "./ui";
 
 export type Role = "instructor" | "advisor" | "admin";
@@ -79,8 +78,7 @@ function SignIn({ role }: { role: Role }) {
   const [input, setInput] = useState("");
   return (
     <section className="card signin" aria-label={`${ROLE_LABEL[role]} sign in`}>
-      <div className="brand-mark"><Icon name="lock" /></div>
-      <h2>Sign in to the {ROLE_LABEL[role]} workspace</h2>
+      <h2>Sign in as {ROLE_LABEL[role].toLowerCase()}</h2>
       <p className="muted small" style={{ marginTop: 6 }}>
         {role === "admin"
           ? "Reports are scoped to the organisations your token allows."

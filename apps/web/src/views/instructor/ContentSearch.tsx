@@ -9,7 +9,7 @@ import { CourseSelect, useInstructorCourse } from "./common";
 export function ContentSearch() {
   return (
     <>
-      <PageHead eyebrow="Instructor" br="BR8" title="Content & search">
+      <PageHead br="BR8" title="Content & search">
         Publish a new version and follow it until the cache, the transcript passages and the search index all serve it.
       </PageHead>
       <AnalyticsAccess role="instructor" source="lakehouse">{(token, session) => <Content token={token} courses={session.courses} />}</AnalyticsAccess>

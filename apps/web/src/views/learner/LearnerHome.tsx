@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { api } from "../../api";
 import { Icon } from "../../components/Icon";
-import { Badge, Btn, Callout, Card, Chip, Meter, PageHead, Seg, SelectField, Status, useToast, type Tone } from "../../components/ui";
+import { Badge, Btn, Callout, Card, PageHead, Seg, SelectField, Status, useToast, type Tone } from "../../components/ui";
 import { relTime, useAction, useFetch, type Fetched } from "../../hooks";
 import { notificationIcon, notificationKind, useNotifications, type NotificationKind } from "../../notifications";
 import { useStore } from "../../store";
@@ -15,6 +15,14 @@ const SKILL_CODE: Record<string, string> = {
 export const difficultyTone = (d?: string): Tone => (d === "easy" ? "good" : d === "medium" ? "warn" : d === "hard" ? "crit" : "neutral");
 const cap = (s?: string) => (s ? s[0].toUpperCase() + s.slice(1) : "");
 const minutes = (c?: Course) => (c ? Math.round(c.lessons.reduce((a, l) => a + l.duration_sec, 0) / 60) : 0);
+/** Course card colours (identity, not data): cool hues that sit with the sky-blue theme; all pass 4.5:1 with white text. */
+const COURSE_COLOR: Record<string, string> = {
+  sql: "#0277bd", python: "#00796b", data_engineering: "#3949ab", machine_learning: "#5e35b1", analytics: "#00838f",
+  cloud: "#1565c0", ai: "#283593", deep_learning: "#37474f", nlp: "#00695c", computer_vision: "#4527a0",
+};
+const courseColor = (skill?: string) => COURSE_COLOR[skill ?? ""] ?? "#455a64";
+/** "c-sql-101" -> "SQL-101": the short code LMS course cards show under the title. */
+const courseCode = (id: string) => id.replace(/^c-/, "").toUpperCase();
 const CHANNEL_ICON: Record<string, string> = { in_app: "monitor", email: "mail", push: "phone", sms: "phone" };
 const CHANNEL_LABEL: Record<string, string> = { in_app: "In-app", email: "Email", push: "Push", sms: "SMS" };
 
@@ -26,11 +34,6 @@ export function deepLinkTarget(link: string | null): string | null {
   return link.startsWith("/") ? link : null;
 }
 
-function greeting() {
-  const h = new Date().getHours();
-  return h < 12 ? "Good morning" : h < 18 ? "Good afternoon" : "Good evening";
-}
-
 export function LearnerHome() {
   const { overview, learnerId, lastEventAt } = useStore();
   const learner = overview?.learners.find((l) => l.id === learnerId);
@@ -39,28 +42,20 @@ export function LearnerHome() {
   const subs = useFetch(learnerId ? () => api.learner.submissions(learnerId) : null, [learnerId]);
   useEffect(() => { if (learnerId) { void recs.reload(); void subs.reload(); } }, [lastEventAt]); // eslint-disable-line react-hooks/exhaustive-deps
   const notes = useNotifications(learnerId);
-  const enrolled = enrolledOf(recs.data, learner?.course_ids ?? [], courseById);
-  const inProgress = enrolled.filter((c) => !c.completed).length;
-  const today = new Date().toLocaleDateString([], { weekday: "long", day: "numeric", month: "long" });
-  const navigate = useNavigate();
 
   return (
     <>
-      <PageHead eyebrow={today} title={`${greeting()}, ${learner?.name.split(" ")[0] ?? "learner"}`}
-        actions={<Btn icon="code" onClick={() => navigate("/learner/code-lab")}>Open code lab</Btn>}>
-        {notes.unread} unread notification{notes.unread === 1 ? "" : "s"}
-        {enrolled.length > 0 && <> · {inProgress} course{inProgress === 1 ? "" : "s"} in progress</>}
-      </PageHead>
-      <div className="grid-2-1">
+      <PageHead title="Dashboard" br="BR1 · BR2" />
+      <div className="dash">
         <div className="stack">
           <MyCourses learnerId={learnerId} recs={recs} courseById={courseById} />
           <Recommended learnerId={learnerId} recs={recs} courseById={courseById} />
-          <RecentFeedback subs={subs} />
         </div>
-        <div className="stack">
+        <aside className="stack" aria-label={`Sidebar for ${learner?.name ?? "learner"}`}>
           <Notifications notes={notes} />
+          <RecentFeedback subs={subs} />
           <SimulateEvents />
-        </div>
+        </aside>
       </div>
     </>
   );
@@ -86,29 +81,35 @@ function MyCourses({ learnerId, recs, courseById }: { learnerId: string; recs: R
   const enrolled = enrolledOf(recs.data, learner?.course_ids ?? [], courseById);
   const done = enrolled.filter((c) => c.completed).length;
   return (
-    <Card title="My courses" sub={enrolled.length ? `${enrolled.length} enrolled · ${done} completed` : undefined}>
+    <section aria-labelledby="my-courses">
+      <div className="section-head">
+        <h2 id="my-courses">My courses</h2>
+        {enrolled.length > 0 && <span className="small muted">{enrolled.length} enrolled · {done} completed</span>}
+      </div>
       {complete.error && <Callout tone="bad">{complete.error}</Callout>}
-      <Status loading={recs.loading && !recs.data} error={recs.error} empty={recs.data && enrolled.length === 0 ? "Not enrolled in any course yet. Pick one from the recommendations below." : false}>
-        {enrolled.map((c) => {
-          const course = courseById.get(c.course_id);
-          return (
-            <div className="course-row" key={c.course_id}>
-              <div className={`course-ico${c.completed ? "" : " alt"}`}>{SKILL_CODE[course?.skill ?? ""] ?? c.title.slice(0, 2)}</div>
-              <div style={{ minWidth: 0 }}>
-                <div className="strong">{c.title}</div>
-                <div className="muted small">{course ? `${course.lessons.length} lessons · ${minutes(course)} min` : ""}{c.category ? ` · ${cap(c.category)}` : ""}</div>
-              </div>
-              <div className="head-actions" style={{ alignItems: "center" }}>
-                {c.difficulty && <Badge tone={difficultyTone(c.difficulty)} icon="chart">{cap(c.difficulty)}</Badge>}
-                {c.completed
-                  ? <Badge tone="good">Completed</Badge>
-                  : <Btn size="sm" variant="ghost" onClick={() => void complete.run(c.course_id, c.title)} pending={complete.pending}>Mark complete</Btn>}
-              </div>
-            </div>
-          );
-        })}
+      <Status loading={recs.loading && !recs.data} error={recs.error} empty={recs.data && enrolled.length === 0 ? "You are not enrolled in any course yet. Pick one from Recommended courses below." : false}>
+        <div className="course-cards">
+          {enrolled.map((c) => {
+            const course = courseById.get(c.course_id);
+            return (
+              <article className="ccard" key={c.course_id} style={{ ["--cc" as string]: courseColor(course?.skill) }}>
+                <div className="ccard-band"><span>{SKILL_CODE[course?.skill ?? ""] ?? c.title.slice(0, 2)}</span></div>
+                <div className="ccard-body">
+                  <h3 className="ccard-title">{c.title}</h3>
+                  <p className="ccard-code">{courseCode(c.course_id)}{c.category ? ` · ${cap(c.category)}` : ""}</p>
+                  {course && <p className="ccard-meta">{course.lessons.length} lessons · {minutes(course)} min{c.difficulty ? ` · ${cap(c.difficulty)}` : ""}</p>}
+                </div>
+                <div className="ccard-foot">
+                  {c.completed
+                    ? <span className="done"><Icon name="check" />Completed</span>
+                    : <><span className="small muted">In progress</span><Btn size="sm" variant="link" onClick={() => void complete.run(c.course_id, c.title)} pending={complete.pending}>Mark complete</Btn></>}
+                </div>
+              </article>
+            );
+          })}
+        </div>
       </Status>
-    </Card>
+    </section>
   );
 }
 
@@ -122,52 +123,43 @@ function Recommended({ learnerId, recs, courseById }: { learnerId: string; recs:
   const next = recs.data?.next_step ?? null;
   const lessonStep = !!next && "lesson_id" in next && !!(next as { lesson_id?: string }).lesson_id; // older servers recommend a lesson
   const others = (recs.data?.courses ?? []).filter((c) => c.course_id !== next?.course_id);
-  const nextCourse = next ? courseById.get(next.course_id) : undefined;
+  const cards = [...(next ? [{ ...next, top: true }] : []), ...others.map((c) => ({ ...c, top: false }))];
   return (
-    <Card title="Recommended next" br="BR2" sub="Chosen by rules from your completed courses, course difficulty and track. Updated every time you finish a course.">
+    <section aria-labelledby="recommended">
+      <div className="section-head">
+        <h2 id="recommended">Recommended courses <span className="br">BR2</span></h2>
+        <span className="small muted">Based on the courses you have finished, their difficulty and track</span>
+      </div>
       {enroll.error && <Callout tone="bad">{enroll.error}</Callout>}
-      <Status loading={recs.loading && !recs.data} error={recs.error} empty={recs.data && !next && others.length === 0 ? "You have explored every course in the catalogue." : false}>
-        {next && (
-          <div className="rec-hero">
-            <div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap", alignItems: "flex-start" }}>
-              <div>
-                <p className="eyebrow" style={{ color: "var(--brand-ink)" }}><Icon name="sparkle" />{lessonStep ? "Next lesson" : "Best next step"}</p>
-                <h3 style={{ fontSize: 18, letterSpacing: "-.01em" }}>{next.title}</h3>
-                <div className="chips" style={{ marginTop: 6 }}>
-                  {next.difficulty && <Badge tone={difficultyTone(next.difficulty)} icon="chart">{cap(next.difficulty)}</Badge>}
-                  {next.category && <Chip>{cap(next.category)}</Chip>}
-                  {nextCourse && <Chip>{nextCourse.lessons.length} lessons · {minutes(nextCourse)} min</Chip>}
+      <Status loading={recs.loading && !recs.data} error={recs.error} empty={recs.data && cards.length === 0 ? "You have explored every course in the catalogue." : false}>
+        <div className="course-cards">
+          {cards.map((c) => {
+            const course = courseById.get(c.course_id);
+            const locked = !c.top && c.score === 0;
+            return (
+              <article className={`ccard${locked ? " locked" : ""}${c.top ? " top" : ""}`} key={c.course_id} style={{ ["--cc" as string]: courseColor(course?.skill) }}>
+                <div className="ccard-band">
+                  <span>{SKILL_CODE[course?.skill ?? ""] ?? c.title.slice(0, 2)}</span>
+                  {c.top && <em className="ccard-flag">{lessonStep ? "Next lesson" : "Recommended for you"}</em>}
                 </div>
-              </div>
-              {!lessonStep && <Btn variant="primary" onClick={() => void enroll.run(next.course_id, next.title)} pending={enroll.pending}>Enroll</Btn>}
-            </div>
-            <p className="rec-why"><Icon name="info" /><span><b>Why this course:</b> {next.reason}</span></p>
-          </div>
-        )}
-        {others.length > 0 && (
-          <div className="rec-list">
-            {others.map((c) => {
-              const locked = c.score === 0;
-              return (
-                <div className={`rec-card${locked ? " locked" : ""}`} key={c.course_id}>
-                  <div>
-                    <div className="strong">{c.title}</div>
-                    <div className="chips" style={{ margin: "6px 0" }}>
-                      {c.difficulty && <Badge tone={difficultyTone(c.difficulty)} icon="chart">{cap(c.difficulty)}</Badge>}
-                      {c.category && <Chip>{cap(c.category)}</Chip>}
-                    </div>
-                    <p className="small muted">{c.reason}</p>
-                  </div>
+                <div className="ccard-body">
+                  <h3 className="ccard-title">{c.title}</h3>
+                  <p className="ccard-code">{courseCode(c.course_id)}{c.category ? ` · ${cap(c.category)}` : ""}</p>
+                  <p className="ccard-meta">{course ? `${course.lessons.length} lessons · ${minutes(course)} min` : ""}{c.difficulty ? `${course ? " · " : ""}${cap(c.difficulty)}` : ""}</p>
+                  <p className="ccard-why">{c.top && <b>Why: </b>}{c.reason}</p>
+                </div>
+                <div className="ccard-foot">
                   {locked
-                    ? <Btn size="sm" disabled icon="lock">Locked</Btn>
-                    : <Btn size="sm" onClick={() => void enroll.run(c.course_id, c.title)} pending={enroll.pending}>Enroll</Btn>}
+                    ? <span className="small muted"><Icon name="lock" /> Not available yet</span>
+                    : lessonStep && c.top ? <span className="small muted">Continue in your course</span>
+                      : <Btn size="sm" variant={c.top ? "primary" : undefined} onClick={() => void enroll.run(c.course_id, c.title)} pending={enroll.pending}>Enroll</Btn>}
                 </div>
-              );
-            })}
-          </div>
-        )}
+              </article>
+            );
+          })}
+        </div>
       </Status>
-    </Card>
+    </section>
   );
 }
 
@@ -175,26 +167,28 @@ function RecentFeedback({ subs }: { subs: Fetched<Submission[]> }) {
   const { overview } = useStore();
   const navigate = useNavigate();
   const title = (id: string) => overview?.assignments.find((a) => a.id === id)?.title ?? id;
-  const latest = (subs.data ?? []).slice(0, 3);
+  const latest = (subs.data ?? []).slice(0, 4);
   return (
-    <Card title="Recent feedback" br="BR3" actions={<Btn size="sm" icon="code" onClick={() => navigate("/learner/code-lab")}>Code lab</Btn>}>
-      <Status loading={subs.loading && !subs.data} error={subs.error} empty={subs.data && latest.length === 0 ? "No submissions yet. Open the code lab to submit your first solution." : false}>
-        <div className="table-wrap">
-          <table className="t">
-            <thead><tr><th>Assignment</th><th>Tests passed</th><th>Status</th><th className="r">Submitted</th></tr></thead>
-            <tbody>
-              {latest.map((s) => (
-                <tr key={s.id}>
-                  <td><button className="btn link" onClick={() => navigate(`/learner/code-lab?submission=${s.id}`)}>{title(s.assignment_id)}</button><span className="sub">Attempt {s.attempt_number}</span></td>
-                  <td><Meter value={s.result?.pass_rate ?? null} /></td>
-                  <td><SubmissionBadge status={s.status} passRate={s.result?.pass_rate} /></td>
-                  <td className="r small muted nowrap">{relTime(s.submitted_at)}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+    <Card title="Recent feedback" br="BR3" className="block">
+      <Status loading={subs.loading && !subs.data} error={subs.error} empty={subs.data && latest.length === 0 ? "No submissions yet. Open Assignments to submit your first solution." : false}>
+        <ul className="feed">
+          {latest.map((s) => {
+            const tests = s.result?.tests ?? [];
+            const passed = tests.filter((t) => t.status === "passed").length;
+            return (
+              <li key={s.id}>
+                <button className="btn link" onClick={() => navigate(`/learner/code-lab?submission=${s.id}`)}>{title(s.assignment_id)}</button>
+                <div className="feed-meta">
+                  {tests.length > 0 && <span className="strong num">{passed}/{tests.length} tests</span>}
+                  <SubmissionBadge status={s.status} passRate={s.result?.pass_rate} />
+                </div>
+                <span className="xs muted">Attempt {s.attempt_number} · {relTime(s.submitted_at)}</span>
+              </li>
+            );
+          })}
+        </ul>
       </Status>
+      <div className="block-foot"><Btn size="sm" variant="link" onClick={() => navigate("/learner/code-lab")}>View all assignments</Btn></div>
     </Card>
   );
 }
@@ -215,8 +209,8 @@ function Notifications({ notes }: { notes: ReturnType<typeof useNotifications> }
   const navigate = useNavigate();
   const list = (notes.q.data ?? []).filter((n) => filter === "all" || notificationKind(n) === filter);
   return (
-    <Card title="Notifications" br="BR1" sub={`${notes.unread} unread · delivered in real time`}
-      actions={notes.unread > 0 ? <Btn size="sm" variant="ghost" onClick={notes.markSeen}>Mark all read</Btn> : undefined}>
+    <Card title={<>Notifications{notes.unread > 0 && <span className="count-pill">{notes.unread}</span>}</>} br="BR1" className="block"
+      actions={notes.unread > 0 ? <Btn size="sm" variant="link" onClick={notes.markSeen}>Mark all as read</Btn> : undefined}>
       <Seg label="" ariaLabel="Filter notifications" value={filter} options={FILTERS} onChange={setFilter} />
       <Status loading={notes.q.loading && !notes.q.data} error={notes.q.error} empty={notes.q.data && list.length === 0 ? (filter === "all" ? "No notifications yet. Course updates, deadlines and feedback appear here as they happen." : "Nothing in this category.") : false}>
         <div style={{ marginTop: 6 }}>
@@ -239,7 +233,7 @@ function NotificationItem({ n, unread, onOpen }: { n: Notification; unread: bool
           <span title={new Date(n.created_at).toLocaleString()}>{relTime(n.created_at)}</span>
           {n.channels.map((c) => <span className="ch" key={c}><Icon name={CHANNEL_ICON[c] ?? "bell"} />{CHANNEL_LABEL[c] ?? c}</span>)}
         </div>
-        {target && <Btn size="sm" onClick={() => onOpen(target)}>Open <Icon name="arrow-right" /></Btn>}
+        {target && <Btn size="sm" variant="link" onClick={() => onOpen(target)}>Open</Btn>}
       </div>
     </div>
   );
@@ -265,7 +259,7 @@ function SimulateEvents() {
   const mine = last?.notifications.suppressed.filter((s) => s.learner_id === learnerId) ?? [];
   return (
     <details className="demo">
-      <summary><Icon name="zap" />Demo controls · simulate course events</summary>
+      <summary><Icon name="zap" />Demo controls: simulate course events</summary>
       <div className="filters" style={{ marginBottom: 10 }}>
         <SelectField label="Course" value={courseId} options={courses} onChange={setCourseId} render={(c) => c.title} valueOf={(c) => c.id} />
       </div>

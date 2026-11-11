@@ -34,7 +34,7 @@ const AlertBadge = ({ status }: { status: string }) => {
 export function AdvisorView() {
   return (
     <>
-      <PageHead eyebrow="Advisor" br="BR5" title="Learners to support">
+      <PageHead br="BR5" title="Learners to support">
         Risk points come from simple rules on activity, deadlines and submissions. They show who may need a check-in; they are not a dropout probability.
       </PageHead>
       <AnalyticsAccess role="advisor">{(token, session) => <Results token={token} courses={session.courses} />}</AnalyticsAccess>
@@ -117,7 +117,8 @@ function Results({ token, courses }: { token: string; courses: { id: string; tit
               {rows.map((r) => {
                 const a = alertOf.get(r.student_id);
                 return (
-                  <button key={`${r.student_id}-${r.course_id}`} className="queue-row" role="listitem" aria-pressed={r.student_id === student} aria-label={r.student_id} onClick={() => setStudent(r.student_id)}>
+                  <div role="listitem" key={`${r.student_id}-${r.course_id}`}>
+                  <button className="queue-row" aria-pressed={r.student_id === student} aria-label={r.student_id} onClick={() => setStudent(r.student_id)}>
                     <span className="avatar sm">{initials(r.student_id)}</span>
                     <span style={{ minWidth: 0 }}>
                       <span className="queue-name">{r.student_id}{a && <AlertBadge status={a.status} />}</span>
@@ -132,6 +133,7 @@ function Results({ token, courses }: { token: string; courses: { id: string; tit
                       <div style={{ marginTop: 6 }}><LevelBadge level={r.level} /></div>
                     </span>
                   </button>
+                  </div>
                 );
               })}
             </div>

@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from "react"
 import { useSearchParams } from "react-router-dom";
 import { api } from "../../api";
 import { Icon } from "../../components/Icon";
-import { Badge, Btn, Callout, Card, Chip, Meter, PageHead, SelectField, Status } from "../../components/ui";
+import { Badge, Btn, Callout, Card, Meter, PageHead, SelectField, Status } from "../../components/ui";
 import { relTime, useAction, useFetch, usePersisted } from "../../hooks";
 import { useStore } from "../../store";
 import type { Submission, TestResult } from "../../types";
@@ -58,17 +58,19 @@ export function CodeLab() {
   const grading = current && ACTIVE.has(current.status);
   return (
     <>
-      <PageHead eyebrow={<>{course?.title ?? "Assignments"} <Icon name="arrow-right" /> Assignments</>} title={assignment?.title ?? "Code lab"}
-        actions={<SelectField label="Assignment" value={assignmentId} options={assignments} onChange={(v) => { setAssignmentId(v); setCurrent(null); setParams({}, { replace: true }); }} render={(a) => `${a.title} (${a.language})`} valueOf={(a) => a.id} />}>
-        {assignment && <span className="chips" style={{ marginTop: 2 }}>
-          <Chip>{assignment.language === "sql" ? "SQL" : "Python"}</Chip>
-          <Chip>{assignment.test_case_ids.length} tests</Chip>
-          <Chip>{attempts.length} attempt{attempts.length === 1 ? "" : "s"}</Chip>
-        </span>}
-      </PageHead>
+      <PageHead eyebrow={course?.title} title={assignment?.title ?? "Assignments"} br="BR3"
+        actions={<SelectField label="Assignment" value={assignmentId} options={assignments} onChange={(v) => { setAssignmentId(v); setCurrent(null); setParams({}, { replace: true }); }} render={(a) => `${a.title} (${a.language})`} valueOf={(a) => a.id} />} />
+      {assignment && (
+        <dl className="assign-meta">
+          <div><dt>Language</dt><dd>{assignment.language === "sql" ? "SQL" : "Python"}</dd></div>
+          <div><dt>Tests</dt><dd>{assignment.test_case_ids.length}</dd></div>
+          <div><dt>Attempts</dt><dd>{attempts.length}</dd></div>
+          <div><dt>Submitting</dt><dd>Code, graded automatically in a sandbox</dd></div>
+        </dl>
+      )}
 
       <div className="grid-1-1">
-        <Card title="Task">
+        <Card title="Instructions">
           <p>{assignment?.prompt}</p>
           <div className="mt">
             <Editor value={code} onChange={setCode} language={assignment?.language ?? "python"} />
@@ -84,7 +86,7 @@ export function CodeLab() {
         <Feedback submission={shown} />
       </div>
 
-      <Card className="mt" title="Previous attempts" sub="Every submission is graded in an isolated sandbox and kept here.">
+      <Card className="mt" title="Submission history">
         <Status loading={history.loading && !history.data} error={history.error} empty={history.data && attempts.length === 0 ? "No attempts for this assignment yet." : false}>
           <div className="table-wrap">
             <table className="t">
