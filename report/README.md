@@ -27,7 +27,8 @@ main.tex                 tệp chính
 config/info.tex          thông tin trang bìa (sửa ở đây)
 config/preamble.tex      gói, phông, màu, kiểu tiêu đề, bảng, biểu đồ
 config/cover.tex         trang bìa kiểu Trường ĐH Bách Khoa
-chapters/                tóm tắt, thuật ngữ, chương 1-9
+chapters/                tóm tắt, thuật ngữ, 6 phần chính (01-06)
+chapters/legacy/         bản gốc 9 chương trước khi gộp, chỉ để tham chiếu
 appendices/              hướng dẫn chạy, tóm tắt API
 figures/mockup/          ảnh chụp mockup (docs/ui-mockup)
 figures/ui/              ảnh chụp giao diện thật (apps/web) với dữ liệu thật

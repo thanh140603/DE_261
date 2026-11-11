@@ -21,7 +21,7 @@ rules:
     template_id: deadline_soon
   - rule_id: dropout-risk-advisor
     event_type: risk.dropout_risk_detected.v1
-    channels: [email]      # người nhận = cố vấn của học viên
+    channels: [email]      # recipient = the learner's advisor
     priority: high
 \end{lstlisting}
 \caption{Trích tập luật thông báo (\texttt{infra/notification/rules.yaml})}

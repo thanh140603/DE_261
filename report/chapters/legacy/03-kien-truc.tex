@@ -8,30 +8,30 @@ Hình~\ref{fig:arch} trình bày kiến trúc đầu cuối của nền tảng, 
 \begin{figure}[H]
 \centering
 \begin{tikzpicture}[node distance=5mm and 3mm, font=\footnotesize]
-  % ---- tầng nguồn ----
+  % ---- source layer ----
   \node[box, text width=3.0cm] (cli) {\textbf{Client web / mobile}\\\scriptsize telemetry JSON (xAPI)};
   \node[box, text width=3.0cm, right=of cli] (pg) {\textbf{LMS PostgreSQL}\\\scriptsize OLTP, WAL};
   \node[box, text width=3.0cm, right=of pg] (obj) {\textbf{MinIO}\\\scriptsize học liệu theo phiên bản\\(content-sync đọc khi có CDC)};
   \node[box, text width=3.0cm, right=of obj] (sb) {\textbf{Sandbox}\\\scriptsize nhật ký chấm bài};
-  % ---- tầng tiếp nhận ----
+  % ---- ingestion layer ----
   \node[stage, below=4mm of pg, text width=3.0cm] (dbz) {Debezium (pgoutput)};
   \coordinate (kc) at ($(cli.west)!0.5!(sb.east)$);
   \node[hl, anchor=north, text width=12.9cm] (kafka) at (kc |- {$(dbz.south)+(0,-0.45)$}) {\textbf{Apache Kafka} --- event bus, 26 topic: telemetry, \texttt{cdc.lms.*}, \texttt{lms.*}, \texttt{grading.*}, \texttt{risk.*}, \texttt{content.*}, \texttt{notification.*}};
-  % ---- tầng xử lý ----
+  % ---- processing layer ----
   \node[stage, anchor=north west, text width=4.0cm, minimum height=17mm] (sss) at ($(kafka.south west)+(0,-0.55)$) {\textbf{Spark Structured}\\\textbf{Streaming}\\\scriptsize landing bronze/silver (1--5 phút)\\ telemetry-live, lớp phủ BR7/BR8\\ cửa sổ rủi ro BR5};
   \node[stage, right=3mm of sss, text width=4.0cm, minimum height=17mm] (batch) {\textbf{Spark batch + Airflow}\\\scriptsize gold, mart, features\\ bảo trì OPTIMIZE / VACUUM\\ reindex học liệu};
   \node[stage, right=3mm of batch, text width=4.0cm, minimum height=17mm] (svc) {\textbf{Dịch vụ sự kiện}\\\scriptsize notification (BR1), grading (BR3)\\ content-sync (BR8)\\ br45 CDC worker (BR4/BR5)};
-  % ---- tầng lưu trữ ----
+  % ---- storage layer ----
   \node[box, anchor=north west, text width=5.5cm, minimum height=14mm, draw=gold!80!black, fill=gold!8] (delta) at ($(sss.south west)+(0,-0.55)$) {\textbf{Delta Lake trên MinIO + Hive Metastore}\\\scriptsize bronze $\rightarrow$ silver $\rightarrow$ gold (Kimball) $\rightarrow$ mart / features};
   \node[box, right=3mm of delta, text width=2.0cm, minimum height=14mm] (pga) {\textbf{PostgreSQL}\\\scriptsize \texttt{analytics}\\ BR4/BR5};
   \node[box, right=3mm of pga, text width=1.7cm, minimum height=14mm] (redis) {\textbf{Redis}\\\scriptsize cache, lớp phủ, dedup};
   \node[box, right=3mm of redis, text width=1.9cm, minimum height=14mm] (os) {\textbf{OpenSearch}\\\scriptsize BM25 + kNN};
-  % ---- tầng phục vụ ----
+  % ---- serving layer ----
   \node[stage, below=5mm of delta, text width=5.5cm] (trino) {\textbf{Trino} --- SQL warehouse, phân quyền theo vai trò};
   \node[stage, anchor=north west, text width=7.0cm] (api) at ($(pga.south west)+(0,-0.5)$) {\textbf{FastAPI} --- API có xác thực, phạm vi theo khoá học / tổ chức};
-  % ---- người dùng ----
+  % ---- users ----
   \node[hl, anchor=north, text width=12.9cm] (web) at (kc |- {$(api.south)+(0,-0.5)$}) {\textbf{Ứng dụng web (React)} --- Learner \textbullet{} Instructor \textbullet{} Advisor \textbullet{} Org admin \textbullet{} Data platform};
-  % ---- mũi tên ----
+  % ---- arrows ----
   \draw[arr] (cli.south) -- (cli.south |- kafka.north);
   \draw[arr] (pg) -- (dbz);
   \draw[arr] (dbz) -- (dbz.south |- kafka.north);
@@ -47,7 +47,7 @@ Hình~\ref{fig:arch} trình bày kiến trúc đầu cuối của nền tảng, 
   \draw[arr] (redis.south) -- (redis.south |- api.north);
   \draw[arr] (os.south) -- (os.south |- api.north);
   \draw[arr] (api.south) -- (api.south |- web.north);
-  % ---- nhãn tầng ----
+  % ---- layer labels ----
   \node[grplabel, rotate=90, anchor=south] at ($(cli.west)+(-0.25,0)$) {NGUỒN};
   \node[grplabel, rotate=90, anchor=south] at ($(kafka.west)+(-0.25,0)$) {TIẾP NHẬN};
   \node[grplabel, rotate=90, anchor=south] at ($(sss.west)+(-0.25,0)$) {XỬ LÝ};

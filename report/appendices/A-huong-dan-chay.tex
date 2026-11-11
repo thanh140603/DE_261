@@ -7,19 +7,48 @@ Docker (khuyến nghị 8 GB RAM cho VM), Python 3.11 trở lên, Node.js 20 tr�
 
 \section{Khởi động}
 
+\textbf{BR1--BR3.} 
+
 \begin{lstlisting}[language=bash]
-# BR4/BR5: CDC thật + Spark Structured Streaming
-docker compose --profile br45 up -d --build demo br45-init br45-cdc br45-stream
+
+docker compose -f docker-compose.yml -f docker-compose.br13.yml \
+  up -d --build kafka-init br13-init grading-ingest grading-worker \
+  grading-normalizer notification demo mailpit push-sink
+
+
+curl -s http://localhost:8000/api/health   # {"status":"ok","mode":"service"}
+
+
+docker compose -f docker-compose.yml -f docker-compose.br13.yml \
+  --profile jobs run --rm spark-jobs edu batch features-online --run-date 2026-11-10
+
+
+docker compose -f docker-compose.yml -f docker-compose.br13.yml \
+  --profile br13-project up -d grading-projector
+\end{lstlisting}
+
+\textbf{BR4/BR5.} 
+
+\begin{lstlisting}[language=bash]
+docker compose -f docker-compose.yml -f docker-compose.br13.yml \
+  --profile br45 up -d --build demo br45-init br45-cdc br45-stream
 docker compose exec -T br45-cdc python -m edu_platform.br45.cli seed
+\end{lstlisting}
 
-# BR6/BR7/BR8: kho dữ liệu, đồng bộ nội dung, lớp phủ trực tiếp
-docker compose --profile br678 up -d --build     # lần đầu khoảng 4-5 phút
+\textbf{BR6/BR7/BR8.} :
+
+\begin{lstlisting}[language=bash]
+docker compose -f docker-compose.yml -f docker-compose.br13.yml \
+  --profile br678 up -d --build       # first run takes about 4-5 minutes
 docker compose exec demo edu telemetry simulate --sessions 50
+\end{lstlisting}
 
-# Kho dữ liệu với dữ liệu tổng hợp
-docker compose run --rm spark-jobs edu warehouse bootstrap
-docker compose run --rm spark-jobs edu warehouse seed-bronze --end-date 2026-10-17 --days 35
-docker compose run --rm spark-jobs edu warehouse run --run-date 2026-10-17 --start-date 2026-08-01
+\textbf{Kho dữ liệu với dữ liệu tổng hợp:}
+
+\begin{lstlisting}[language=bash]
+docker compose --profile jobs run --rm spark-jobs edu warehouse bootstrap
+docker compose --profile jobs run --rm spark-jobs edu warehouse seed-bronze --end-date 2026-10-17 --days 35
+docker compose --profile jobs run --rm spark-jobs edu warehouse run --run-date 2026-10-17 --start-date 2026-08-01
 docker exec -it de261-trino trino --user analyst --catalog lakehouse
 \end{lstlisting}
 
@@ -29,11 +58,12 @@ Mở ứng dụng tại \code{http://localhost:8000}. Token demo cục bộ: \co
 
 \begin{lstlisting}[language=bash]
 .venv/bin/ruff check src tests && .venv/bin/mypy
-.venv/bin/python -m pytest tests/unit                       # 346 test đơn vị
-.venv/bin/python -m pytest -m spark tests/integration       # cần JDK
+.venv/bin/python -m pytest tests/unit                       # 346 unit tests  # TODO: 353 pass, 3 skip
+.venv/bin/python -m pytest -m spark tests/integration       # requires JDK
 EDU_BR45_E2E=1 .venv/bin/python -m pytest tests/e2e/test_br45.py
 cd apps/web && npm ci && npm run build && npx playwright install chromium
 BR45_BASE_URL=http://localhost:8000 npx playwright test
+BR45_BASE_URL=http://localhost:8000 npx playwright test tests/br123.spec.ts  # BR1-BR3
 \end{lstlisting}
 
 \section{Đo hiệu năng}
@@ -52,6 +82,6 @@ Các file CSV gốc dùng trong Chương~\ref{chap:eval} được chép vào th�
 
 \begin{lstlisting}[language=bash]
 cd report
-tectonic main.tex            # hoặc: latexmk -xelatex main.tex
+tectonic main.tex            # or: latexmk -xelatex main.tex
 \end{lstlisting}
 Trên Overleaf, chọn trình biên dịch XeLaTeX.
