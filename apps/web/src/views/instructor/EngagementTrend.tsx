@@ -11,7 +11,7 @@ const shortDay = (d: string) => new Date(`${d.slice(0, 10)}T00:00:00Z`).toLocale
 export function EngagementTrend() {
   return (
     <>
-      <PageHead eyebrow="Instructor" br="BR8" title="Engagement trend">
+      <PageHead br="BR8" title="Engagement trend">
         Weekly engagement per learner compared with the course average. Learners appear by pseudonym, never by name.
       </PageHead>
       <AnalyticsAccess role="instructor" source="lakehouse">{(token, session) => <Trend token={token} courses={session.courses} />}</AnalyticsAccess>

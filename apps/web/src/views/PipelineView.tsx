@@ -25,7 +25,7 @@ export function PipelineView() {
   const share = (n: number | undefined) => (stats && stats.bronze ? `${((100 * (n ?? 0)) / stats.bronze).toFixed(1)}% of received` : "–");
   return (
     <>
-      <PageHead eyebrow="Data platform" title="Pipeline health" actions={<Btn icon="refresh" onClick={() => void refreshStats()}>Refresh</Btn>}>
+      <PageHead title="Pipeline health" actions={<Btn icon="refresh" onClick={() => void refreshStats()}>Refresh</Btn>}>
         Events enter as raw telemetry, are validated, migrated to the current schema and pseudonymised into silver, or land in the dead-letter queue with a reason. Every other page is derived from here.
       </PageHead>
       <div className="tiles">

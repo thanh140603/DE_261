@@ -9,7 +9,7 @@ import { formatDay, humanize, useFetch } from "../hooks";
 export function AdminView() {
   return (
     <>
-      <PageHead eyebrow="Org admin" br="BR6" title="Organisation progress">
+      <PageHead br="BR6" title="Organisation progress">
         Skill progress and course completion for your organisation's learners. Built daily in the lakehouse from pseudonymised data.
       </PageHead>
       <AnalyticsAccess role="admin" source="lakehouse">

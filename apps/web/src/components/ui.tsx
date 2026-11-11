@@ -9,8 +9,8 @@ export function PageHead({ eyebrow, title, br, children, actions }: {
   return (
     <div className="page-head">
       <div>
-        {(eyebrow || br) && <p className="eyebrow">{eyebrow}{br && <Br>{br}</Br>}</p>}
-        <h1>{title}</h1>
+        {eyebrow && <p className="eyebrow">{eyebrow}</p>}
+        <h1>{title}{br && <Br>{br}</Br>}</h1>
         {children && <p className="lede">{children}</p>}
       </div>
       {actions && <div className="head-actions">{actions}</div>}

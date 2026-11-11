@@ -23,7 +23,7 @@ export const StateBadge = ({ state }: { state: string }) => {
 export function AssessmentHealth() {
   return (
     <>
-      <PageHead eyebrow="Instructor" br="BR4" title="Assessment health">
+      <PageHead br="BR4" title="Assessment health">
         Questions and test cases whose pass rate is abnormal: below the threshold, far below the other required tests, or dropping since the previous window.
       </PageHead>
       <AnalyticsAccess role="instructor">{(token, session) => <Results token={token} courses={session.courses} />}</AnalyticsAccess>

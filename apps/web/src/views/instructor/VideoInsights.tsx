@@ -15,7 +15,7 @@ const p99 = (a: number[]) => { const s = [...a].sort((x, y) => x - y); return Ma
 export function VideoInsights() {
   return (
     <>
-      <PageHead eyebrow="Instructor" br="BR7" title="Video insights">
+      <PageHead br="BR7" title="Video insights">
         Where learners play, pause and seek in each lesson video. Built per video version in the lakehouse from pseudonymised viewing events; today's activity streams in live.
       </PageHead>
       <AnalyticsAccess role="instructor" source="lakehouse">{(token, session) => <Insights token={token} courses={session.courses} />}</AnalyticsAccess>
