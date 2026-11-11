@@ -60,6 +60,8 @@ Bộ gợi ý vẫn là \textbf{gợi ý dựa trên luật}, tính tại thời
 
 \textbf{Luồng tách rời.} Bài nộp được đưa vào hàng đợi \code{grading.submission_received.v1} thay vì chấm ngay trong request, nên lượng nộp tăng đột biến trước hạn không làm nghẽn hệ thống. Worker sandbox chạy bài, ghi nhật ký thô lên \code{grading.sandbox_result.raw.v1}. Dịch vụ chấm bài chuẩn hoá kết quả và phát \code{grading.submission_graded.v1}, sự kiện này kích hoạt cả thông báo BR1.
 
+\textbf{Sở hữu dữ liệu.} Kết quả bền của BR3 nằm trong schema \code{grading} (\code{grading.submissions}, \code{grading.grades}), không ghi trực tiếp vào bảng LMS \code{public.*}. Một projector tùy chọn nghe \code{grading.submission_received.v1} và \code{grading.submission_graded.v1} để đồng bộ sang \code{public.submissions}/\code{public.grades} cho CDC và kho dữ liệu. Mặc định projector tắt để BR4--BR8 giữ nguyên baseline; khi bật, đây là tích hợp có chủ đích và phải tính lại số liệu báo cáo.
+
 \textbf{Sandbox.} Bài Python chạy trong tiến trình con có giới hạn thời gian 3 giây. Bài SQL chạy trên SQLite trong bộ nhớ ở chế độ chỉ đọc, có hàm ngắt khi quá hạn. Lỗi hạ tầng được tách khỏi lỗi trong mã của người học: lỗi và timeout của mã người học tính là trượt, còn lỗi hạ tầng không tính vào tỷ lệ đạt.
 
 \textbf{Phản hồi có cấu trúc.} \code{FeedbackPolicy} là một hàm thuần, không có I/O, tạo phản hồi gồm: câu tóm tắt, danh sách test trượt kèm giá trị mong đợi và thực tế (hoặc diff), 8 dòng cuối của stderr, và gợi ý theo ngôn ngữ dựa trên một bảng mẫu lỗi thường gặp. Kết quả còn gồm thời gian chạy, bộ nhớ và mã thoát. Chương~\ref{chap:ui} cho thấy cách phản hồi này hiển thị trong Code lab.

@@ -51,6 +51,30 @@ services:
       postgres: { condition: service_healthy }
     restart: "no"
 
+  # Local observability for the BR1 email/push channels.
+  mailpit:
+    image: axllent/mailpit:latest
+    container_name: de261-mailpit
+    ports: ["8025:8025", "1025:1025"]
+    restart: unless-stopped
+
+  push-sink:
+    build: { context: ., dockerfile: Dockerfile }
+    image: de261/demo:local
+    container_name: de261-push-sink
+    ports: ["8010:8080"]
+    environment:
+      PUSH_SINK_PORT: "8080"
+    command: ["python", "-m", "edu_platform.demo.push_sink"]
+    healthcheck:
+      test:
+        ["CMD", "python", "-c", "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8080/health', timeout=2).status == 200 else 1)"]
+      interval: 10s
+      timeout: 3s
+      start_period: 5s
+      retries: 5
+    restart: unless-stopped
+
   grading-ingest:
     build: { context: ., dockerfile: Dockerfile }
     image: de261/demo:local
@@ -126,7 +150,10 @@ services:
     build: { context: ., dockerfile: Dockerfile }
     image: de261/demo:local
     container_name: de261-notification
-    environment: *br13-environment
+    environment:
+      <<: *br13-environment
+      EDU_EMAIL_SMTP_URL: smtp://mailpit:1025
+      EDU_PUSH_WEBHOOK_URL: http://push-sink:8080/push
     command: ["python", "-m", "edu_platform.entrypoints.services.notification_service.main"]
     healthcheck: { disable: true }  # long-running consumer; the image healthcheck targets the demo HTTP port
     depends_on:
@@ -135,4 +162,6 @@ services:
       br13-init: { condition: service_completed_successfully }
       redis: { condition: service_started }
       postgres: { condition: service_healthy }
+      mailpit: { condition: service_started }
+      push-sink: { condition: service_healthy }
     restart: unless-stopped

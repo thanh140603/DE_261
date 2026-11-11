@@ -120,6 +120,11 @@ docker compose -f docker-compose.yml -f docker-compose.br13.yml \
   --profile br13-project up -d grading-projector
 ```
 
+The default overlay also starts two local delivery sinks for the demo:
+
+- Mailpit UI/API: `http://localhost:8025` (SMTP `localhost:1025`)
+- push sink: `http://localhost:8010/events` (POST target `http://localhost:8010/push`)
+
 ## Layout
 
 ```

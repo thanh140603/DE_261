@@ -45,3 +45,11 @@ apps/web/node_modules/
 apps/web/test-results/
 apps/web/playwright-report/
 docs/BR1_BR3_EXECUTION_PLAN.md
+
+# Local Playwright browser/runtime deps and npm cache
+.playwright-browsers/
+.playwright-deps/
+.npm-cache/
+
+# Local LaTeX engine/cache
+.tectonic/
