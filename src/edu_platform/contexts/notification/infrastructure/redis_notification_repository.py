@@ -69,15 +69,27 @@ class RedisNotificationRepository:
         self._client = client
 
     def save(self, notification: Notification) -> None:
-        self._client.set(
-            key("notif", "item", notification.id),
-            json.dumps(_to_dict(notification)),
-            ex=_ITEM_TTL_SECONDS,
-        )
-        inbox = key("notif", "inbox", notification.recipient_id)
-        self._client.lpush(inbox, notification.id)
-        self._client.ltrim(inbox, 0, _INBOX_MAX - 1)
-        self._client.incr(key("notif", "count"))
+        """Create-or-update one notification.
+
+        ``RouteEvent`` saves the new notification and ``DispatchNotification``
+        saves it again after marking the channels dispatched. The repository is
+        therefore idempotent by notification id: only the first save appends to
+        the inbox and increments the counter; later saves update the item so the
+        dispatched timestamps survive.
+        """
+        item_key = key("notif", "item", notification.id)
+        payload = json.dumps(_to_dict(notification))
+        created = self._client.set(item_key, payload, ex=_ITEM_TTL_SECONDS, nx=True)
+        if created:
+            inbox = key("notif", "inbox", notification.recipient_id)
+            self._client.lpush(inbox, notification.id)
+            self._client.ltrim(inbox, 0, _INBOX_MAX - 1)
+            self._client.incr(key("notif", "count"))
+            event_index = key("notif", "event", notification.source_event_id)
+            self._client.sadd(event_index, notification.id)
+            self._client.expire(event_index, _ITEM_TTL_SECONDS)
+        else:
+            self._client.set(item_key, payload, ex=_ITEM_TTL_SECONDS)
 
     def get(self, notification_id: str) -> Notification | None:
         raw = self._client.get(key("notif", "item", notification_id))
@@ -85,6 +97,12 @@ class RedisNotificationRepository:
 
     def for_recipient(self, recipient_id: str) -> list[Notification]:
         ids = self._client.lrange(key("notif", "inbox", recipient_id), 0, -1)
+        rows = [self.get(str(i)) for i in ids]
+        return [n for n in rows if n is not None]
+
+    def for_source_event(self, event_id: str) -> list[Notification]:
+        """Notifications created by one upstream event (used by the simulate endpoint)."""
+        ids = self._client.smembers(key("notif", "event", event_id))
         rows = [self.get(str(i)) for i in ids]
         return [n for n in rows if n is not None]
 

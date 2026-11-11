@@ -59,9 +59,16 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", env_prefix="EDU_", extra="ignore")
 
     env: Literal["local", "docker", "dev", "staging", "prod"] = "local"
+    # demo  = in-process adapters (ADR 0008)
+    # service = Kafka/Redis services own the writes; the API is a read model/BFF
+    br13_mode: Literal["demo", "service"] = "demo"
     schema_registry_url: str = "http://localhost:8081"
     postgres_dsn: SecretStr = SecretStr("postgresql://lms:lms@localhost:5432/lms")
     redis_url: str = "redis://localhost:6379/0"
+    grading_service_url: str = "http://localhost:8001"
+    email_smtp_url: str | None = None
+    email_from: str = "no-reply@edu.local"
+    push_webhook_url: str | None = None
     corpus_bucket: str = "corpus"
     pii_hmac_secret: SecretStr = SecretStr("change-me")
     search_url: str = "http://localhost:9200"

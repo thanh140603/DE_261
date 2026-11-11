@@ -50,9 +50,15 @@ class NormalizeExecutionLog:
         if key in self._seen_runs or submission.status is SubmissionStatus.GRADED:
             return submission
         self._seen_runs.add(key)
-        result = self._parser.parse(command.raw_log)
-        feedback = self._feedback_policy.build(result, submission.language)
-        submission.grade(result, feedback)
-        self._repo.save(submission)
-        self._publisher.publish(submission.pull_events())
+        try:
+            result = self._parser.parse(command.raw_log)
+            feedback = self._feedback_policy.build(result, submission.language)
+            submission.grade(result, feedback)
+            self._repo.save(submission)
+            self._publisher.publish(submission.pull_events())
+        except Exception:
+            # A malformed result must be retryable (and eventually reach the DLQ),
+            # not silently marked as seen for the life of this process.
+            self._seen_runs.discard(key)
+            raise
         return submission

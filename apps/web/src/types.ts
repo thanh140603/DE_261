@@ -33,10 +33,11 @@ export interface TelemetryResult { event_id: string; outcome: "silver" | "dlq"; 
 export interface BurstResult { generated: number; silver: number; dlq: number }
 export interface LmsEventInput {
   event_type: "assignment_created" | "deadline_approaching" | "course_updated";
-  course_id: string; assignment_id?: string; hours_to_deadline?: number; title?: string;
+  course_id: string; assignment_id?: string; learner_id?: string;
+  hours_to_deadline?: number; title?: string;
 }
 export interface LmsEventResult {
-  event_id: string;
+  event_id: string; queued?: boolean;
   notifications: { created: number; suppressed: { learner_id: string; reason: string }[] };
 }
 export interface CdcInput {
@@ -68,12 +69,13 @@ export interface LongtermFeatures {
 }
 export interface SessionFeatures {
   session_id: string; active_minutes: number; events_in_session: number; last_verbs: string[];
-  current_course_id: string | null; struggle_score: number; updated_at: string;
+  current_course_id: string | null; struggle_score: number; updated_at: string; started_at?: string | null;
 }
 export interface Recommendations {
   next_step: { course_id: string; title: string; difficulty: string; category: string; score: number; reason: string } | null;
   enrolled: { course_id: string; title: string; difficulty: string; category: string; completed: boolean }[];
   courses: { course_id: string; title: string; difficulty: string; category: string; score: number; reason: string }[];
+  features?: { longterm: LongtermFeatures | null; session: SessionFeatures | null };
 }
 
 export interface TestResult {

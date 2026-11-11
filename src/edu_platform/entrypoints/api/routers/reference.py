@@ -2,16 +2,18 @@ from __future__ import annotations
 
 from typing import Any
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
 
 from edu_platform.demo import seed
+from edu_platform.entrypoints.api.deps import settings
+from edu_platform.platform.config import Settings
 
 router = APIRouter(tags=["reference"])
 
 
 @router.get("/health")
-async def health() -> dict[str, str]:
-    return {"status": "ok", "mode": "demo"}
+async def health(cfg: Settings = Depends(settings)) -> dict[str, str]:
+    return {"status": "ok", "mode": cfg.br13_mode}
 
 
 @router.get("/demo/overview")

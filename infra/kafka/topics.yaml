@@ -1,6 +1,6 @@
 # Topic catalogue. Names mirror src/edu_platform/platform/messaging/topics.py.
-# Applied by `edu infra create-topics infra/kafka/topics.yaml` (TODO). Replication factor is
-# overridden per environment (1 local, 3 prod).
+# Applied by `edu infra create-topics infra/kafka/topics.yaml` (and by the br13
+# kafka-init service). Replication factor is overridden per environment (1 local, 3 prod).
 defaults:
   partitions: 6
   replication_factor: 1
@@ -18,6 +18,9 @@ topics:
   - name: telemetry.learning_events.v1  # normalised by telemetry-live (ADR 0014); key = pseudonym
     partitions: 24
     config: { retention.ms: 86400000 }
+  - name: features.session.v1          # BR2 streaming branch snapshot; key = pseudonym
+    partitions: 12
+    config: { retention.ms: 604800000 }
   # --- CDC (created by Debezium; declared here for ACLs/retention) -----------
   - name: cdc.lms.public.organisations
     config: { cleanup.policy: compact }
@@ -38,19 +41,27 @@ topics:
   - name: cdc.lms.public.grades
   - name: cdc.lms.public.course_content
     config: { cleanup.policy: compact }
+  - name: cdc.lms.public.course_content.dlq
   # --- grading (BR3) ---------------------------------------------------------
   - name: grading.submission_received.v1
     partitions: 12
   - name: grading.sandbox_result.raw.v1
     partitions: 12
   - name: grading.submission_graded.v1
+  - name: grading.submission_received.v1.dlq
+  - name: grading.sandbox_result.raw.v1.dlq
   # --- risk (BR5) ------------------------------------------------------------
   - name: risk.dropout_alert.v1
   - name: risk.learner_score.v1      # every rescore -> gold.fct_risk_score_daily
+  - name: risk.dropout_alert.v1.dlq
   # --- LMS business events (BR1) --------------------------------------------
   - name: lms.assignment_created.v1
   - name: lms.deadline_approaching.v1
   - name: lms.course_updated.v1
+  - name: lms.assignment_created.v1.dlq
+  - name: lms.deadline_approaching.v1.dlq
+  - name: lms.course_updated.v1.dlq
+  - name: grading.submission_graded.v1.dlq
   - name: notification.dispatched.v1
   - name: notification.suppressed.v1
   # --- content (BR8) ---------------------------------------------------------

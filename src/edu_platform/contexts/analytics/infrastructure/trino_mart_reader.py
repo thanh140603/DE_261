@@ -38,7 +38,7 @@ def trino_query(settings: TrinoSettings) -> Query:
         import trino
 
         try:
-            conn = trino.dbapi.connect(  # type: ignore[no-untyped-call]
+            conn = trino.dbapi.connect(
                 host=settings.host,
                 port=settings.port,
                 user=settings.user,

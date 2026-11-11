@@ -8,11 +8,15 @@ stall. SIGTERM/SIGINT drain the in-flight record and close cleanly.
 from __future__ import annotations
 
 import signal
+import time
 from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Any
 
+from edu_platform.platform.logging import get_logger
 from edu_platform.platform.serialization.codec import JsonCodec
+
+log = get_logger(__name__)
 
 
 @dataclass(frozen=True)
@@ -66,39 +70,64 @@ class KafkaConsumerLoop:
         previous_handlers = {
             sig: signal.signal(sig, _stop) for sig in (signal.SIGTERM, signal.SIGINT)
         }
+        backoff = 1.0
         try:
             while running:
-                message = consumer.poll(1.0)
-                if message is None:
-                    continue
-                if message.error():
-                    from confluent_kafka import KafkaException
-
-                    if message.error().code() == -1001:  # _PARTITION_EOF
+                try:
+                    message = consumer.poll(1.0)
+                    if message is None:
+                        backoff = 1.0
                         continue
-                    raise KafkaException(message.error())
-                payload = self._codec.decode(message.value(), schema_subject=message.topic())
-                failures = 0
-                while True:
-                    try:
-                        handler(
-                            KafkaMessage(
-                                topic=message.topic(),
-                                key=message.key(),
-                                payload=payload,
-                                partition=message.partition(),
-                                offset=message.offset(),
+                    if message.error():
+                        from confluent_kafka import KafkaError, KafkaException
+
+                        if message.error().code() == KafkaError._PARTITION_EOF:
+                            continue
+                        raise KafkaException(message.error())
+                    payload = self._codec.decode(message.value(), schema_subject=message.topic())
+                    failures = 0
+                    while True:
+                        try:
+                            handler(
+                                KafkaMessage(
+                                    topic=message.topic(),
+                                    key=_text(message.key()),
+                                    payload=payload,
+                                    partition=message.partition(),
+                                    offset=message.offset(),
+                                )
                             )
-                        )
-                        break
-                    except Exception:
-                        failures += 1
-                        if failures >= self._max_retries:
-                            if self._dlq_publisher is not None:
-                                self._dlq_publisher(f"{message.topic()}.dlq", payload)
                             break
-                consumer.commit(asynchronous=False)
+                        except Exception:
+                            failures += 1
+                            if failures >= self._max_retries:
+                                if self._dlq_publisher is not None:
+                                    self._dlq_publisher(f"{message.topic()}.dlq", payload)
+                                break
+                    consumer.commit(asynchronous=False)
+                    backoff = 1.0
+                except Exception as exc:
+                    # A consumer must survive a broker that is still starting up or a
+                    # topic that has not been created yet (UNKNOWN_TOPIC_OR_PART).
+                    # The old loop raised here and every service crash-looped on a fresh
+                    # stack before the topic catalogue was applied.
+                    if not running:
+                        break
+                    log.warning(
+                        "kafka consumer poll failed; retrying",
+                        group_id=self._group_id,
+                        error=str(exc),
+                        retry_in_seconds=backoff,
+                    )
+                    time.sleep(backoff)
+                    backoff = min(30.0, backoff * 2)
         finally:
             consumer.close()
             for sig, previous in previous_handlers.items():
                 signal.signal(sig, previous)
+
+
+def _text(value: bytes | str | None) -> str | None:
+    if value is None:
+        return None
+    return value.decode("utf-8", errors="replace") if isinstance(value, bytes) else value

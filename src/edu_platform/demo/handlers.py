@@ -78,6 +78,7 @@ def on_raw_telemetry(p: DemoPlatform, msg: Message) -> None:
         return
     if event.is_late:
         p.late_events += 1
+    p.update_session(event.learner_pseudonym)
     p.broadcaster.publish("telemetry.silver", learning_event_dict(event))
 
 

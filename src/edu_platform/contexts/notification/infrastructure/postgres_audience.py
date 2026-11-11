@@ -23,7 +23,7 @@ def _seed_resolver() -> StaticAudienceResolver:
 
 
 class PostgresAudienceResolver:
-    def __init__(self, postgres_dsn: str, cache_seconds: int = 60) -> None:
+    def __init__(self, postgres_dsn: str, cache_seconds: int = 5) -> None:
         self._dsn = postgres_dsn
         self._cache_seconds = cache_seconds
         self._fallback = _seed_resolver()
@@ -45,12 +45,15 @@ class PostgresAudienceResolver:
                     ).fetchall()
                 ).items()
             }
-            advisors = {
-                row[0]: row[1]
-                for row in conn.execute("SELECT learner_id, advisor_id FROM learners").fetchall()
-                if row[1] is not None
+            learner_rows = {
+                row[0]: (row[1], row[2])
+                for row in conn.execute(
+                    "SELECT learner_id, advisor_id, email FROM learners"
+                ).fetchall()
             }
-        self._cache = {"learners": learners, "advisors": advisors}
+            advisors = {k: v[0] for k, v in learner_rows.items() if v[0] is not None}
+            emails = {k: v[1] for k, v in learner_rows.items() if v[1]}
+        self._cache = {"learners": learners, "advisors": advisors, "emails": emails}
         self._cached_at = time.monotonic()
         return self._cache
 
@@ -66,6 +69,14 @@ class PostgresAudienceResolver:
             return advisor if isinstance(advisor, str) else None
         except Exception:
             return self._fallback.advisor_for_learner(learner_id)
+
+    def email_for_learner(self, learner_id: str) -> str:
+        """Recipient address for the email channel; a stable fallback keeps local demos running."""
+        try:
+            email = self._load()["emails"].get(learner_id)
+            return str(email) if email else f"{learner_id}@example.edu"
+        except Exception:
+            return f"{learner_id}@example.edu"
 
 
 def _group_by_course(rows: list[tuple[str, str]]) -> dict[str, list[tuple[str, str]]]:

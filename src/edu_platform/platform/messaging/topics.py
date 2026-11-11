@@ -13,9 +13,11 @@ class Topic(StrEnum):
     # Raw ingestion
     TELEMETRY_RAW = "telemetry.events.raw.v1"
     TELEMETRY_DLQ = "telemetry.events.dlq.v1"
-    # Normalised, pseudonymised events from the Flink fast path; consumed by the other Flink
-    # jobs (session features, risk, live heatmap). The lakehouse normalises bronze itself.
+    # Normalised, pseudonymised events from the streaming fast path; consumed by the
+    # session-feature job, risk and the live overlays. The lakehouse normalises bronze itself.
     LEARNING_EVENTS = "telemetry.learning_events.v1"
+    # BR2 streaming feature branch: one snapshot per session update (key = pseudonym).
+    SESSION_FEATURES = "features.session.v1"
     # Debezium CDC (prefix configured in infra/debezium/postgres-connector.json)
     CDC_ENROLLMENTS = "cdc.lms.public.enrollments"
     CDC_PROGRESS = "cdc.lms.public.lesson_progress"

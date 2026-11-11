@@ -56,6 +56,35 @@ class LongTermFeatures(ValueObject):
 
 
 @dataclass(frozen=True)
+class SessionFeatures(ValueObject):
+    """Streaming-branch output. Keyed by pseudonym; 30-minute inactivity gap."""
+
+    learner_pseudonym: str
+    session_id: str
+    active_minutes: float
+    events_in_session: int
+    last_verbs: tuple[str, ...]
+    current_course_id: str | None
+    struggle_score: float
+    updated_at: datetime
+    started_at: datetime | None = None
+
+    def __post_init__(self) -> None:
+        if not 0.0 <= self.struggle_score <= 1.0:
+            raise InvariantViolation("struggle score must be within [0, 1]")
+        if self.active_minutes < 0:
+            raise InvariantViolation("active minutes must be non-negative")
+
+
+@dataclass(frozen=True)
+class LearnerFeatures(ValueObject):
+    """Online feature-store join: batch + streaming branches for one learner."""
+
+    longterm: LongTermFeatures | None
+    session: SessionFeatures | None
+
+
+@dataclass(frozen=True)
 class Recommendation(ValueObject):
     course_id: str
     lesson_id: str | None

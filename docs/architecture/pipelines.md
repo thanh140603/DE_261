@@ -22,7 +22,7 @@ flowchart LR
   end
   subgraph Flink["Flink (real-time, ADR 0004/0010)"]
     N[normalise fast path]
-    S[session features]
+    S[session features (Spark)]
     H[live heatmap / engagement]
   end
   R["BR4/BR5 runtime (ADR 0009): Spark windows + PostgreSQL marts"]
@@ -59,7 +59,7 @@ flowchart LR
 | P6 | BR marts | 4, 6, 7 | Spark batch, `analytics_marts_daily` 02:00 | gold → `mart.*` | daily (closed day) | replace `as_of_date` partition |
 | P7 | Engagement trend | 8 | Spark batch, `engagement_weekly` Mon 02:00 (+ Flink live score) | gold → `mart.engagement_trend` | weekly / live in Redis | replace `as_of_date` partition |
 | P8 | Batch features | 2 | Spark batch, `features_daily` (on gold refresh) | gold → `features.learner_longterm` → Redis | 24 h (registry SLA) | replace `as_of_date` partition |
-| P9 | Session features | 2 | Flink, session windows (30 min gap) | `telemetry.learning_events.v1` → Redis + `features.session.v1` | 30 s | keyed state, Redis TTL |
+| P9 | Session features | 2 | Spark Structured Streaming, 30 min inactivity gap, Redis-backed session state | `telemetry.learning_events.v1` → Redis + `features.session.v1` | 30 s | event_id claim + absolute Redis snapshots |
 | P10 | BR4/BR5 persistent runtime | 4, 5 | br45 CDC worker + Spark Structured Streaming (ADR 0009), `--profile br45` | `br45.*` tables → Debezium `br45.cdc.*` → PostgreSQL `analytics` marts, risk states, alerts → dashboards | ≈ 10 s | outbox ids + Spark checkpoints; see docs/BR4_BR5_IMPLEMENTATION.md |
 | P11 | Notification | 1 | Kafka consumer service | `lms.*`, `risk.*`, `grading.*` → push / in-app / email + `notification.*` | seconds | Redis dedup key + rate limit |
 | P12 | Grading ingestion | 3 | Kafka consumer service | `grading.submission_received.v1` → sandbox → `grading.sandbox_result.raw.v1`, `grading.submission_graded.v1` | seconds | (submission, worker_run) |
@@ -68,8 +68,9 @@ flowchart LR
 
 P3–P8 and P14 are implemented in this repo (`edu stream lakehouse-landing`, `edu warehouse run`,
 `edu batch lakehouse-maintenance`, `orchestration/airflow/dags`), and P10 by the br45 runtime
-(ADR 0009). P2, P9 and P11–P13 run the existing domain use cases; their production adapters are
-still the TODO stubs listed in the README.
+(ADR 0009). P9 runs as a Spark Structured Streaming job (Redis state) and P11–P13 run as Kafka
+consumer services. P2 still has a Spark implementation (`telemetry-live`) and a documented
+Flink fast-path alternative; the Flink adapter remains a TODO.
 
 ## 3. Hand-offs between engines
 

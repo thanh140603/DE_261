@@ -90,7 +90,13 @@ class Simulator:
             payload.pop("platform")
         return payload
 
-    def ingest(self, payload: dict[str, Any], received_at: datetime | None = None) -> str:
+    def ingest(
+        self,
+        payload: dict[str, Any],
+        received_at: datetime | None = None,
+        *,
+        publish: bool = True,
+    ) -> str:
         """Client -> Kafka. Returns the event id; outcome is visible in silver / DLQ."""
         self.generated += 1
         event_id = str(payload.get("event_id") or new_id())
@@ -102,6 +108,10 @@ class Simulator:
             payload=payload,
             at=received_at,
         )
+        # Service mode also feeds the streaming/lakehouse path. In demo mode
+        # DemoPlatform.publish_raw is a no-op. Startup history stays in-process.
+        if publish:
+            self.p.publish_raw(Topic.TELEMETRY_RAW.value, key=event_id, payload=payload)
         return event_id
 
     def outcome(self, event_id: str) -> tuple[str, str | None]:
@@ -175,6 +185,12 @@ class Simulator:
         }
         payload.setdefault("title", fields.get("title") or f"{course.title} update")
         self.p.last_route_result = {"created": 0, "suppressed": []}
+        if self.p.service_mode:
+            # The notification service owns routing in service mode. Do not run
+            # the in-process rule engine as well, or the demo repo would show a
+            # second, divergent notification.
+            self.p.publish_raw(topic.value, key=event_id, payload=payload)
+            return {"event_id": event_id, "created": 0, "suppressed": [], "queued": True}
         self.p.bus.emit(topic, key=event_id, event_type=topic.value, payload=payload)
         return {"event_id": event_id, **self.p.last_route_result}
 
@@ -379,7 +395,9 @@ class Simulator:
                         learner, occurred_at=at, platform=self.rng.choice(["web", "android", "ios"])
                     )
                     self.ingest(
-                        payload, received_at=at + timedelta(seconds=self.rng.randint(1, 20))
+                        payload,
+                        received_at=at + timedelta(seconds=self.rng.randint(1, 20)),
+                        publish=False,
                     )
         for learner in seed.LEARNERS:
             for assignment in seed.ASSIGNMENTS:
@@ -413,7 +431,14 @@ class Simulator:
             "notifications_suppressed": p.suppressed_count,
             "submissions_graded": graded,
             "risk_alerts": len(p.risk_alerts),
-            "feature_rows": 0,
+            "feature_rows": _feature_count(p),
             "content_versions": sum(len(c.versions) for c in p.content.all()),
             "last_event_at": p.bus.last_at.isoformat() if p.bus.last_at else None,
         }
+
+
+def _feature_count(p: Any) -> int:
+    try:
+        return int(p.feature_store.count())
+    except Exception:
+        return 0

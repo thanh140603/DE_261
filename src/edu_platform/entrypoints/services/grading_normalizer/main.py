@@ -13,16 +13,27 @@ from edu_platform.contexts.grading.application.normalize_execution_log import (
     NormalizeExecutionLogCommand,
 )
 from edu_platform.contexts.grading.domain.feedback_policy import FeedbackPolicy
+from edu_platform.contexts.grading.infrastructure.postgres_projection import (
+    PostgresGradingProjection,
+)
 from edu_platform.contexts.grading.infrastructure.redis_repository import RedisSubmissionRepository
 from edu_platform.contexts.grading.infrastructure.sandbox_log_parser import SandboxLogParser
 from edu_platform.platform.config import get_settings
+from edu_platform.platform.logging import get_logger
 from edu_platform.platform.messaging.kafka_consumer import KafkaConsumerLoop, KafkaMessage
 from edu_platform.platform.messaging.kafka_producer import KafkaEventPublisher
 from edu_platform.platform.messaging.topics import Topic
 from edu_platform.platform.storage.redis_client import create_redis_client, key
 
+log = get_logger(__name__)
 
-def _handler(publisher: KafkaEventPublisher, repo: RedisSubmissionRepository, client: Any) -> Any:
+
+def _handler(
+    publisher: KafkaEventPublisher,
+    repo: RedisSubmissionRepository,
+    client: Any,
+    projection: PostgresGradingProjection,
+) -> Any:
     grade = NormalizeExecutionLog(repo, SandboxLogParser(), FeedbackPolicy(), publisher)
 
     def handle(message: KafkaMessage) -> None:
@@ -32,7 +43,18 @@ def _handler(publisher: KafkaEventPublisher, repo: RedisSubmissionRepository, cl
         result_key = key("grading", "result", submission_id, worker_run_id)
         if client.exists(result_key):
             return
-        grade.execute(NormalizeExecutionLogCommand(submission_id, worker_run_id, payload))
+        submission = grade.execute(
+            NormalizeExecutionLogCommand(submission_id, worker_run_id, payload)
+        )
+        # Project before marking the run done: if Postgres is unavailable the
+        # Kafka message is retried and only the projection is re-attempted.
+        try:
+            projection.record_graded(submission)
+        except Exception as exc:
+            log.warning(
+                "grade projection failed; will retry", submission_id=submission_id, error=str(exc)
+            )
+            raise
         client.set(result_key, "1", ex=7 * 24 * 3600)
 
     return handle
@@ -42,6 +64,7 @@ def main() -> None:
     settings = get_settings()
     client = create_redis_client(settings.redis_url)
     repo = RedisSubmissionRepository(client)
+    projection = PostgresGradingProjection(settings.postgres_dsn.get_secret_value())
     publisher = KafkaEventPublisher(
         settings.kafka.bootstrap_servers, client_id="edu-grading-normalizer"
     )
@@ -53,7 +76,7 @@ def main() -> None:
             topic, key=None, payload=payload
         ),
     )
-    loop.run(_handler(publisher, repo, client))
+    loop.run(_handler(publisher, repo, client, projection))
 
 
 if __name__ == "__main__":

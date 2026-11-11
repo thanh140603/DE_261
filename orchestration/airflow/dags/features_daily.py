@@ -1,7 +1,7 @@
 """DAG features_daily - batch feature branch (BR2). Triggered when gold is refreshed.
 
-features.learner_longterm is written per as_of_date (point-in-time training sets). Online
-materialisation to Redis is the batch_features_job (TODO) and runs after the offline write.
+features.learner_longterm is written per as_of_date (point-in-time training sets), then
+materialised to Redis for online serving by ``edu batch features-online``.
 """
 
 from __future__ import annotations
@@ -19,7 +19,12 @@ with DAG(
     default_args=DEFAULT_ARGS,
     tags=["lakehouse", "features", "BR2"],
 ) as dag:
-    edu_task(
+    offline = edu_task(
         "learner_longterm",
         "warehouse run --run-date {{ data_interval_end | ds }} --layer features",
     )
+    online = edu_task(
+        "learner_longterm_online",
+        "batch features-online --run-date {{ data_interval_end | ds }}",
+    )
+    offline >> online

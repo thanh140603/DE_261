@@ -18,9 +18,17 @@ from fastapi.staticfiles import StaticFiles
 
 from edu_platform.br45.api import router as analytics_router
 from edu_platform.contexts.analytics.application.ports import MartUnavailable
+from edu_platform.contexts.notification.infrastructure.redis_notification_repository import (
+    RedisNotificationRepository,
+)
+from edu_platform.contexts.recommendation.infrastructure.postgres_enrollment import (
+    PostgresEnrollmentRepository,
+)
 from edu_platform.demo import handlers
 from edu_platform.demo.container import DemoPlatform
 from edu_platform.demo.simulator import Simulator
+from edu_platform.entrypoints.api.grading_client import GradingClient
+from edu_platform.entrypoints.api.kafka_bridge import KafkaSseBridge
 from edu_platform.entrypoints.api.routers import (
     admin,
     advisor,
@@ -33,7 +41,9 @@ from edu_platform.entrypoints.api.routers import (
     reference,
     simulate,
 )
+from edu_platform.platform.config import get_settings
 from edu_platform.platform.logging import configure_logging, get_logger
+from edu_platform.platform.storage.redis_client import create_redis_client
 from edu_platform.shared_kernel.domain import DomainError, NotFoundError
 
 ROOT = Path(__file__).resolve().parents[4]
@@ -45,16 +55,52 @@ log = get_logger(__name__)
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     configure_logging("INFO", json=False)
-    platform = DemoPlatform(RULES)
+    settings = get_settings()
+    service_mode = settings.br13_mode == "service"
+    platform = DemoPlatform(
+        RULES,
+        service_mode=service_mode,
+        kafka_bootstrap=settings.kafka.bootstrap_servers,
+        redis_url=settings.redis_url,
+    )
     handlers.register(platform)
     simulator = Simulator(platform)
     platform.broadcaster.bind_loop(asyncio.get_running_loop())
     await asyncio.to_thread(simulator.seed_history)
+    platform.refresh_features()
+
+    app.state.settings = settings
     app.state.platform = platform
     app.state.simulator = simulator
-    log.info("demo platform ready", silver=len(platform.silver.events))
+    app.state.notification_repo = None
+    app.state.enrollment_repo = None
+    app.state.grading = None
+    app.state.sse_bridge = None
+    if service_mode:
+        client = create_redis_client(settings.redis_url)
+        app.state.notification_repo = RedisNotificationRepository(client)
+        app.state.enrollment_repo = PostgresEnrollmentRepository(
+            settings.postgres_dsn.get_secret_value()
+        )
+        app.state.grading = GradingClient(settings.grading_service_url)
+        bridge = KafkaSseBridge(settings, platform.broadcaster)
+        bridge.start()
+        app.state.sse_bridge = bridge
+        log.info(
+            "service mode enabled",
+            grading=settings.grading_service_url,
+            kafka=settings.kafka.bootstrap_servers,
+        )
+    log.info(
+        "demo platform ready",
+        silver=len(platform.silver.events),
+        mode=settings.br13_mode,
+    )
     yield
+    if app.state.sse_bridge is not None:
+        app.state.sse_bridge.stop()
     simulator.stop()
+    platform.close()
 
 
 def create_app() -> FastAPI:

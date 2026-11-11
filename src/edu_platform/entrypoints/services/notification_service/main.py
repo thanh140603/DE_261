@@ -31,6 +31,12 @@ from edu_platform.contexts.notification.infrastructure.redis_notification_reposi
 from edu_platform.contexts.notification.infrastructure.redis_notification_state import (
     RedisNotificationState,
 )
+from edu_platform.contexts.notification.infrastructure.senders.email_sender import (
+    SmtpEmailSender,
+)
+from edu_platform.contexts.notification.infrastructure.senders.push_sender import (
+    WebhookPushSender,
+)
 from edu_platform.contexts.notification.infrastructure.yaml_rule_repository import (
     YamlRuleRepository,
 )
@@ -71,12 +77,23 @@ class LogSender:
         log.info("notification sent", channel=self.channel.value, notification_id=notification.id)
 
 
-def _senders() -> dict[Channel, NotificationSender]:
-    return {
-        Channel.IN_APP: InAppSender(),
-        Channel.PUSH: LogSender(Channel.PUSH),
-        Channel.EMAIL: LogSender(Channel.EMAIL),
-    }
+def _senders(
+    settings: Any, audience: PostgresAudienceResolver
+) -> dict[Channel, NotificationSender]:
+    senders: dict[Channel, NotificationSender] = {Channel.IN_APP: InAppSender()}
+    if settings.push_webhook_url:
+        senders[Channel.PUSH] = WebhookPushSender(settings.push_webhook_url)
+    else:
+        senders[Channel.PUSH] = LogSender(Channel.PUSH)
+    if settings.email_smtp_url:
+        senders[Channel.EMAIL] = SmtpEmailSender(
+            settings.email_smtp_url,
+            sender=settings.email_from,
+            address_for=audience.email_for_learner,
+        )
+    else:
+        senders[Channel.EMAIL] = LogSender(Channel.EMAIL)
+    return senders
 
 
 def _enrich(client: Any, payload: dict[str, Any], event_type: str) -> dict[str, Any]:
@@ -140,7 +157,7 @@ def main() -> None:
     route = RouteEvent(
         RuleEngine(rules), audience, state, renderer, repo, RateLimitPolicy(), publisher, clock
     )
-    dispatch = DispatchNotification(_senders(), repo, publisher, clock)
+    dispatch = DispatchNotification(_senders(settings, audience), repo, publisher, clock)
 
     loop = KafkaConsumerLoop(
         settings.kafka.bootstrap_servers,

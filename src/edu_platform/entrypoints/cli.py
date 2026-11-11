@@ -18,6 +18,7 @@ from __future__ import annotations
 import typer
 
 from edu_platform.entrypoints.batch import (
+    features_online_job,
     lakehouse_maintenance_job,
     seed_bronze_job,
     warehouse_job,
@@ -62,6 +63,7 @@ warehouse_job.app.command("seed-bronze")(seed_bronze_job.seed_bronze)
 app.add_typer(warehouse_job.app, name="warehouse")
 stream_app.command("lakehouse-landing")(lakehouse_landing_job.main)
 batch_app.command("lakehouse-maintenance")(lakehouse_maintenance_job.main)
+batch_app.command("features-online")(features_online_job.main)
 
 
 @service_app.command("content-sync")
@@ -84,6 +86,16 @@ def content_reindex(
 
 
 app.add_typer(content_admin.app, name="content")
+
+
+@stream_app.command("session-features")
+def session_features(
+    once: bool = typer.Option(False, help="availableNow: process available data, then stop"),
+) -> None:
+    """BR2 streaming branch: session windows -> Redis + features.session.v1."""
+    from edu_platform.entrypoints.streaming.session_features_job import main
+
+    main(once=once)
 
 
 @stream_app.command("telemetry-live")

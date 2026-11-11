@@ -2,15 +2,19 @@ from __future__ import annotations
 
 from typing import Protocol
 
-from edu_platform.contexts.recommendation.domain.model import LongTermFeatures
+from edu_platform.contexts.recommendation.domain.model import LongTermFeatures, SessionFeatures
 
 
 class OnlineFeatureStore(Protocol):
-    """Optional cache for the offline features; BR2-lite does not require it."""
+    """Redis in production; keyed by learner pseudonym with TTL = freshness SLA."""
 
     def put_longterm(self, features: LongTermFeatures) -> None: ...
 
+    def put_session(self, features: SessionFeatures) -> None: ...
+
     def get_longterm(self, learner_pseudonym: str) -> LongTermFeatures | None: ...
+
+    def get_session(self, learner_pseudonym: str) -> SessionFeatures | None: ...
 
     def count(self) -> int: ...
 

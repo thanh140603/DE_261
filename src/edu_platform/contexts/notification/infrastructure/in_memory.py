@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from collections import defaultdict, deque
+from collections.abc import Callable
 from datetime import datetime
 from typing import Any
 
@@ -58,6 +59,9 @@ class InMemoryNotificationRepository:
         rows = [n for n in self._rows.values() if n.recipient_id == recipient_id]
         return sorted(rows, key=lambda n: n.created_at, reverse=True)
 
+    def for_source_event(self, event_id: str) -> list[Notification]:
+        return [n for n in self._rows.values() if n.source_event_id == event_id]
+
     def count(self) -> int:
         return len(self._rows)
 
@@ -83,6 +87,29 @@ class StaticAudienceResolver:
 
     def advisor_for_learner(self, learner_id: str) -> str | None:
         return self._advisors.get(learner_id)
+
+
+class CallableAudienceResolver:
+    """Resolver backed by live callables, so the demo sees enrollments made at runtime.
+
+    ``StaticAudienceResolver`` snapshots the seed at startup; a learner who enrolls in a
+    new course would never receive that course's notifications. The demo composition root
+    passes lambdas over ``DemoPlatform.enrollments`` instead.
+    """
+
+    def __init__(
+        self,
+        learners_for_course: Callable[[str], list[str]],
+        advisor_for_learner: Callable[[str], str | None],
+    ) -> None:
+        self._learners_for_course = learners_for_course
+        self._advisor_for_learner = advisor_for_learner
+
+    def learners_for_course(self, course_id: str) -> list[str]:
+        return list(self._learners_for_course(course_id))
+
+    def advisor_for_learner(self, learner_id: str) -> str | None:
+        return self._advisor_for_learner(learner_id)
 
 
 TEMPLATES: dict[str, tuple[str, str]] = {

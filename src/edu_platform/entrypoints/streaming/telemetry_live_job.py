@@ -1,9 +1,10 @@
 """Spark Structured Streaming app: telemetry fast path + BR7/BR8 live overlays (ADR 0014).
 
-Three checkpointed queries in one driver:
+Four checkpointed queries in one driver:
   telemetry-normalize   raw -> telemetry.learning_events.v1 / DLQ (telemetry_normalization_job)
   br7-live-heatmap      learning events -> Redis heatmap overlay   (video_heatmap_job)
   br8-live-engagement   learning events -> Redis engagement overlay (engagement_trend_job)
+  br2-session-features  learning events -> Redis + features.session.v1 (session_features_job)
 
   edu stream telemetry-live            # continuous (2 s / 5 s triggers)
   edu stream telemetry-live --once     # drain what is available, then stop (availableNow)
@@ -17,8 +18,12 @@ from typing import Any
 import typer
 
 from edu_platform.contexts.analytics.infrastructure.redis_live_overlay import RedisLiveOverlay
+from edu_platform.contexts.recommendation.infrastructure.redis_online_store import (
+    RedisOnlineFeatureStore,
+)
 from edu_platform.entrypoints.streaming import (
     engagement_trend_job,
+    session_features_job,
     telemetry_normalization_job,
     video_heatmap_job,
 )
@@ -43,10 +48,15 @@ def run(spark: Any, settings: Settings, overlay: RedisLiveOverlay, *, once: bool
     engagement = engagement_trend_job.start(
         spark, bootstrap, overlay, f"{root}/engagement", once=once
     )
+    session_store = RedisOnlineFeatureStore(create_redis_client(settings.redis_url))
+    session = session_features_job.start(
+        spark, settings, session_store, f"{root}/session", once=once
+    )
     log.info("telemetry live queries started", checkpoints=root, once=once)
     if once:
         heatmap.awaitTermination()
         engagement.awaitTermination()
+        session.awaitTermination()
     else:
         _log_progress(spark, every_seconds=settings.stream_progress_seconds)
         spark.streams.awaitAnyTermination()
