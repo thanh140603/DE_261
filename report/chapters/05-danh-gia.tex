@@ -286,6 +286,37 @@ trung bình lệch dưới $10^{-9}$. PostgreSQL phù hợp với mart nhỏ và
 ClickHouse thắng rõ từ 1M dòng và khoảng cách tăng theo quy mô. Đây là lý do
 alternative columnar đáng chuyển khi mart lớn, dù vận hành thêm một hệ thống.
 
+\subsubsection{Concurrency, storage và tài nguyên}
+
+Cùng query lọc \(event\_date = 2026-10-15\), chạy 1/5/10 client đồng thời,
+2 lần lặp. Bảng~\ref{tab:alt-olap-concurrency} báo p95 và throughput; storage
+là dung lượng bảng đang hoạt động.
+
+\begin{table}[H]
+\centering\small
+\caption{OLAP: concurrency và storage footprint (1M dòng)}
+\label{tab:alt-olap-concurrency}
+\begin{tabular}{@{}rrrrr@{}}
+\toprule
+\textbf{Client} & \textbf{PG qps} & \textbf{CH qps} & \textbf{PG p95} & \textbf{CH p95} \\
+\midrule
+1 & 9,3 & 79,6 & 109 ms & 12 ms \\
+5 & 17,8 & 77,3 & 276 ms & 64 ms \\
+10 & 22,7 & 216,9 & 437 ms & 42 ms \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{center}
+\small
+PostgreSQL: 200,9 MB \quad ClickHouse: 32,3 MB \quad (nén ~6,2\(\times\))
+\end{center}
+
+PostgreSQL tăng throughput chậm khi thêm client và p95 tăng mạnh; ClickHouse
+giữ p95 thấp hơn và đạt hơn 200 qps ở 10 client. Storage của ClickHouse nhỏ hơn
+khoảng 6 lần nhờ columnar compression. Đây là các chiều ngoài speed: concurrency,
+tail latency, dung lượng lưu trữ.
+
 \textbf{Ý nghĩa với Big Data.} Khi dữ liệu lớn, chi phí query bị chi phối bởi
 số cột và số dòng phải đọc. PostgreSQL row store thường phải đọc nhiều cột hơn
 và xử lý theo dòng; ClickHouse columnar chỉ đọc các cột cần cho phép tính, nén
@@ -326,6 +357,26 @@ Kết quả cho thấy không có layout thắng mọi query:
 Vì vậy layout phải chọn theo **mẫu query thực tế**, không theo tên công nghệ. Với dashboard
 BR6/BR7 lọc theo ngày và vài chiều, Z-order/liquid có thể giảm thời gian; với query chỉ theo
 ngày, partition vẫn đủ.
+
+\begin{table}[H]
+\centering\small
+\caption{Layout: file-level scan cho 10M dòng}
+\label{tab:alt-layout-scan}
+\begin{tabular}{@{}lrrrr@{}}
+\toprule
+\textbf{Layout} & \textbf{Date files/bytes} & \textbf{Course files/bytes} & \textbf{Table bytes} \\
+\midrule
+Partition ngày & 1 / 6,7 MB & 41 / 273 MB & 273 MB \\
+Partition + Z-order & 1 / 6,7 MB & 41 / 273 MB & 273 MB \\
+Liquid clustering & 1 / 128 MB & 2 / 268 MB & 268 MB \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Bảng~\ref{tab:alt-layout-scan} cho thấy partition cắt file rất tốt cho query ngày
+nhưng không cắt file cho course; liquid giữ ít file hơn nhưng một file lớn vẫn
+phải đọc cho filter ngày. Đây là lý do phải đo **files/bytes scanned**, không chỉ
+p50.
 
 \textbf{Ý nghĩa với Big Data.} Ở 10M dòng, dữ liệu chỉ khoảng 273 MB và p50 còn
 chịu chi phí plan/launch của Spark, nên chênh lệch vài trăm ms chưa phản ánh hết
@@ -371,6 +422,10 @@ streaming, hệ sinh thái Delta và vận hành đơn giản; Flink có lợi t
 streaming, keyed state và event-time khi SLA dưới một giây. Vì vậy không thể kết
 luận Flink hay Spark nhanh hơn từ 9,0 so với 9,16 giây; cần chạy sustained load
 1M/5M event, cửa sổ 7 ngày và fault injection trước khi chọn.
+
+Bảng filter chỉ trả lời câu hỏi throughput/correctness; nó không đo p99, keyed
+state hay recovery vì filter không có state. Các chiều đó thuộc thí nghiệm cửa sổ
+7 ngày, không được suy ra từ bảng này.
 
 \subsection{Khi nào chuyển stack}
 

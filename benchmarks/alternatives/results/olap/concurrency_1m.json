@@ -1,0 +1,196 @@
+{
+  "label": "1m",
+  "query": "SELECT org_id, course_id, count(*) AS rows, avg(score)::float8 AS avg_score\nFROM bench.org_facts\nWHERE event_date = '2026-10-15'\nGROUP BY org_id, course_id\nORDER BY org_id, course_id",
+  "concurrency": [
+    1,
+    5,
+    10
+  ],
+  "repeat": 2,
+  "runs": [
+    {
+      "engine": "postgres",
+      "concurrency": 1,
+      "wall_s": 0.11,
+      "throughput_qps": 9.085,
+      "errors": 0,
+      "latency": {
+        "n": 1,
+        "min": 109.21,
+        "p50": 109.21,
+        "p95": 109.21,
+        "max": 109.21,
+        "mean": 109.21
+      }
+    },
+    {
+      "engine": "clickhouse",
+      "concurrency": 1,
+      "wall_s": 0.013,
+      "throughput_qps": 75.818,
+      "errors": 0,
+      "latency": {
+        "n": 1,
+        "min": 12.522,
+        "p50": 12.522,
+        "p95": 12.522,
+        "max": 12.522,
+        "mean": 12.522
+      }
+    },
+    {
+      "engine": "postgres",
+      "concurrency": 1,
+      "wall_s": 0.104,
+      "throughput_qps": 9.584,
+      "errors": 0,
+      "latency": {
+        "n": 1,
+        "min": 103.68,
+        "p50": 103.68,
+        "p95": 103.68,
+        "max": 103.68,
+        "mean": 103.68
+      }
+    },
+    {
+      "engine": "clickhouse",
+      "concurrency": 1,
+      "wall_s": 0.012,
+      "throughput_qps": 83.434,
+      "errors": 0,
+      "latency": {
+        "n": 1,
+        "min": 11.344,
+        "p50": 11.344,
+        "p95": 11.344,
+        "max": 11.344,
+        "mean": 11.344
+      }
+    },
+    {
+      "engine": "postgres",
+      "concurrency": 5,
+      "wall_s": 0.282,
+      "throughput_qps": 17.753,
+      "errors": 0,
+      "latency": {
+        "n": 5,
+        "min": 194.578,
+        "p50": 200.312,
+        "p95": 276.736,
+        "max": 276.736,
+        "mean": 217.443
+      }
+    },
+    {
+      "engine": "clickhouse",
+      "concurrency": 5,
+      "wall_s": 0.077,
+      "throughput_qps": 64.744,
+      "errors": 0,
+      "latency": {
+        "n": 5,
+        "min": 71.263,
+        "p50": 73.249,
+        "p95": 75.289,
+        "max": 75.289,
+        "mean": 73.367
+      }
+    },
+    {
+      "engine": "postgres",
+      "concurrency": 5,
+      "wall_s": 0.281,
+      "throughput_qps": 17.788,
+      "errors": 0,
+      "latency": {
+        "n": 5,
+        "min": 131.577,
+        "p50": 180.188,
+        "p95": 275.055,
+        "max": 275.055,
+        "mean": 188.157
+      }
+    },
+    {
+      "engine": "clickhouse",
+      "concurrency": 5,
+      "wall_s": 0.056,
+      "throughput_qps": 89.81,
+      "errors": 0,
+      "latency": {
+        "n": 5,
+        "min": 19.788,
+        "p50": 50.653,
+        "p95": 52.735,
+        "max": 52.735,
+        "mean": 44.899
+      }
+    },
+    {
+      "engine": "postgres",
+      "concurrency": 10,
+      "wall_s": 0.483,
+      "throughput_qps": 20.7,
+      "errors": 0,
+      "latency": {
+        "n": 10,
+        "min": 231.233,
+        "p50": 448.692,
+        "p95": 473.649,
+        "max": 473.649,
+        "mean": 381.806
+      }
+    },
+    {
+      "engine": "clickhouse",
+      "concurrency": 10,
+      "wall_s": 0.048,
+      "throughput_qps": 209.447,
+      "errors": 0,
+      "latency": {
+        "n": 10,
+        "min": 29.996,
+        "p50": 37.527,
+        "p95": 43.402,
+        "max": 43.402,
+        "mean": 37.334
+      }
+    },
+    {
+      "engine": "postgres",
+      "concurrency": 10,
+      "wall_s": 0.406,
+      "throughput_qps": 24.642,
+      "errors": 0,
+      "latency": {
+        "n": 10,
+        "min": 202.047,
+        "p50": 365.331,
+        "p95": 400.682,
+        "max": 400.682,
+        "mean": 323.966
+      }
+    },
+    {
+      "engine": "clickhouse",
+      "concurrency": 10,
+      "wall_s": 0.045,
+      "throughput_qps": 224.332,
+      "errors": 0,
+      "latency": {
+        "n": 10,
+        "min": 32.004,
+        "p50": 35.833,
+        "p95": 40.946,
+        "max": 40.946,
+        "mean": 35.807
+      }
+    }
+  ],
+  "storage": {
+    "postgres_bytes": 200941568,
+    "clickhouse_bytes": 32273585
+  }
+}

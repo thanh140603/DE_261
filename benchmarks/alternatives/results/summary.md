@@ -19,6 +19,16 @@ average mastery and completed count. 3 measured runs after 1 warm-up.
 Correctness: all 12 `(org_id, course_id)` groups match; integer counts match exactly,
 float averages within 1e-9.
 
+Concurrency on the same 1M-row selective query (p95 / throughput):
+
+| Clients | PostgreSQL | ClickHouse |
+|---:|---:|---:|
+| 1 | 109 ms / 9.3 qps | 12 ms / 79.6 qps |
+| 5 | 276 ms / 17.8 qps | 64 ms / 77.3 qps |
+| 10 | 437 ms / 22.7 qps | 42 ms / 216.9 qps |
+
+Active storage: PostgreSQL 200.9 MB vs ClickHouse 32.3 MB (~6.2× smaller).
+
 **Conclusion.** PostgreSQL remains the right transactional/serving store for small
 marts, but its row-store aggregation degrades quickly with scale. ClickHouse
 (MPP/columnar) is clearly better from 1M rows onward. StarRocks was not installed
