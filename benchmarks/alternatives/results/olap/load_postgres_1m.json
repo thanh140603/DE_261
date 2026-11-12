@@ -1,5 +1,0 @@
-{
-  "engine": "postgres",
-  "file": "benchmarks/alternatives/data/org-facts-1m.csv",
-  "seconds": 10.8
-}

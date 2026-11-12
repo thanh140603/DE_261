@@ -5,9 +5,9 @@ Stream Load, keeping the comparison focused on the serving engine rather than
 on two different file readers.
 
 Example:
-    .venv/bin/python benchmarks/alternatives/olap/generate_facts.py \
+    .venv/bin/python benchmarks/cdc/generate_facts.py \
       --size-gb 5 \
-      --output benchmarks/alternatives/data/org-facts-5gb.csv
+      --output benchmarks/cdc/data/org-facts-5gb.csv
 """
 
 from __future__ import annotations
@@ -51,7 +51,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument(
         "--output",
         type=Path,
-        default=Path("benchmarks/alternatives/data/org-facts-5gb.csv"),
+        default=Path("benchmarks/cdc/data/org-facts-5gb.csv"),
         help="output CSV path",
     )
     parser.add_argument("--seed", type=int, default=42)

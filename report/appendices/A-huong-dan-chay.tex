@@ -78,35 +78,32 @@ uv run edu benchmark live    --out docs/evidence/br678/live_overlay.csv
 
 Các file CSV gốc dùng trong Chương~\ref{chap:eval} được chép vào thư mục \code{report/data/}: \code{br4_benchmark.csv}, \code{br5_stream_benchmark.csv}, \code{serving_latency.csv}, \code{content_sync_latency.csv}, \code{live_overlay.csv}, \code{mart_build.csv}.
 
-\section{Đo alternative solutions}
+\section{Đo Debezium và polling}
 
-Các benchmark alternative dùng file 5 GiB trong
-\code{benchmarks/alternatives/data/} (gitignored). Chạy trên các tiền tố
-1M/5M/10M dòng:
+Negative-control benchmark dùng bảng nguồn 100.000 dòng trong
+\code{benchmarks/cdc/data/} (gitignored):
 
 \begin{lstlisting}[language=bash]
-# OLAP: PostgreSQL vs ClickHouse (profile bench-olap)
-docker compose -f docker-compose.yml -f docker-compose.bench.yml \
-  --profile bench-olap up -d bench-clickhouse
-.venv/bin/python -m benchmarks.alternatives.olap.load_postgres \
-  benchmarks/alternatives/data/org-facts-1m.csv
-.venv/bin/python -m benchmarks.alternatives.olap.load_clickhouse \
-  benchmarks/alternatives/data/org-facts-1m.csv
-.venv/bin/python -m benchmarks.alternatives.olap.query_olap \
-  --engine both --repeat 3 --label 1m
+# Tạo bảng nguồn + index updated_at
+.venv/bin/python -m benchmarks.cdc.setup_source \
+  benchmarks/cdc/data/org-facts-1m.csv --rows 100000
 
-# Feature store: Redis bị giới hạn 512 MiB vs PostgreSQL disk
-docker compose -f docker-compose.yml -f docker-compose.bench.yml \
-  --profile bench-kv up -d bench-redis
-.venv/bin/python -m benchmarks.alternatives.feature_store.load_redis \
-  benchmarks/alternatives/data/features-1m.jsonl
-.venv/bin/python -m benchmarks.alternatives.feature_store.load_postgres \
-  benchmarks/alternatives/data/features-1m.jsonl
-.venv/bin/python -m benchmarks.alternatives.feature_store.workload \
-  --rows 1000000 --ops 10000 --label 1m
+# Đăng ký connector Debezium (một lần)
+curl -sS -X DELETE http://localhost:8083/connectors/bench-cdc >/dev/null 2>&1 || true
+curl -sS -X POST -H 'Content-Type: application/json' \
+  --data @benchmarks/cdc/connector.json http://localhost:8083/connectors
+
+# Chờ snapshot đạt 100.000 offset
+docker exec de261-kafka kafka-run-class kafka.tools.GetOffsetShell \
+  --broker-list localhost:9092 --topic bench.bench.cdc_source
+
+# Chạy 100 UPDATE + 10 DELETE
+.venv/bin/python -m benchmarks.cdc.run_benchmark \
+  --duration 8 --updates 100 --deletes 10 \
+  --out benchmarks/cdc/results/cdc_100k_indexed.json
 \end{lstlisting}
 
-Kết quả chi tiết: \code{benchmarks/alternatives/results/}.
+Kết quả chi tiết: \code{benchmarks/cdc/results/}.
 
 \section{Biên dịch báo cáo}
 

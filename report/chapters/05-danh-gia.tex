@@ -227,221 +227,84 @@ Tổng thời gian build là 143,7, 128,6 và 135,8 giây \todofix{số mới} c
   \item \textbf{Lỗi tìm ra nhờ kiểm chứng.} Quá trình đo và kiểm thử đã phát hiện và sửa nhiều lỗi thật. Ví dụ: bộ chia đoạn bỏ mất khoảng 2/3 transcript; đồng hồ thiết bị chạy nhanh làm rơi sự kiện đúng hạn của người khác; cache tài liệu bị đọc trước khi kiểm tra phạm vi; Trino hết bộ nhớ khi dashboard thăm dò liên tục.
 \end{itemize}
 
-\section{Alternative solutions}
+\section{Debezium và polling: negative-control benchmark}
 \label{sec:alternative}
 
-Mục này so sánh ba tầng khác nhau: OLAP, streaming và data layout. Các số đo
-được chạy trên cùng một máy, cùng bộ dữ liệu sinh 5 GiB, không dùng số liệu suy diễn.
-Trong giới hạn RAM của máy local, các phép đo dùng tiền tố 1M/5M/10M dòng từ file
-5 GiB; cùng seed và cùng schema. Kết quả thô nằm trong
-\code{benchmarks/alternatives/results/}. Ba cặp không so trực tiếp với nhau vì
-đo ba câu hỏi khác nhau.
+Phần này không tìm một alternative “nhanh hơn”, mà kiểm tra điều gì xảy ra nếu bỏ
+Debezium và thay bằng cách đơn giản hơn: **polling bảng nguồn theo \code{updated_at}**.
+Đây là negative-control: replacement từng hợp lý ở quy mô nhỏ, nhưng phải chứng minh
+nó vỡ ở đâu với dữ liệu lớn.
 
-\subsection{Dữ liệu và phương pháp}
+\subsection{Thiết lập}
 
-\begin{table}[H]
-\centering\small
-\caption{Dataset 5 GiB dùng cho benchmark alternative}
-\label{tab:alternative-data}
-\begin{tabular}{@{}llrr@{}}
-\toprule
-\textbf{Cặp} & \textbf{File} & \textbf{Rows} & \textbf{Bytes} \\
-\midrule
-Streaming & \code{events-5gb.jsonl} & 17.410.669 & 5.368.709.155 \\
-OLAP & \code{org-facts-5gb.csv} & 44.492.023 & 5.368.709.188 \\
-Layout & \code{org-facts-5gb.csv} & 10.000.000 & 1.200.000.000 \\
-\bottomrule
-\end{tabular}
-\end{table}
+Bảng nguồn \code{bench.cdc_source} có 100.000 dòng, khoá chính, cột
+\code{updated_at} và index trên \code{updated_at}. Debezium đọc WAL qua logical
+replication; polling chạy mỗi 0,5 giây với watermark \code{updated_at}. Sau khi
+snapshot xong, thực hiện:
 
-Mỗi phép đo có một lần warm-up và ba lần lặp; báo cáo trung vị p50. Với OLAP,
-hai engine nhận cùng file CSV và chạy cùng một câu SQL tổng hợp theo
-\code{(org_id, course_id)}. Với layout, cùng 10M dòng fact được ghi theo ba cách
-và chạy cùng bốn filter. Với streaming, cùng topic Kafka 100.000 event được lọc
-và ghi ra topic đích.
-
-\subsection{OLAP: PostgreSQL và ClickHouse}
-
-StarRocks không được cài trên máy này; ClickHouse là fallback MPP/columnar theo
-kế hoạch. Bảng~\ref{tab:alt-olap} so sánh PostgreSQL (row store, hiện tại) với
-ClickHouse (column store, alternative).
-
-\begin{table}[H]
-\centering\small
-\caption{OLAP: load và query p50 khi số dòng tăng}
-\label{tab:alt-olap}
-\begin{tabular}{@{}rrrrrr@{}}
-\toprule
-\textbf{Rows} & \textbf{PG load} & \textbf{CH load} & \textbf{PG p50} & \textbf{CH p50} & \textbf{Speed-up} \\
-\midrule
-1.000.000 & 10,80 s & 4,43 s & 6.289 ms & 84,96 ms & 74,0$\times$ \\
-5.000.000 & 53,44 s & 10,41 s & 33.829 ms & 369,81 ms & 91,5$\times$ \\
-10.000.000 & 96,24 s & 17,79 s & 69.898 ms & 664,76 ms & 105,1$\times$ \\
-\bottomrule
-\end{tabular}
-\end{table}
-
-Cả 12 nhóm \code{(org_id, course_id)} khớp giữa hai engine; count khớp tuyệt đối,
-trung bình lệch dưới $10^{-9}$. PostgreSQL phù hợp với mart nhỏ và cập nhật giao dịch;
-ClickHouse thắng rõ từ 1M dòng và khoảng cách tăng theo quy mô. Đây là lý do
-alternative columnar đáng chuyển khi mart lớn, dù vận hành thêm một hệ thống.
-
-\subsubsection{Concurrency, storage và tài nguyên}
-
-Cùng query lọc \(event\_date = 2026-10-15\), chạy 1/5/10 client đồng thời,
-2 lần lặp. Bảng~\ref{tab:alt-olap-concurrency} báo p95 và throughput; storage
-là dung lượng bảng đang hoạt động.
-
-\begin{table}[H]
-\centering\small
-\caption{OLAP: concurrency và storage footprint (1M dòng)}
-\label{tab:alt-olap-concurrency}
-\begin{tabular}{@{}rrrrr@{}}
-\toprule
-\textbf{Client} & \textbf{PG qps} & \textbf{CH qps} & \textbf{PG p95} & \textbf{CH p95} \\
-\midrule
-1 & 9,3 & 79,6 & 109 ms & 12 ms \\
-5 & 17,8 & 77,3 & 276 ms & 64 ms \\
-10 & 22,7 & 216,9 & 437 ms & 42 ms \\
-\bottomrule
-\end{tabular}
-\end{table}
-
-\begin{center}
-\small
-PostgreSQL: 200,9 MB \quad ClickHouse: 32,3 MB \quad (nén ~6,2\(\times\))
-\end{center}
-
-PostgreSQL tăng throughput chậm khi thêm client và p95 tăng mạnh; ClickHouse
-giữ p95 thấp hơn và đạt hơn 200 qps ở 10 client. Storage của ClickHouse nhỏ hơn
-khoảng 6 lần nhờ columnar compression. Đây là các chiều ngoài speed: concurrency,
-tail latency, dung lượng lưu trữ.
-
-\textbf{Ý nghĩa với Big Data.} Khi dữ liệu lớn, chi phí query bị chi phối bởi
-số cột và số dòng phải đọc. PostgreSQL row store thường phải đọc nhiều cột hơn
-và xử lý theo dòng; ClickHouse columnar chỉ đọc các cột cần cho phép tính, nén
-tốt hơn và vector hoá. Vì vậy khoảng cách 74--105 lần ở 1M--10M không phải là
-hằng số; khi dữ liệu lên hàng trăm GB/TB, chênh lệch I/O và thời gian còn lớn
-hơn. Đổi lại, ClickHouse không thay PostgreSQL cho giao dịch/nguồn sự thật; nó
-phù hợp lớp serving/analytics, cần ETL và vận hành thêm.
-
-\subsection{Layout: Hive partition và Z-order/liquid clustering}
-
-Cùng 10M dòng fact, cùng bốn query, chỉ đổi cách tổ chức file. Bảng~\ref{tab:alt-layout}
-đo p50 của query trên Spark local; số thời gian đã gồm chi phí plan/launch nên chỉ so
-tương đối.
-
-\begin{table}[H]
-\centering\small
-\caption{Data layout: p50 theo loại filter (10M dòng)}
-\label{tab:alt-layout}
-\begin{tabular}{@{}lrrrrrr@{}}
-\toprule
-\textbf{Layout} & \textbf{Date} & \textbf{Course} & \textbf{Org} & \textbf{Combined} & \textbf{Files} & \textbf{Write/optimize} \\
-\midrule
-Partition ngày & 499 ms & 927 ms & 579 ms & 356 ms & 41 & 73,5 s \\
-Partition + Z-order & 331 ms & 597 ms & 782 ms & 325 ms & 41 & 71,6 + 30,4 s \\
-Liquid clustering & 393 ms & 495 ms & 497 ms & 395 ms & 2 & 43,8 + 55,0 s \\
-\bottomrule
-\end{tabular}
-\end{table}
-
-Kết quả cho thấy không có layout thắng mọi query:
 \begin{itemize}
-  \item Partition ngày tốt khi filter đúng ngày, nhưng scan toàn bộ khi filter course/org.
-  \item Z-order cải thiện query ngày và combined; query org lại chậm hơn partition trong lần đo này.
-  \item Liquid clustering tốt nhất cho course/org, nhưng kém hơn Z-order ở date/combined.
-  \item Liquid/Z-order cần thời gian rewrite/OPTIMIZE; partition rẻ hơn khi ghi nhưng hại query đa chiều.
+  \item 100 UPDATE,
+  \item 10 DELETE cứng,
+  \item đo event nhận được, latency và số tuple PostgreSQL trả về.
 \end{itemize}
 
-Vì vậy layout phải chọn theo **mẫu query thực tế**, không theo tên công nghệ. Với dashboard
-BR6/BR7 lọc theo ngày và vài chiều, Z-order/liquid có thể giảm thời gian; với query chỉ theo
-ngày, partition vẫn đủ.
+Kết quả thô: \code{benchmarks/cdc/results/cdc_100k_indexed.json}.
+
+\subsection{Kết quả}
 
 \begin{table}[H]
 \centering\small
-\caption{Layout: file-level scan cho 10M dòng}
-\label{tab:alt-layout-scan}
-\begin{tabular}{@{}lrrrr@{}}
+\caption{Debezium và polling trên cùng 100.000 dòng}
+\label{tab:cdc}
+\begin{tabular}{@{}lrr@{}}
 \toprule
-\textbf{Layout} & \textbf{Date files/bytes} & \textbf{Course files/bytes} & \textbf{Table bytes} \\
+\textbf{Chỉ số} & \textbf{Debezium} & \textbf{Polling} \\
 \midrule
-Partition ngày & 1 / 6,7 MB & 41 / 273 MB & 273 MB \\
-Partition + Z-order & 1 / 6,7 MB & 41 / 273 MB & 273 MB \\
-Liquid clustering & 1 / 128 MB & 2 / 268 MB & 268 MB \\
+Event nhận được & 110 & 100 \\
+UPDATE & 100 & 100 \\
+DELETE cứng & \textbf{10} & \textbf{0} \\
+Latency p50 & 28,9 ms & 446,6 ms \\
+Latency p95 & 512 ms & 447,6 ms \\
+Query nguồn & 0 SQL & 16 query \\
+Query p50 & -- & 14,3 ms \\
+Tuple PostgreSQL trả về & 0 & 4.337 \\
 \bottomrule
 \end{tabular}
 \end{table}
 
-Bảng~\ref{tab:alt-layout-scan} cho thấy partition cắt file rất tốt cho query ngày
-nhưng không cắt file cho course; liquid giữ ít file hơn nhưng một file lớn vẫn
-phải đọc cho filter ngày. Đây là lý do phải đo **files/bytes scanned**, không chỉ
-p50.
+Polling có index nên không full scan; đây là so sánh công bằng, không phải
+polling “dở”. Nhưng nó vẫn thiếu 10 DELETE, vì hard delete không còn dòng để
+\code{SELECT}. Debezium nhận đủ 100 UPDATE và 10 DELETE.
 
-\textbf{Ý nghĩa với Big Data.} Ở 10M dòng, dữ liệu chỉ khoảng 273 MB và p50 còn
-chịu chi phí plan/launch của Spark, nên chênh lệch vài trăm ms chưa phản ánh hết
-quy mô lớn. Khi dữ liệu lên 100M--1B dòng, partition theo ngày vẫn phải mở toàn
-bộ file cho filter course/org, còn Z-order/liquid có thể bỏ qua nhiều file/row
-group. Ngược lại, partition theo cột cardinality cao sẽ tạo hàng triệu file nhỏ,
-làm metadata và object-storage request thành nút thắt. Z-order/liquid không miễn
-phí: chúng cần rewrite/OPTIMIZE, có thể xung đột với streaming writer và tăng chi
-phí ghi. Vì vậy bài học Big Data là chọn layout theo workload và ngân sách bảo trì,
-không chọn theo tên kỹ thuật.
+\subsection{Ý nghĩa với Big Data}
 
-\subsection{Streaming: Spark Structured Streaming và Flink}
+\textbf{Speed.} Debezium p50 thấp hơn vì đọc WAL và đẩy event ngay; polling bị
+chặn bởi chu kỳ 0,5 giây. p95 của Debezium cao hơn trong lần đo này vì consumer
+poll theo batch; đây là nhiễu vận chuyển, không phải giới hạn của CDC.
 
-Hai engine đọc cùng topic Kafka \code{bench.events3} với 100.000 event, lọc
-\code{score > 0.5} và ghi kết quả sang topic đích. Bảng~\ref{tab:alt-streaming}
-đo thời gian xử lý của job (không tính thời gian khởi động SQL client/JAR).
+\textbf{Correctness.} Đây là khác biệt quyết định. Polling chỉ thấy trạng thái
+hiện tại; hard DELETE biến mất khỏi bảng nên không có gì để poll. Nó cũng có thể
+bỏ qua các UPDATE trung gian nếu một dòng bị sửa nhiều lần giữa hai lần poll.
+Debezium giữ chuỗi thay đổi theo LSN, gồm cả DELETE và thứ tự giao dịch.
 
-\begin{table}[H]
-\centering\small
-\caption{Streaming filter: cùng input, cùng output}
-\label{tab:alt-streaming}
-\begin{tabular}{@{}lrrrr@{}}
-\toprule
-\textbf{Engine} & \textbf{Job runtime} & \textbf{Submit$\to$output} & \textbf{Input ev/s} & \textbf{Output ev/s} \\
-\midrule
-Flink 1.19 SQL & 9,16 s & 22 s & 10.917 & 5.449 \\
-Spark 3.5 Structured Streaming & 9,0 s & 44 s & 11.111 & 5.546 \\
-\bottomrule
-\end{tabular}
-\end{table}
+\textbf{Stateful và retry.} Debezium có offset/LSN và schema history trong Kafka
+Connect; restart có thể resume từ vị trí đã đọc. Polling là stateless, phải tự
+lưu watermark; nếu poller chết giữa chừng hoặc watermark commit trước khi xử lý,
+có thể mất hoặc lặp event. Hard DELETE vẫn không thể phục hồi bằng watermark.
 
-Hai bên ghi đúng 49.913 event; kiểm tra theo \code{event_id} cho kết quả
-\code{missing_in_spark = 0}, \code{missing_in_flink = 0}. Chênh lệch
-\code{submit$\to$output} chủ yếu do thời gian khởi động client và tải dependency,
-không phải tốc độ xử lý. Bảng này đo pipeline filter; cửa sổ cảnh báo 7 ngày là
-một thí nghiệm SLA riêng, không dùng các số filter này để đại diện.
+\textbf{Scale dọc và ngang.} Polling tăng tải theo số poller và số dòng/index
+phải quét; thêm poller nghĩa là thêm query lên cùng bảng nguồn. Debezium đọc WAL
+với tải nguồn thấp, scale theo partition/topic và consumer; nguồn không phải
+scan lại bảng khi dữ liệu tăng.
 
-\textbf{Ý nghĩa với Big Data.} Ở 100.000 event, Spark và Flink gần như hoà; khác
-biệt thật sự của streaming Big Data nằm ở p99/p999, state size, checkpoint,
-backpressure, độ trễ khi lưu lượng tăng và thời gian phục hồi sau lỗi. Filter
-một lần không đo được các yếu tố đó. Spark có lợi thế một engine cho batch +
-streaming, hệ sinh thái Delta và vận hành đơn giản; Flink có lợi thế true
-streaming, keyed state và event-time khi SLA dưới một giây. Vì vậy không thể kết
-luận Flink hay Spark nhanh hơn từ 9,0 so với 9,16 giây; cần chạy sustained load
-1M/5M event, cửa sổ 7 ngày và fault injection trước khi chọn.
+Ở 100.000 dòng, polling còn dùng được. Khi lên 1M--10M dòng, chi phí index scan,
+số tuple trả về và số poller tăng tuyến tính, trong khi Debezium vẫn đọc log.
+Với BR4/BR5 cần bắt sửa điểm, xoá và giữ thứ tự LSN, polling không đáp ứng đúng
+nghĩa dữ liệu; đây là lý do Debezium phù hợp hơn, không chỉ vì nhanh hơn.
 
-Bảng filter chỉ trả lời câu hỏi throughput/correctness; nó không đo p99, keyed
-state hay recovery vì filter không có state. Các chiều đó thuộc thí nghiệm cửa sổ
-7 ngày, không được suy ra từ bảng này.
+\subsection{Giới hạn phép đo}
 
-\subsection{Khi nào chuyển stack}
-
-\begin{table}[H]
-\centering\small
-\caption{Điều kiện chuyển sang alternative}
-\label{tab:alt-decision}
-\begin{tabularx}{\textwidth}{@{}L{3.2cm}L{3.5cm}Y@{}}
-\toprule
-\textbf{Vai trò} & \textbf{Alternative} & \textbf{Điều kiện chuyển} \\
-\midrule
-OLAP mart & ClickHouse/StarRocks & Mart vượt vài triệu dòng, query p95 > 1--2 s hoặc nhiều dashboard đồng thời \\
-Layout & Z-order/liquid clustering & Query đa chiều, nhiều filter ngoài ngày; chấp nhận chi phí OPTIMIZE \\
-Streaming & Flink & Cần p95 < 1 s, state lớn hoặc checkpoint Spark không đáp ứng SLA \\
-\bottomrule
-\end{tabularx}
-\end{table}
-
-Các kết quả này là quan sát cục bộ trên một máy, không phải cam kết năng lực production.
+Đây là smoke test 100.000 dòng trên một máy, chưa phải 1M/10M. Chưa chạy failure
+injection cho connector; p95 của Debezium bị ảnh hưởng bởi chu kỳ poll của consumer.
+Các số này đủ để chứng minh correctness/state/scale, không đủ để tuyên bố SLA
+production.
