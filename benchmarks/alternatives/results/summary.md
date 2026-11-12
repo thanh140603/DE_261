@@ -49,11 +49,19 @@ a ScyllaDB measurement.
 
 ## Pair A — Spark Structured Streaming vs Flink
 
-**Not completed.** The host has 7.4 GiB RAM and the Flink 1.19 image is present,
-but the Kafka/Flink connector path and a stable streaming job were not validated
-in this session. No numbers are reported here; do not fill this section with
-inferred values. Follow-up: add the Flink Kafka SQL connector, run both engines
-against the same Kafka topic, and compare event-to-alert p50/p95 at 1M/5M events.
+Same Kafka topic (`bench.events3`), same 100,000 events, same filter
+(`score > 0.5`), both sinks to Kafka. Output sets match exactly: 49,913 rows,
+0 missing on either side.
+
+| Engine | Job runtime | Submit → output | Input throughput | Output throughput |
+|---|---:|---:|---:|---:|
+| Flink 1.19 SQL | 9.16 s | 22 s | 10,917 ev/s | 5,449 ev/s |
+| Spark 3.5 Structured Streaming | 9.0 s | 44 s | 11,111 ev/s | 5,546 ev/s |
+
+`submit → output` includes SQL-client/JAR startup and is not a like-for-like
+latency metric; `job runtime` is the fair processing comparison. This table
+covers the bounded filter pipeline; the 7-day alert window is a separate SLA
+experiment and is not represented by these numbers.
 
 ## Notes
 

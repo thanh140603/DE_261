@@ -1,0 +1,29 @@
+{
+  "input_events": 100000,
+  "filter": "score > 0.5",
+  "output_events": 49913,
+  "correctness": {
+    "spark_rows": 49913,
+    "flink_rows": 49913,
+    "missing_in_spark": 0,
+    "missing_in_flink": 0,
+    "match": true
+  },
+  "flink": {
+    "job_start_epoch_ms": 1794481442841,
+    "output_complete_epoch_ms": 1794481452000,
+    "job_runtime_s": 9.16,
+    "submit_to_output_s": 22,
+    "input_throughput_events_s": 10917,
+    "output_throughput_events_s": 5449
+  },
+  "spark": {
+    "job_start_epoch_ms": 1794481512000,
+    "output_complete_epoch_ms": 1794481521000,
+    "job_runtime_s": 9.0,
+    "submit_to_output_s": 44,
+    "input_throughput_events_s": 11111,
+    "output_throughput_events_s": 5546
+  },
+  "notes": "Bounded streaming filter over the same 100k-event Kafka topic; submit_to_output includes client/dependency startup and is not comparable to job_runtime."
+}

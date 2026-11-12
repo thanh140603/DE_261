@@ -316,11 +316,29 @@ scale-out hoặc disk-backed store. ScyllaDB vẫn là alternative cần đo ti�
 
 \subsection{Streaming: Spark Structured Streaming và Flink}
 
-\todofix{chưa chạy Flink streaming; cần connector Kafka và job ổn định}
+Hai engine đọc cùng topic Kafka \code{bench.events3} với 100.000 event, lọc
+\code{score > 0.5} và ghi kết quả sang topic đích. Bảng~\ref{tab:alt-streaming}
+đo thời gian xử lý của job (không tính thời gian khởi động SQL client/JAR).
 
-Flink 1.19 có trong image, connector Kafka đã được tải và job SQL đã submit; tuy nhiên
-output/watermark/checkpoint chưa ổn định trên máy 7,4 GiB. Không đưa số liệu streaming
-vào báo cáo cho đến khi chạy cùng một topic Kafka với Spark và đo event-to-alert p50/p95.
+\begin{table}[H]
+\centering\small
+\caption{Streaming filter: cùng input, cùng output}
+\label{tab:alt-streaming}
+\begin{tabular}{@{}lrrrr@{}}
+\toprule
+\textbf{Engine} & \textbf{Job runtime} & \textbf{Submit$\to$output} & \textbf{Input ev/s} & \textbf{Output ev/s} \\
+\midrule
+Flink 1.19 SQL & 9,16 s & 22 s & 10.917 & 5.449 \\
+Spark 3.5 Structured Streaming & 9,0 s & 44 s & 11.111 & 5.546 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Hai bên ghi đúng 49.913 event; kiểm tra theo \code{event_id} cho kết quả
+\code{missing_in_spark = 0}, \code{missing_in_flink = 0}. Chênh lệch
+\code{submit$\to$output} chủ yếu do thời gian khởi động client và tải dependency,
+không phải tốc độ xử lý. Bảng này đo pipeline filter; cửa sổ cảnh báo 7 ngày là
+một thí nghiệm SLA riêng, không dùng các số filter này để đại diện.
 
 \subsection{Khi nào chuyển stack}
 
