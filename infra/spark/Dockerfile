@@ -49,7 +49,9 @@ WORKDIR /app
 COPY pyproject.toml README.md ./
 COPY src ./src
 RUN pip install -e ".[spark,content]"
+RUN chmod a+r "${SPARK_HOME}"/jars/*.jar
 COPY warehouse ./warehouse
+COPY infra/postgres/br45*.sql ./infra/postgres/
 COPY schemas ./schemas
 
 ENV EDU_WAREHOUSE_DIR=/app/warehouse

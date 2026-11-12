@@ -32,6 +32,16 @@ const post = <R>(path: string, body?: unknown) =>
 export const api = {
   health: () => get<{ status: string; mode: string }>("/health"),
   overview: () => get<T.Overview>("/demo/overview"),
+  classroom: {
+    current: () => get<T.ClassroomStudent>("/classroom/student/session"),
+    login: (username: string, password: string) =>
+      post<T.ClassroomStudent>("/classroom/student/session", { username, password }),
+    logout: () => request<void>("/classroom/student/session", { method: "DELETE" }),
+    lessons: () => get<T.ClassroomLesson[]>("/classroom/student/lessons"),
+    study: (lesson: string, kind: "lesson_view" | "lesson_complete") =>
+      post<void>(`/classroom/student/lessons/${encodeURIComponent(lesson)}/activity`,
+        { kind, request_id: crypto.randomUUID() }),
+  },
 
   simulate: {
     start: (rate_per_sec?: number) => post<{ running: boolean; rate_per_sec: number }>("/simulate/start", { rate_per_sec }),
@@ -63,8 +73,8 @@ export const api = {
     completeCourse: (learner_id: string, course_id: string) =>
       post<{ completed: string[] }>(`/learners/${learner_id}/complete-course`, { course_id }),
     submissions: (id: string) => get<T.Submission[]>(`/learners/${id}/submissions`),
-    submit: (learner_id: string, assignment_id: string, code: string) =>
-      post<{ submission_id: string; status: string }>("/submissions", { learner_id, assignment_id, code }),
+    submit: (learner_id: string, assignment_id: string, code: string, request_id?: string) =>
+      post<{ submission_id: string; status: string }>("/submissions", { learner_id, assignment_id, code, request_id }),
     submission: (id: string) => get<T.Submission>(`/submissions/${id}`),
   },
 

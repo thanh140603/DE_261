@@ -214,3 +214,8 @@ decoupled from BR2's feature code.
 Still documented `TODO` stubs: the remaining Flink jobs (telemetry normalisation
 fast path, BR7/BR8 live overlays), the BR1/BR3 Kafka consumer services, the
 Redis adapters, corpus chunking/embedding and OpenSearch.
+
+
+### BR4 and BR5
+
+See the [restoration runbook](docs/BR45_RESTORATION.md) for persistent Spark/Delta analytics, classroom and replay modes, engine comparison commands, and verification evidence.

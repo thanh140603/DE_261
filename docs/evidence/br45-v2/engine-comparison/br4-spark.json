@@ -1,0 +1,143 @@
+{
+  "suite": "BR4",
+  "engine": "spark",
+  "run_id": "engine-comparison",
+  "measured_at": "2026-11-09T15:32:42.396993+00:00",
+  "python": "3.11.18",
+  "platform": "Linux-7.0.0-42-generic-x86_64-with-glibc2.36",
+  "poll_seconds": 0.25,
+  "engine_version": "3.5.1",
+  "cpu_limit": 2,
+  "memory_limit_gib": 2,
+  "trials": [
+    {
+      "phase": "warmup",
+      "records": 1000,
+      "repeat": 0,
+      "status": "PASS",
+      "elapsed_ms": 37546.70023699873
+    },
+    {
+      "phase": "processing",
+      "records": 1000,
+      "repeat": 1,
+      "status": "PASS",
+      "elapsed_ms": 5404.552807998698
+    },
+    {
+      "phase": "processing",
+      "records": 1000,
+      "repeat": 2,
+      "status": "PASS",
+      "elapsed_ms": 15554.580027001066
+    },
+    {
+      "phase": "processing",
+      "records": 1000,
+      "repeat": 3,
+      "status": "PASS",
+      "elapsed_ms": 11710.282920997997
+    },
+    {
+      "phase": "warmup",
+      "records": 10000,
+      "repeat": 0,
+      "status": "PASS",
+      "elapsed_ms": 16185.577060998185
+    },
+    {
+      "phase": "processing",
+      "records": 10000,
+      "repeat": 1,
+      "status": "PASS",
+      "elapsed_ms": 6245.002904001012
+    },
+    {
+      "phase": "processing",
+      "records": 10000,
+      "repeat": 2,
+      "status": "PASS",
+      "elapsed_ms": 5093.102946000727
+    },
+    {
+      "phase": "processing",
+      "records": 10000,
+      "repeat": 3,
+      "status": "PASS",
+      "elapsed_ms": 20178.116839000722
+    },
+    {
+      "phase": "warmup",
+      "records": 100000,
+      "repeat": 0,
+      "status": "PASS",
+      "elapsed_ms": 29876.28951499937
+    },
+    {
+      "phase": "processing",
+      "records": 100000,
+      "repeat": 1,
+      "status": "PASS",
+      "elapsed_ms": 21788.002807999874
+    },
+    {
+      "phase": "processing",
+      "records": 100000,
+      "repeat": 2,
+      "status": "PASS",
+      "elapsed_ms": 42133.87112499913
+    },
+    {
+      "phase": "processing",
+      "records": 100000,
+      "repeat": 3,
+      "status": "PASS",
+      "elapsed_ms": 17648.772813001415
+    },
+    {
+      "phase": "e2e_correction",
+      "records": 106,
+      "repeat": 1,
+      "status": "PASS",
+      "elapsed_ms": 14783.4001370029,
+      "passed_before": 2,
+      "passed_after": 3
+    },
+    {
+      "phase": "e2e_correction",
+      "records": 106,
+      "repeat": 2,
+      "status": "PASS",
+      "elapsed_ms": 10951.344991997757,
+      "passed_before": 2,
+      "passed_after": 3
+    },
+    {
+      "phase": "e2e_correction",
+      "records": 106,
+      "repeat": 3,
+      "status": "PASS",
+      "elapsed_ms": 4282.7007609994325,
+      "passed_before": 2,
+      "passed_after": 3
+    },
+    {
+      "phase": "e2e_correction",
+      "records": 106,
+      "repeat": 4,
+      "status": "PASS",
+      "elapsed_ms": 16392.677391999314,
+      "passed_before": 2,
+      "passed_after": 3
+    },
+    {
+      "phase": "e2e_correction",
+      "records": 106,
+      "repeat": 5,
+      "status": "PASS",
+      "elapsed_ms": 9992.69470299987,
+      "passed_before": 2,
+      "passed_after": 3
+    }
+  ]
+}

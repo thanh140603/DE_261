@@ -1,0 +1,111 @@
+x-benchmark: &benchmark
+  EDU_BR45_ENGINE_BENCHMARK: "true"
+  EDU_BR45_ASSESSMENT_ENGINE: postgres
+  EDU_BR45_CLEAN_TOPIC: br45.engbench.clean.v2
+  EDU_BR45_DOMAIN_TOPIC: br45.engbench.analytics.v2
+  EDU_SPARK_MASTER: local[2]
+  PYSPARK_SUBMIT_ARGS: --driver-memory 1g pyspark-shell
+  EDU_BR45_DSN: postgresql://lms:lms@br45-bench-postgres:5432/br45_bench
+  EDU_BR45_KAFKA: kafka:29092
+  EDU_BR45_TOPIC_PREFIX: br45.engbench.cdc.br45.
+  EDU_BR45_ACTIVITY_TOPIC: ${BR45_BENCH_TOPIC:-br45.engbench.activity.v1}
+  EDU_BR45_LANDING_GROUP: br45-engine-benchmark
+  EDU_BR45_CLOCK_MODE: manual
+  EDU_BR45_CHECKPOINT: /work/checkpoint
+  EDU_BR45_AUTH: '{"instructor-demo":{"id":"bench-instructor","role":"instructor","courses":["de261-br45-engine-comparison","c-py-201"]},"advisor-demo":{"id":"bench-advisor","role":"advisor","courses":["c-py-201"]}}'
+
+services:
+  br45-bench-postgres:
+    image: postgres:16
+    command: ["postgres", "-c", "wal_level=logical", "-c", "max_replication_slots=2"]
+    environment:
+      POSTGRES_DB: br45_bench
+      POSTGRES_USER: lms
+      POSTGRES_PASSWORD: lms
+    ports: ["127.0.0.1:15434:5432"]
+    cpus: 2
+    mem_limit: 2g
+    volumes:
+      - br45-bench-db:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "lms", "-d", "br45_bench"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+
+  br45-bench-init:
+    image: de261/demo:local
+    build:
+      context: .
+      dockerfile: Dockerfile
+    environment: *benchmark
+    volumes:
+      - ./src:/app/src:ro
+      - ./infra/postgres:/app/infra/postgres:ro
+      - ./infra/debezium:/app/infra/debezium:ro
+    depends_on:
+      br45-bench-postgres:
+        condition: service_healthy
+      connect:
+        condition: service_healthy
+    command:
+      - sh
+      - -ec
+      - |
+        python -m edu_platform.br45.cli migrate
+        python - <<'PY'
+        from edu_platform.br45.db import ROOT, connect
+
+        with connect() as db:
+            db.execute((ROOT / "infra/postgres/br45_engine_benchmark.sql").read_text())
+        PY
+        python -m edu_platform.br45.cli register --connect-url http://connect:8083
+    healthcheck:
+      disable: true
+
+  br45-bench-cdc:
+    image: de261/demo:local
+    environment: *benchmark
+    volumes: ["./src:/app/src:ro"]
+    depends_on:
+      br45-bench-init:
+        condition: service_completed_successfully
+    command: ["python", "-m", "edu_platform.br45.cli", "cdc"]
+    healthcheck:
+      disable: true
+
+  br45-bench-api:
+    image: de261/demo:local
+    environment: *benchmark
+    ports: ["127.0.0.1:18001:8000"]
+    volumes: ["./src:/app/src:ro"]
+    depends_on:
+      br45-bench-init:
+        condition: service_completed_successfully
+
+  br45-bench-spark:
+    image: de261/spark:local
+    build:
+      context: .
+      dockerfile: infra/spark/Dockerfile
+    command: ["python", "-m", "edu_platform.br45.streaming"]
+    environment: *benchmark
+    volumes:
+      - ./src:/app/src:ro
+      - ./data/br45-engine-benchmark:/work
+    cpus: 2
+    mem_limit: 2g
+
+  br45-bench-flink:
+    image: flink:1.19-scala_2.12-java11
+    environment:
+      BR45_JDBC: jdbc:postgresql://br45-bench-postgres:5432/br45_bench
+      BR45_KAFKA: kafka:29092
+    volumes:
+      - ./data/br45-engine-benchmark:/work
+      - ./infra/br45/flink:/source:ro
+    cpus: 2
+    mem_limit: 2g
+
+volumes:
+  br45-bench-db:

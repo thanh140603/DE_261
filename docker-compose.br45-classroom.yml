@@ -1,0 +1,79 @@
+x-classroom: &classroom
+  EDU_BR45_MODE: classroom
+  EDU_BR45_DSN: postgresql://lms:lms@postgres:5432/br45_classroom
+  EDU_BR45_KAFKA: kafka:29092
+  EDU_BR45_TOPIC_PREFIX: br45.classroom.cdc.br45.
+  EDU_BR45_ACTIVITY_TOPIC: br45.classroom.activity.v1
+  EDU_BR45_CLEAN_TOPIC: br45.classroom.clean.v2
+  EDU_BR45_DOMAIN_TOPIC: br45.classroom.analytics.v2
+  EDU_BR45_LANDING_GROUP: br45-classroom-landing-v1
+  EDU_BR45_CLOCK_MODE: manual
+  EDU_BR45_SLIDE_SECONDS: "3600"
+
+services:
+  demo:
+    ports: !override
+      - "127.0.0.1:8000:8000"
+    environment:
+      <<: *classroom
+      EDU_BR45_AUTH: '${EDU_BR45_CLASSROOM_STAFF_AUTH:-{"instructor-demo":{"id":"instructor-local","role":"instructor","courses":["c-py-201","c-sql-101","c-de-301"]},"advisor-demo":{"id":"advisor-local","role":"advisor","courses":["c-py-201","c-sql-101","c-de-301"]},"admin-demo":{"id":"admin-local","role":"admin","organisations":["org-acme","org-globex"]},"acme-admin-demo":{"id":"acme-admin-local","role":"admin","organisations":["org-acme"]}}}'
+    depends_on:
+      br45-classroom-init:
+        condition: service_completed_successfully
+
+  br45-classroom-init:
+    image: de261/demo:local
+    build:
+      context: .
+      dockerfile: Dockerfile
+    environment:
+      <<: *classroom
+      EDU_BR45_CLASSROOM_PASSWORD: ${EDU_BR45_CLASSROOM_PASSWORD:-}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      connect:
+        condition: service_healthy
+    command:
+      - sh
+      - -ec
+      - python -m edu_platform.br45.classroom_init && python -m edu_platform.br45.cli register --connect-url http://connect:8083
+    healthcheck:
+      disable: true
+
+  br45-classroom-cdc:
+    image: de261/demo:local
+    environment: *classroom
+    depends_on:
+      br45-classroom-init:
+        condition: service_completed_successfully
+    command: ["python", "-m", "edu_platform.br45.cli", "cdc"]
+    healthcheck:
+      test: ["CMD", "python", "-c", "from edu_platform.br45.db import connect\nwith connect() as c:\n c.execute('SELECT 1')"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+    restart: on-failure:5
+
+  br45-classroom-stream:
+    image: de261/spark:local
+    build:
+      context: .
+      dockerfile: infra/spark/Dockerfile
+    command: ["python", "-m", "edu_platform.br45.streaming"]
+    environment:
+      <<: *classroom
+      EDU_BR45_CHECKPOINT: /checkpoints/br45-classroom-v2
+      EDU_BR45_LAKEHOUSE_ROOT: /checkpoints/classroom-lakehouse
+      EDU_SPARK_MASTER: local[2]
+      PYSPARK_SUBMIT_ARGS: --driver-memory 1g pyspark-shell
+    volumes:
+      - br45-classroom-checkpoints:/checkpoints
+    depends_on:
+      br45-classroom-init:
+        condition: service_completed_successfully
+    mem_limit: 2g
+    restart: on-failure:5
+
+volumes:
+  br45-classroom-checkpoints:

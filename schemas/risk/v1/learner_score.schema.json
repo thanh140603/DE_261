@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://edu-platform/schemas/risk/v1/learner_score.schema.json",
-  "title": "risk.learner_score.v1 - one message per rescore by the dropout_risk Flink job",
+  "title": "risk.learner_score.v1 - one message per committed dropout-risk observation",
   "type": "object",
   "required": ["event_id", "learner_id", "course_id", "score", "computed_at"],
   "properties": {
@@ -9,6 +9,7 @@
     "learner_id": { "type": "string", "description": "RAW id - pseudonymised in silver.risk_scores" },
     "course_id": { "type": "string" },
     "score": { "type": "number", "minimum": 0, "maximum": 1 },
-    "computed_at": { "type": "string", "format": "date-time" }
+    "computed_at": { "type": "string", "format": "date-time" },
+    "policy_version": { "type": "integer", "minimum": 1 }
   }
 }

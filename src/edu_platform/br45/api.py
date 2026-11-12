@@ -14,11 +14,14 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from pydantic import AwareDatetime, BaseModel, Field
 
-from .assessment import refresh as refresh_assessments
+from edu_platform.demo import seed
+
+from .advisor import CoursePolicy, Note, NoteBody, PolicyChange, change_policy, policy
 from .config import settings
 from .contracts import timestamp
 from .db import Db, clean, connect, state
-from .outputs import Alert, Metric, Page, Risk, RiskPage, StudentRisk
+from .events import alert_transition
+from .outputs import Alert, AssessmentPage, JobStatus, Metric, Page, Risk, RiskPage, StudentRisk
 
 router = APIRouter(tags=["BR4 / BR5 persistent analytics"])
 bearer = HTTPBearer(auto_error=False)
@@ -109,7 +112,7 @@ def window(conn: Db, start: datetime | None, end: datetime | None) -> tuple[date
         or end - start > timedelta(days=366)
     ):
         raise HTTPException(422, "Use timezone-aware dates with 0 < end-start <= 366 days")
-    return start, end
+    return start.astimezone(UTC), end.astimezone(UTC)
 
 
 def paged(items: list[Any], offset: int, limit: int) -> dict[str, Any]:
@@ -126,6 +129,7 @@ def session(conn: DB, user: User) -> dict[str, Any]:
     return {
         "id": user.id,
         "role": user.role,
+        **({"classroom": True} if settings().classroom else {}),
         "courses": [c for c in clean(conn, "courses") if c["id"] in user.courses],
     }
 
@@ -143,6 +147,17 @@ def diagnostics(conn: DB, user: User) -> dict[str, Any]:
         )["n"],
         "invalid_records": (
             conn.execute("SELECT count(*) n FROM analytics.quarantine").fetchone() or {}
+        )["n"],
+        "domain_outbox_pending": (
+            conn.execute(
+                "SELECT count(*) n FROM analytics.domain_outbox WHERE published_at IS NULL"
+            ).fetchone() or {}
+        )["n"],
+        "failed_assessment_jobs": (
+            conn.execute(
+                "SELECT count(*) n FROM analytics.assessment_jobs WHERE status='FAILED' "
+                "AND course_id=ANY(%s)", (user.courses,),
+            ).fetchone() or {}
         )["n"],
         "outbox_pending": (
             conn.execute(
@@ -187,8 +202,12 @@ def assessment_rows(
 ) -> dict[str, Any]:
     scope(user, course_id)
     start, end = window(conn, start, end)
-    # Requests for arbitrary windows materialize real SQL results in the same persisted marts.
-    refresh_assessments(conn, start, end, course_id)
+    # HTTP reads never run an aggregation. A separate POST requests a durable worker job.
+    job = conn.execute(
+        "SELECT * FROM analytics.assessment_jobs WHERE course_id=%s AND window_start=%s "
+        "AND window_end=%s FOR SHARE",
+        (course_id, start, end),
+    ).fetchone()
     tables = {
         "questions": "mart_question_pass_statistics",
         "cases": "mart_test_case_pass_statistics",
@@ -245,10 +264,51 @@ def assessment_rows(
         "limit": limit,
         "window_start": start,
         "window_end": end,
+        "materialization_status": job["status"]
+        if job
+        else ("SUCCEEDED" if items else "NOT_REQUESTED"),
+        "job_id": job["id"] if job else None,
+        "computed_at": job["completed_at"] if job else None,
+        "engine": (job["published_engine"] or job["engine"]) if job else "postgres",
+        "published_revision": job["published_revision"] if job else None,
+        "pending_revision": (
+            job["requested_revision"] if job and job["status"] != "SUCCEEDED" else None
+        ),
+        "publication_id": job["publication_id"] if job else None,
+        "source_delta_version": job["source_delta_version"] if job else None,
+        "stale": bool(job and job["published_revision"] and job["status"] != "SUCCEEDED"),
+        "error": job["error"] if job else None,
     }
 
 
-@router.get("/instructor/courses/{course_id}/questions/statistics", response_model=Page[Metric])
+class RefreshBody(BaseModel):
+    start: AwareDatetime | None = None
+    end: AwareDatetime | None = None
+
+
+@router.post("/instructor/courses/{course_id}/refresh", status_code=202, response_model=JobStatus)
+@router.post(
+    "/instructor/courses/{course_id}/assessment-jobs", status_code=202, response_model=JobStatus
+)
+def refresh_job(course_id: str, body: RefreshBody, conn: DB, user: Instructor) -> dict[str, Any]:
+    from .jobs import request
+
+    scope(user, course_id)
+    start, end = window(conn, body.start, body.end)
+    return request(conn, course_id, start, end)
+
+
+@router.get("/instructor/jobs/{job_id}", response_model=JobStatus)
+@router.get("/instructor/assessment-jobs/{job_id}", response_model=JobStatus)
+def assessment_job(job_id: str, conn: DB, user: Instructor) -> dict[str, Any]:
+    row = conn.execute("SELECT * FROM analytics.assessment_jobs WHERE id=%s", (job_id,)).fetchone()
+    if not row:
+        raise HTTPException(404, "Assessment job not found")
+    scope(user, row["course_id"])
+    return row
+
+
+@router.get("/instructor/courses/{course_id}/questions/statistics", response_model=AssessmentPage)
 def questions(
     course_id: str,
     conn: DB,
@@ -278,7 +338,7 @@ def questions(
     )
 
 
-@router.get("/instructor/questions/{question_id}/statistics", response_model=Page[Metric])
+@router.get("/instructor/questions/{question_id}/statistics", response_model=AssessmentPage)
 def question(
     question_id: str,
     conn: DB,
@@ -303,7 +363,7 @@ def question(
     )
 
 
-@router.get("/instructor/questions/{question_id}/test-cases", response_model=Page[Metric])
+@router.get("/instructor/questions/{question_id}/test-cases", response_model=AssessmentPage)
 def test_cases(
     question_id: str,
     conn: DB,
@@ -328,7 +388,7 @@ def test_cases(
     )
 
 
-@router.get("/instructor/courses/{course_id}/anomalies", response_model=Page[Metric])
+@router.get("/instructor/courses/{course_id}/anomalies", response_model=AssessmentPage)
 def anomalies(
     course_id: str,
     conn: DB,
@@ -367,6 +427,16 @@ def anomaly(anomaly_id: str, conn: DB, user: Instructor) -> dict[str, Any]:
     return cast(dict[str, Any], row["data"])
 
 
+def named_risk(row: dict[str, Any]) -> dict[str, Any]:
+    if not settings().classroom:
+        return row
+    student = row["student_id"]
+    name = next((learner.name for learner in seed.LEARNERS if learner.id == student), None)
+    if name is None and student.startswith("classroom-cohort-"):
+        name = f"Practice learner {student.rsplit('-', 1)[-1]}"
+    return row | {"student_name": name} if name else row
+
+
 def risk_rows(
     conn: Db,
     user: Principal,
@@ -384,7 +454,7 @@ def risk_rows(
         if e["status"] == "active"
     }
     return [
-        r["data"] | {"computed_at": r["computed_at"].isoformat()}
+        named_risk(r["data"] | {"computed_at": r["computed_at"].isoformat()})
         for r in conn.execute(
             (
                 "SELECT data,computed_at FROM analytics.risk_state WHERE course_id=ANY(%s) "
@@ -471,7 +541,7 @@ def risk_history(
         or {}
     )["n"]
     rows = [
-        r["data"]
+        named_risk(r["data"])
         for r in conn.execute(
             (
                 "SELECT data FROM analytics.risk_history WHERE "
@@ -528,7 +598,7 @@ def alerts(
             (
                 "SELECT * FROM analytics.dropout_alerts WHERE "
                 f"{where}"
-                " ORDER BY score DESC,created_at DESC,id LIMIT %s OFFSET %s"
+                " ORDER BY (status='RESOLVED'),score DESC,created_at DESC,id LIMIT %s OFFSET %s"
             ),
             (*params, limit, offset),
         )
@@ -536,7 +606,9 @@ def alerts(
     return {"items": rows, "total": total, "offset": offset, "limit": limit}
 
 
-def update_alert(conn: Db, user: Principal, alert_id: str, target: str) -> dict[str, Any]:
+def update_alert(
+    conn: Db, user: Principal, alert_id: str, target: str, note: str = ""
+) -> dict[str, Any]:
     found = conn.execute(
         "SELECT * FROM analytics.dropout_alerts WHERE id=%s", (alert_id,)
     ).fetchone()
@@ -569,17 +641,109 @@ def update_alert(conn: Db, user: Principal, alert_id: str, target: str) -> dict[
         (target, user.id, alert_id),
     ).fetchone()
     assert updated is not None
+    if current["status"] != target:
+        alert_transition(conn, settings(), updated, user.id)
+    if note.strip() and current["status"] != target:
+        conn.execute(
+            "INSERT INTO analytics.intervention_notes(alert_id,actor,action,note) "
+            "VALUES(%s,%s,%s,%s)",
+            (alert_id, user.id, target, note.strip()),
+        )
     return updated
 
 
+@router.get("/advisor/courses/{course_id}/policy", response_model=CoursePolicy)
+def get_policy(course_id: str, conn: DB, user: Advisor) -> dict[str, Any]:
+    scope(user, course_id)
+    return policy(conn, course_id)
+
+
+@router.put("/advisor/courses/{course_id}/policy", response_model=CoursePolicy)
+def put_policy(course_id: str, body: PolicyChange, conn: DB, user: Advisor) -> dict[str, Any]:
+    scope(user, course_id)
+    result = change_policy(conn, course_id, user.id, body)
+    if result is None:
+        raise HTTPException(409, "The policy changed. Reload the latest version and retry.")
+    return result
+
+
+def note_scope(conn: Db, user: Principal, alert_id: str) -> None:
+    row = conn.execute(
+        "SELECT course_id FROM analytics.dropout_alerts WHERE id=%s", (alert_id,)
+    ).fetchone()
+    if not row:
+        raise HTTPException(404, "Alert not found")
+    scope(user, row["course_id"])
+
+
+@router.get("/advisor/alerts/{alert_id}/notes", response_model=list[Note])
+def notes(alert_id: str, conn: DB, user: Advisor) -> list[dict[str, Any]]:
+    note_scope(conn, user, alert_id)
+    return list(conn.execute(
+        "SELECT * FROM analytics.intervention_notes WHERE alert_id=%s ORDER BY created_at,id",
+        (alert_id,),
+    ))
+
+
+@router.post("/advisor/alerts/{alert_id}/notes", status_code=201, response_model=Note)
+def create_note(alert_id: str, body: NoteBody, conn: DB, user: Advisor) -> dict[str, Any]:
+    note_scope(conn, user, alert_id)
+    row = conn.execute(
+        "INSERT INTO analytics.intervention_notes(alert_id,actor,action,note,idempotency_key) "
+        "VALUES(%s,%s,'NOTE',%s,%s) ON CONFLICT(alert_id,actor,idempotency_key) "
+        "DO UPDATE SET idempotency_key=excluded.idempotency_key RETURNING *",
+        (alert_id, user.id, body.note, body.idempotency_key),
+    ).fetchone()
+    assert row is not None
+    if row["note"] != body.note:
+        raise HTTPException(409, "The idempotency key was already used with a different note")
+    return row
+
+
+class InterventionBody(BaseModel):
+    note: str = Field(default="", max_length=2000)
+
+
 @router.patch("/advisor/alerts/{alert_id}/acknowledge", response_model=Alert)
-def acknowledge(alert_id: str, conn: DB, user: Advisor) -> dict[str, Any]:
-    return update_alert(conn, user, alert_id, "ACKNOWLEDGED")
+def acknowledge(
+    alert_id: str, conn: DB, user: Advisor, body: InterventionBody | None = None
+) -> dict[str, Any]:
+    return update_alert(conn, user, alert_id, "ACKNOWLEDGED", body.note if body else "")
 
 
 @router.patch("/advisor/alerts/{alert_id}/resolve", response_model=Alert)
-def resolve(alert_id: str, conn: DB, user: Advisor) -> dict[str, Any]:
-    return update_alert(conn, user, alert_id, "RESOLVED")
+def resolve(
+    alert_id: str, conn: DB, user: Advisor, body: InterventionBody | None = None
+) -> dict[str, Any]:
+    return update_alert(conn, user, alert_id, "RESOLVED", body.note if body else "")
+
+
+@router.get("/advisor/students/{student_id}/timeline")
+def timeline(
+    student_id: str, course_id: str, conn: DB, user: Advisor, offset: Offset = 0, limit: Limit = 50
+) -> dict[str, Any]:
+    scope(user, course_id)
+    if not risk_rows(conn, user, course_id, student_id):
+        raise HTTPException(404, "Student risk not found in your scope")
+    query = """WITH events AS (
+      SELECT row_key id, table_name kind, data,
+        coalesce(data->>'event_time',data->>'submitted_at')::timestamptz occurred_at
+      FROM analytics.clean_rows WHERE table_name IN ('activity_events','submissions') AND NOT
+deleted
+        AND data->>'student_id'=%s AND data->>'course_id'=%s
+      UNION ALL
+      SELECT n.id::text,'intervention',jsonb_build_object('note',n.note,'actor',n.actor,'action
+',n.action),n.created_at
+      FROM analytics.intervention_notes n JOIN analytics.dropout_alerts a ON a.id=n.alert_id
+      WHERE a.student_id=%s AND a.course_id=%s
+    ) SELECT *,count(*) OVER() total FROM events ORDER BY occurred_at DESC,id LIMIT %s OFFSET %s"""
+    rows = list(conn.execute(query, (student_id, course_id, student_id, course_id, limit, offset)))
+    return {
+        "items": rows,
+        "total": rows[0]["total"] if rows else 0,
+        "offset": offset,
+        "limit": limit,
+    }
 
 
 class ActivityBody(BaseModel):

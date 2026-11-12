@@ -365,7 +365,7 @@ class Simulator:
         raise KeyError(name)
 
     # --- startup history so the marts are not empty ---------------------------------------
-    def seed_history(self, days: int = 21) -> None:
+    def seed_history(self, days: int = 21, *, grade: bool = True) -> None:
         now = datetime.now(tz=UTC)
         for learner in seed.LEARNERS:
             for day in range(days, 0, -1):
@@ -381,7 +381,7 @@ class Simulator:
                     self.ingest(
                         payload, received_at=at + timedelta(seconds=self.rng.randint(1, 20))
                     )
-        for learner in seed.LEARNERS:
+        for learner in seed.LEARNERS if grade else ():
             for assignment in seed.ASSIGNMENTS:
                 if assignment.course_id not in learner.course_ids or self.rng.random() < 0.3:
                     continue

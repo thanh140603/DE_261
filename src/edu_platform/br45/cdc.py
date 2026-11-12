@@ -13,6 +13,8 @@ from psycopg.types.json import Jsonb
 from .config import AnalyticsSettings, settings
 from .contracts import CONTRACTS, identity, row_key, timestamp, validate_row
 from .db import Db, clean, connect, state
+from .events import enqueue
+from .events import publish as publish_domain
 
 log = logging.getLogger(__name__)
 
@@ -41,6 +43,11 @@ def tick(conn: Db, at: datetime, cfg: AnalyticsSettings) -> None:
     if previous and timestamp(previous) > at:
         return
     state(conn, "evaluation_clock", at.isoformat())
+    conn.execute(
+        "INSERT INTO analytics.risk_dirty SELECT data->>'student_id',data->>'course_id' "
+        "FROM analytics.clean_rows WHERE table_name='enrollments' AND NOT deleted "
+        "ON CONFLICT DO NOTHING"
+    )
     for en in clean(conn, "enrollments"):
         if en["status"] == "active" and timestamp(en["enrolled_at"]) <= at:
             # T-1ms includes the window ending at T, without including future activity.
@@ -123,6 +130,38 @@ def ingest(
             ),
             (table, key, Jsonb(data), lsn, op == "d"),
         )
+        sequence = enqueue(
+            conn,
+            cfg.clean_topic,
+            table + ":" + key,
+            {
+                "event_id": change_id,
+                "table_name": table,
+                "row_key": key,
+                "lsn": str(lsn),
+                "deleted": op == "d",
+                "data": json.dumps(data),
+                "raw_envelope": json.dumps(value),
+            },
+        )
+        state(conn, "clean_sequence", sequence)
+        images = [r for r in (old_data, data) if r is not None]
+        for student, course in {
+            (r["student_id"], r["course_id"])
+            for r in images if "student_id" in r and "course_id" in r
+        }:
+            conn.execute(
+                "INSERT INTO analytics.risk_dirty VALUES(%s,%s) ON CONFLICT DO NOTHING",
+                (student, course),
+            )
+        if table in {"courses", "assignments"}:
+            courses = {r["id"] if table == "courses" else r["course_id"] for r in images}
+            conn.execute(
+                "INSERT INTO analytics.risk_dirty SELECT data->>'student_id',data->>'course_id' "
+                "FROM analytics.clean_rows WHERE table_name='enrollments' AND NOT deleted "
+                "AND data->>'course_id'=ANY(%s) ON CONFLICT DO NOTHING",
+                (list(courses),),
+            )
         if table == "activity_events":
             if old_data:
                 emit(
@@ -155,6 +194,7 @@ def ingest(
             "evaluations",
         }:
             state(conn, "assessment_source_revision", change_id)
+            state(conn, "assessment_sequence", sequence)
         state(conn, "source_revision", change_id)
         return "processed"
     except (ValueError, KeyError, TypeError) as exc:
@@ -206,13 +246,13 @@ def publish_outbox(conn: Db, producer: Producer, cfg: AnalyticsSettings) -> int:
 
 
 def run() -> None:
-    from .assessment import refresh
+    from .jobs import process_postgres, request
 
     cfg = settings()
     consumer = Consumer(
         {
             "bootstrap.servers": cfg.kafka,
-            "group.id": "br45-landing-v1",
+            "group.id": cfg.landing_group,
             "auto.offset.reset": "earliest",
             "enable.auto.commit": False,
             "max.poll.interval.ms": 300000,
@@ -226,6 +266,9 @@ def run() -> None:
         while True:
             messages = consumer.consume(num_messages=5000, timeout=1)
             with connect() as conn:
+                conn.execute("SELECT pg_advisory_xact_lock(hashtext('br45-cdc-progress'))")
+                previous_revision = state(conn, "assessment_source_revision")
+                previous_clock = state(conn, "evaluation_clock")
                 counts: dict[str, int] = {}
                 for msg in messages:
                     if msg.error():
@@ -259,8 +302,19 @@ def run() -> None:
                                 0,
                                 "metadata",
                             )
-                if messages and at:
-                    refresh(conn, timestamp(at) - timedelta(days=30), timestamp(at), cfg=cfg)
+                revision = state(conn, "assessment_source_revision")
+                assessment_changed = at != previous_clock or revision != previous_revision
+                if at and assessment_changed and not cfg.engine_benchmark:
+                    end = timestamp(at)
+                    for course in clean(conn, "courses"):
+                        request(conn, course["id"], end - timedelta(days=30), end, cfg)
+                    if revision != previous_revision:
+                        conn.execute(
+                            "UPDATE analytics.assessment_jobs SET requested_revision=%s,"
+                            "required_sequence=%s,status=CASE WHEN status='RUNNING' THEN status "
+                            "ELSE 'PENDING' END WHERE requested_revision IS DISTINCT FROM %s",
+                            (revision, state(conn, "assessment_sequence"), revision),
+                        )
                 if messages:
                     state(
                         conn,
@@ -275,9 +329,14 @@ def run() -> None:
             # Publish only after raw/clean/outbox commit, so Spark cannot observe a
             # window delta whose operational metadata is still uncommitted.
             with connect() as conn:
+                conn.execute("SELECT pg_advisory_xact_lock(hashtext('br45-cdc-progress'))")
                 publish_outbox(conn, producer, cfg)
+                publish_domain(conn, producer)
+                state(conn, "cdc_heartbeat", {"last_success_at": datetime.now(UTC).isoformat()})
             # DB commit precedes Kafka offset commit. A crash in between safely replays raw keys.
             if messages:
                 consumer.commit(asynchronous=False)
+            if cfg.assessment_engine == "postgres" and not cfg.engine_benchmark:
+                process_postgres(cfg)
     finally:
         consumer.close()

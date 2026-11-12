@@ -30,8 +30,15 @@
 name: de261
 
 x-br45-environment: &br45-environment
-  EDU_BR45_DSN: postgresql://lms:lms@postgres:5432/lms
+  EDU_BR45_DSN: ${EDU_BR45_DSN:-postgresql://lms:lms@postgres:5432/lms}
   EDU_BR45_KAFKA: kafka:29092
+  EDU_BR45_TOPIC_PREFIX: ${EDU_BR45_TOPIC_PREFIX:-br45.cdc.br45.}
+  EDU_BR45_ACTIVITY_TOPIC: ${EDU_BR45_ACTIVITY_TOPIC:-br45.activity.v1}
+  EDU_BR45_CLEAN_TOPIC: ${EDU_BR45_CLEAN_TOPIC:-br45.clean.v2}
+  EDU_BR45_DOMAIN_TOPIC: ${EDU_BR45_DOMAIN_TOPIC:-br45.analytics.v2}
+  EDU_BR45_CDC_IDENTITY: ${EDU_BR45_CDC_IDENTITY:-}
+  EDU_BR45_LANDING_GROUP: ${EDU_BR45_LANDING_GROUP:-br45-landing-v1}
+  EDU_BR45_ASSESSMENT_ENGINE: ${EDU_BR45_ASSESSMENT_ENGINE:-spark}
   EDU_BR45_CLOCK_MODE: ${EDU_BR45_CLOCK_MODE:-wall}
   EDU_BR45_SLIDE_SECONDS: ${EDU_BR45_SLIDE_SECONDS:-3600}
   EDU_BR45_LATENESS_DAYS: ${EDU_BR45_LATENESS_DAYS:-21}
@@ -68,7 +75,6 @@ services:
       EDU_SCHEMA_REGISTRY_URL: http://schema-registry:8081
       EDU_REDIS_URL: redis://redis:6379/0
       EDU_POSTGRES_DSN: postgresql://lms:lms@postgres:5432/lms
-      EDU_BR45_DSN: postgresql://lms:lms@postgres:5432/lms
       # Public local demonstration tokens only. Set EDU_BR45_AUTH for any shared deployment.
       EDU_BR45_AUTH: '${EDU_BR45_AUTH:-{"instructor-demo":{"id":"instructor-local","role":"instructor","courses":["c-py-201","c-sql-101","c-de-301"]},"advisor-demo":{"id":"advisor-local","role":"advisor","courses":["c-py-201"]},"learner-demo":{"id":"br45-demo-at-risk","role":"learner","courses":["c-py-201"]},"admin-demo":{"id":"admin-local","role":"admin","organisations":["org-acme","org-globex"]},"acme-admin-demo":{"id":"acme-admin-local","role":"admin","organisations":["org-acme"]}}}'
       EDU_S3_ENDPOINT: http://minio:9000
@@ -96,6 +102,8 @@ services:
     image: confluentinc/cp-kafka:7.6.1
     container_name: de261-kafka
     ports: ["9092:9092"]
+    volumes:
+      - kafka-data:/var/lib/kafka/data
     environment:
       KAFKA_NODE_ID: 1
       KAFKA_PROCESS_ROLES: broker,controller
@@ -419,16 +427,22 @@ services:
     profiles: ["br45"]
     build:
       context: .
-      dockerfile: infra/br45/Dockerfile
-    image: de261/br45-spark:local
+      dockerfile: infra/spark/Dockerfile
+    image: de261/spark:local
+    command: ["python", "-m", "edu_platform.br45.streaming"]
     environment:
       <<: *br45-environment
-      EDU_BR45_CHECKPOINT: /checkpoints/br45-v1
+      EDU_BR45_CHECKPOINT: ${EDU_BR45_CHECKPOINT:-/checkpoints/br45-v2}
+      EDU_BR45_LAKEHOUSE_ROOT: ${EDU_BR45_LAKEHOUSE_ROOT:-/checkpoints/lakehouse}
+      EDU_SPARK_MASTER: local[2]
+      PYSPARK_SUBMIT_ARGS: --driver-memory 1g pyspark-shell
     volumes:
       - br45-checkpoints:/checkpoints
     depends_on:
       br45-init:
         condition: service_completed_successfully
+    mem_limit: 2304m
+    cpus: 2
     restart: on-failure:5
 
   # --- BR6 / BR7 / BR8 (opt-in: --profile br678) ------------------------------------------------
@@ -538,6 +552,7 @@ services:
   #       prometheus/grafana for consumer-lag and checkpoint metrics.
 
 volumes:
+  kafka-data:
   postgres-data:
   redis-data:
   minio-data:

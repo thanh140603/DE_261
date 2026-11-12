@@ -84,3 +84,34 @@ class Alert(Output):
     created_at: datetime
     acknowledged_at: datetime | None
     resolved_at: datetime | None
+
+
+class JobStatus(Output):
+    id: str
+    course_id: str
+    window_start: datetime
+    window_end: datetime
+    status: Literal["PENDING", "RUNNING", "SUCCEEDED", "FAILED"]
+    requested_revision: str | None
+    published_revision: str | None
+    publication_id: str | None
+    source_delta_version: int | None
+    engine: Literal["postgres", "spark"]
+    published_engine: Literal["postgres", "spark"] | None
+    completed_at: datetime | None
+    error: str | None
+
+
+class AssessmentPage(Page[Metric]):
+    window_start: datetime
+    window_end: datetime
+    materialization_status: str
+    job_id: str | None
+    computed_at: datetime | None
+    engine: str
+    error: str | None
+    published_revision: str | None
+    pending_revision: str | None
+    publication_id: str | None
+    source_delta_version: int | None
+    stale: bool

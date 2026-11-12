@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Request
 
 from edu_platform.demo import seed
 
@@ -10,13 +10,15 @@ router = APIRouter(tags=["reference"])
 
 
 @router.get("/health")
-async def health() -> dict[str, str]:
-    return {"status": "ok", "mode": "demo"}
+async def health(request: Request) -> dict[str, str]:
+    classroom = bool(getattr(request.app.state, "classroom_enabled", False))
+    return {"status": "ok", "mode": "classroom" if classroom else "demo"}
 
 
 @router.get("/demo/overview")
-async def overview() -> dict[str, Any]:
+async def overview(request: Request) -> dict[str, Any]:
     return {
+        "classroom": bool(getattr(request.app.state, "classroom_enabled", False)),
         "organisations": [{"id": o.id, "name": o.name} for o in seed.ORGANISATIONS],
         "courses": [
             {

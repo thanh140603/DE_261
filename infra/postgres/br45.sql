@@ -1,5 +1,4 @@
 -- Additive migration 001. Public LMS tables and other BRs are untouched.
-BEGIN;
 CREATE SCHEMA IF NOT EXISTS br45;
 CREATE SCHEMA IF NOT EXISTS analytics;
 CREATE TABLE IF NOT EXISTS analytics.schema_migrations (
@@ -139,4 +138,3 @@ DO $$ DECLARE t text; BEGIN
     EXECUTE format('ALTER TABLE br45.%I REPLICA IDENTITY FULL',t);
   END LOOP;
 END $$;
-COMMIT;

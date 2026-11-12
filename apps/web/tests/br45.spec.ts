@@ -62,6 +62,8 @@ test("Invalid credentials display an access error and do not expose learner reco
   await page.getByLabel("advisor access token").fill("incorrect-token");
   await page.getByRole("button", { name: "Connect", exact: true }).click();
   await expect(page.getByText(/Invalid analytics access token/)).toBeVisible();
+  await page.getByRole("button", { name: "Use a different token" }).click();
+  await expect(page.getByLabel("advisor access token")).toBeVisible();
   expect((await request.get("/api/advisor/alerts")).status()).toBe(401);
   expect((await request.get("/api/advisor/alerts", { headers: { Authorization: "Bearer instructor-demo" } })).status()).toBe(403);
   expect((await request.get("/api/advisor/courses/c-sql-101/at-risk-students", { headers: { Authorization: "Bearer advisor-demo" } })).status()).toBe(403);

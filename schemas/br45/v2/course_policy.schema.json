@@ -1,0 +1,137 @@
+{
+  "$defs": {
+    "RiskPolicy": {
+      "additionalProperties": false,
+      "properties": {
+        "inactivity_points": {
+          "default": 35,
+          "maximum": 100,
+          "minimum": 0,
+          "title": "Inactivity Points",
+          "type": "integer"
+        },
+        "missed_points": {
+          "default": 30,
+          "maximum": 100,
+          "minimum": 0,
+          "title": "Missed Points",
+          "type": "integer"
+        },
+        "completion_points": {
+          "default": 20,
+          "maximum": 100,
+          "minimum": 0,
+          "title": "Completion Points",
+          "type": "integer"
+        },
+        "decline_points": {
+          "default": 15,
+          "maximum": 100,
+          "minimum": 0,
+          "title": "Decline Points",
+          "type": "integer"
+        },
+        "medium_threshold": {
+          "default": 30,
+          "maximum": 100,
+          "minimum": 1,
+          "title": "Medium Threshold",
+          "type": "integer"
+        },
+        "high_threshold": {
+          "default": 60,
+          "maximum": 100,
+          "minimum": 1,
+          "title": "High Threshold",
+          "type": "integer"
+        },
+        "critical_threshold": {
+          "default": 80,
+          "maximum": 100,
+          "minimum": 1,
+          "title": "Critical Threshold",
+          "type": "integer"
+        },
+        "alert_threshold": {
+          "default": 60,
+          "maximum": 100,
+          "minimum": 1,
+          "title": "Alert Threshold",
+          "type": "integer"
+        },
+        "cooldown_hours": {
+          "default": 72,
+          "minimum": 0,
+          "title": "Cooldown Hours",
+          "type": "integer"
+        },
+        "minimum_reference_events": {
+          "default": 3,
+          "minimum": 1,
+          "title": "Minimum Reference Events",
+          "type": "integer"
+        }
+      },
+      "title": "RiskPolicy",
+      "type": "object"
+    }
+  },
+  "properties": {
+    "course_id": {
+      "title": "Course Id",
+      "type": "string"
+    },
+    "version": {
+      "title": "Version",
+      "type": "integer"
+    },
+    "parameters": {
+      "$ref": "#/$defs/RiskPolicy"
+    },
+    "created_by": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Created By"
+    },
+    "created_at": {
+      "anyOf": [
+        {
+          "format": "date-time",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Created At"
+    },
+    "effective_after": {
+      "anyOf": [
+        {
+          "format": "date-time",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Effective After"
+    }
+  },
+  "required": [
+    "course_id",
+    "version",
+    "parameters"
+  ],
+  "title": "CoursePolicy",
+  "type": "object"
+}

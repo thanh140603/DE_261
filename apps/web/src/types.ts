@@ -12,7 +12,10 @@ export interface Advisor { id: string; name: string }
 export interface Overview {
   organisations: Organisation[]; courses: Course[]; learners: Learner[];
   assignments: Assignment[]; advisors: Advisor[];
+  classroom?: boolean;
 }
+export interface ClassroomStudent { id: string; name: string; profile: string }
+export interface ClassroomLesson { lesson_id: string; started_at: string; completed_at: string | null }
 
 export interface Stats {
   bronze: number; silver: number; dlq: number; late_events: number;

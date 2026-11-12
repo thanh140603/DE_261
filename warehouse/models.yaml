@@ -40,6 +40,7 @@ layers:
     - {name: silver.test_case_results, sql: silver/test_case_results.sql, strategy: incremental, source: bronze.domain_events, source_filter: "topic = 'grading.sandbox_result.raw.v1'", requirements: [BR4]}
     - {name: silver.risk_scores,    sql: silver/risk_scores.sql,      strategy: incremental, source: bronze.domain_events, source_filter: "topic = 'risk.learner_score.v1'", requirements: [BR5]}
     - {name: silver.dropout_alerts, sql: silver/dropout_alerts.sql,   strategy: incremental, source: bronze.domain_events, source_filter: "topic = 'risk.dropout_alert.v1'", requirements: [BR5]}
+    - {name: silver.dropout_alert_transitions, sql: silver/dropout_alert_transitions.sql, strategy: incremental, source: bronze.domain_events, source_filter: "topic = 'risk.alert_transition.v1'", requirements: [BR5]}
     - {name: silver.notifications,  sql: silver/notifications.sql,    strategy: incremental, source: bronze.domain_events, source_filter: "topic IN ('notification.dispatched.v1', 'notification.suppressed.v1')", requirements: [BR1]}
     - {name: silver.content_sync_events, sql: silver/content_sync_events.sql, strategy: incremental, source: bronze.domain_events, source_filter: "topic IN ('content.updated.v1', 'content.indexed.v1')", requirements: [BR8]}
 

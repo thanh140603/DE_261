@@ -62,18 +62,20 @@ export function AnalyticsAccess({ role, source = "br45", children }: {
   const authorized = !!token && session.data?.role === role && !session.error;
   useEffect(() => { auth.setIdentity(role, authorized ? session.data!.id : null); }, [authorized, session.data, role]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  if (!token) return <SignIn role={role} />;
+  if (!token) return <SignIn role={role} showDatasetToken={source === "br45" && role !== "admin"} />;
   return (
-    <Status loading={session.loading && !session.data} error={session.error}>
-      {session.data && session.data.role !== role
-        ? <Callout tone="bad">This token does not grant {role} access. <Btn variant="link" onClick={() => auth.signOut(role)}>Use a different token</Btn></Callout>
-        : authorized && children(token, session.data!)}
+    <>
+      <Status loading={session.loading && !session.data} error={session.error}>
+        {session.data && session.data.role !== role
+          ? <Callout tone="bad">This token does not grant {role} access. <Btn variant="link" onClick={() => auth.signOut(role)}>Use a different token</Btn></Callout>
+          : authorized && children(token, session.data!)}
+      </Status>
       {session.error && <div className="actions"><Btn onClick={() => auth.signOut(role)}>Use a different token</Btn></div>}
-    </Status>
+    </>
   );
 }
 
-function SignIn({ role }: { role: Role }) {
+function SignIn({ role, showDatasetToken }: { role: Role; showDatasetToken: boolean }) {
   const auth = useAuth();
   const [input, setInput] = useState("");
   return (
@@ -90,13 +92,41 @@ function SignIn({ role }: { role: Role }) {
         </label>
         <Btn type="submit" variant="primary" disabled={!input.trim()}>Connect</Btn>
       </form>
-      <p className="xs muted" style={{ marginTop: 12 }}>Local demo token: <code>{DEMO_TOKEN[role]}</code></p>
+      <p className="xs muted" style={{ marginTop: 12 }}>Default local demo token <code>{DEMO_TOKEN[role]}</code></p>
+      {showDatasetToken && <p className="xs muted">BR45 dataset walkthrough token <code>br45-{role}-demo</code></p>}
     </section>
   );
 }
 
 export function useAnalyticsPolling(reload: () => Promise<void>, ms = 5000) {
   useEffect(() => { const id = window.setInterval(() => void reload(), ms); return () => window.clearInterval(id); }, [reload, ms]);
+}
+
+export function AnalyticsFreshness({ token }: { token: string }) {
+  const diagnostics = useFetch(() => analyticsApi(token).diagnostics(), [token]);
+  useAnalyticsPolling(diagnostics.reload);
+  const heartbeat = diagnostics.data?.state.find((s) => s.key === "cdc_heartbeat");
+  const stream = diagnostics.data?.state.find((s) => s.key === "spark_progress");
+  const risk = diagnostics.data?.state.find((s) => s.key === "risk_refresh");
+  const features = diagnostics.data?.state.find((s) => s.key === "feature_freshness")?.value;
+  const pending = features?.caught_up === false || (diagnostics.data?.outbox_pending ?? 0) > 0;
+  const stale = !heartbeat || !stream || [heartbeat, stream].some((s) => Date.now() - Date.parse(s.updated_at) > 120000);
+  const label = diagnostics.error ? "Pipeline unavailable" : stale ? "Pipeline status is stale"
+    : pending ? "Waiting for committed activity windows" : risk ? "Risk results published" : "Waiting for the first risk evaluation";
+  return <div className={stale || diagnostics.error ? "freshness stale" : "freshness"} role="status">
+    <strong>{label}</strong>
+    <span>Last risk publication · {localDateTime(risk?.updated_at)}</span>
+    <span>CDC heartbeat · {localDateTime(heartbeat?.updated_at)}</span>
+    <span>Pending activity events · {diagnostics.data?.outbox_pending ?? "—"}</span>
+  </div>;
+}
+
+export function Pager({ offset, total, limit = 20, onChange }: { offset: number; total: number; limit?: number; onChange: (offset: number) => void }) {
+  return <div className="toolbar" aria-label="Pagination">
+    <Btn onClick={() => onChange(Math.max(0, offset - limit))} disabled={offset === 0}>Previous</Btn>
+    <span className="small num">{total ? `${offset + 1}–${Math.min(offset + limit, total)} of ${total}` : "0 results"}</span>
+    <Btn onClick={() => onChange(offset + limit)} disabled={offset + limit >= total}>Next</Btn>
+  </div>;
 }
 
 export const localDateTime = (value: string | null | undefined) =>

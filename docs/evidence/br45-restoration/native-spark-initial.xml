@@ -1,0 +1,293 @@
+<?xml version="1.0" encoding="utf-8"?><testsuites name="pytest tests"><testsuite name="pytest" errors="0" failures="2" skipped="0" tests="2" time="70.435" timestamp="2026-11-12T23:01:37.372353+07:00" hostname="anhpd-pc"><testcase classname="tests.integration.test_br45_spark" name="test_delta_correction_preserves_old_snapshot_and_matches_oracle" time="47.170"><failure message="py4j.protocol.Py4JJavaError: An error occurred while calling o58.save.&#10;: org.apache.spark.SparkException: Job aborted due to stage failure: Task 1 in stage 0.0 failed 1 times, most recent failure: Lost task 1.0 in stage 0.0 (TID 1) (localhost executor driver): org.apache.spark.api.python.PythonException: Traceback (most recent call last):&#10;  File &quot;/tmp/de261-spark/pyspark/python/lib/pyspark.zip/pyspark/worker.py&quot;, line 1100, in main&#10;    raise PySparkRuntimeError(&#10;    ...&lt;5 lines&gt;...&#10;    )&#10;pyspark.errors.exceptions.base.PySparkRuntimeError: [PYTHON_VERSION_MISMATCH] Python in worker has different version (3, 14) than that in driver 3.12, PySpark cannot run with different minor versions.&#10;Please check environment variables PYSPARK_PYTHON and PYSPARK_DRIVER_PYTHON are correctly set.&#10;&#10;&#09;at org.apache.spark.api.python.BasePythonRunner$ReaderIterator.handlePythonException(PythonRunner.scala:572)&#10;&#09;at org.apache.spark.api.python.PythonRunner$$anon$3.read(PythonRunner.scala:784)&#10;&#09;at org.apache.spark.api.python.PythonRunner$$anon$3.read(PythonRunner.scala:766)&#10;&#09;at org.apache.spark.api.python.BasePythonRunner$ReaderIterator.hasNext(PythonRunner.scala:525)&#10;&#09;at org.apache.spark.InterruptibleIterator.hasNext(InterruptibleIterator.scala:37)&#10;&#09;at scala.collection.Iterator$$anon$11.hasNext(Iterator.scala:491)&#10;&#09;at scala.collection.Iterator$$anon$10.hasNext(Iterator.scala:460)&#10;&#09;at scala.collection.Iterator$$anon$10.hasNext(Iterator.scala:460)&#10;&#09;at org.apache.spark.sql.catalyst.expressions.GeneratedClass$GeneratedIteratorForCodegenStage1.processNext(Unknown Source)&#10;&#09;at org.apache.spark.sql.execution.BufferedRowIterator.hasNext(BufferedRowIterator.java:43)&#10;&#09;at org.apache.spark.sql.execution.WholeStageCodegenEvaluatorFactory$WholeStageCodegenPartitionEvaluator$$anon$1.hasNext(WholeStageCodegenEvaluatorFactory.scala:43)&#10;&#09;at org.apache.spark.sql.delta.files.DeltaFileFormatWriter$.executeTask(DeltaFileFormatWriter.scala:428)&#10;&#09;at org.apache.spark.sql.delta.files.DeltaFileFormatWriter$.$anonfun$executeWrite$3(DeltaFileFormatWriter.scala:279)&#10;&#09;at org.apache.spark.scheduler.ResultTask.runTask(ResultTask.scala:93)&#10;&#09;at org.apache.spark.TaskContext.runTaskWithListeners(TaskContext.scala:166)&#10;&#09;at org.apache.spark.scheduler.Task.run(Task.scala:141)&#10;&#09;at org.apache.spark.executor.Executor$TaskRunner.$anonfun$run$4(Executor.scala:620)&#10;&#09;at org.apache.spark.util.SparkErrorUtils.tryWithSafeFinally(SparkErrorUtils.scala:64)&#10;&#09;at org.apache.spark.util.SparkErrorUtils.tryWithSafeFinally$(SparkErrorUtils.scala:61)&#10;&#09;at org.apache.spark.util.Utils$.tryWithSafeFinally(Utils.scala:94)&#10;&#09;at org.apache.spark.executor.Executor$TaskRunner.run(Executor.scala:623)&#10;&#09;at java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1144)&#10;&#09;at java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:642)&#10;&#09;at java.base/java.lang.Thread.run(Thread.java:1583)&#10;&#10;Driver stacktrace:&#10;&#09;at org.apache.spark.scheduler.DAGScheduler.failJobAndIndependentStages(DAGScheduler.scala:2856)&#10;&#09;at org.apache.spark.scheduler.DAGScheduler.$anonfun$abortStage$2(DAGScheduler.scala:2792)&#10;&#09;at org.apache.spark.scheduler.DAGScheduler.$anonfun$abortStage$2$adapted(DAGScheduler.scala:2791)&#10;&#09;at scala.collection.mutable.ResizableArray.foreach(ResizableArray.scala:62)&#10;&#09;at scala.collection.mutable.ResizableArray.foreach$(ResizableArray.scala:55)&#10;&#09;at scala.collection.mutable.ArrayBuffer.foreach(ArrayBuffer.scala:49)&#10;&#09;at org.apache.spark.scheduler.DAGScheduler.abortStage(DAGScheduler.scala:2791)&#10;&#09;at org.apache.spark.scheduler.DAGScheduler.$anonfun$handleTaskSetFailed$1(DAGScheduler.scala:1247)&#10;&#09;at org.apache.spark.scheduler.DAGScheduler.$anonfun$handleTaskSetFailed$1$adapted(DAGScheduler.scala:1247)&#10;&#09;at scala.Option.foreach(Option.scala:407)&#10;&#09;at org.apache.spark.scheduler.DAGScheduler.handleTaskSetFailed(DAGScheduler.scala:1247)&#10;&#09;at org.apache.spark.scheduler.DAGSchedulerEventProcessLoop.doOnReceive(DAGScheduler.scala:3060)&#10;&#09;at org.apache.spark.scheduler.DAGSchedulerEventProcessLoop.onReceive(DAGScheduler.scala:2994)&#10;&#09;at org.apache.spark.scheduler.DAGSchedulerEventProcessLoop.onReceive(DAGScheduler.scala:2983)&#10;&#09;at org.apache.spark.util.EventLoop$$anon$1.run(EventLoop.scala:49)&#10;&#09;at org.apache.spark.scheduler.DAGScheduler.runJob(DAGScheduler.scala:989)&#10;&#09;at org.apache.spark.SparkContext.runJob(SparkContext.scala:2393)&#10;&#09;at org.apache.spark.sql.delta.files.DeltaFileFormatWriter$.$anonfun$executeWrite$1(DeltaFileFormatWriter.scala:267)&#10;&#09;at org.apache.spark.sql.delta.files.DeltaFileFormatWriter$.writeAndCommit(DeltaFileFormatWriter.scala:300)&#10;&#09;at org.apache.spark.sql.delta.files.DeltaFileFormatWriter$.executeWrite(DeltaFileFormatWriter.scala:236)&#10;&#09;at org.apache.spark.sql.delta.files.DeltaFileFormatWriter$.write(DeltaFileFormatWriter.scala:216)&#10;&#09;at org.apache.spark.sql.delta.files.TransactionalWrite.$anonfun$writeFiles$2(TransactionalWrite.scala:456)&#10;&#09;at scala.runtime.java8.JFunction0$mcV$sp.apply(JFunction0$mcV$sp.java:23)&#10;&#09;at org.apache.spark.sql.execution.SQLExecution$.$anonfun$withNewExecutionId$6(SQLExecution.scala:125)&#10;&#09;at org.apache.spark.sql.execution.SQLExecution$.withSQLConfPropagated(SQLExecution.scala:201)&#10;&#09;at org.apache.spark.sql.execution.SQLExecution$.$anonfun$withNewExecutionId$1(SQLExecution.scala:108)&#10;&#09;at org.apache.spark.sql.SparkSession.withActive(SparkSession.scala:900)&#10;&#09;at org.apache.spark.sql.execution.SQLExecution$.withNewExecutionId(SQLExecution.scala:66)&#10;&#09;at org.apache.spark.sql.delta.files.TransactionalWrite.writeFiles(TransactionalWrite.scala:414)&#10;&#09;at org.apache.spark.sql.delta.files.TransactionalWrite.writeFiles$(TransactionalWrite.scala:372)&#10;&#09;at org.apache.spark.sql.delta.OptimisticTransaction.writeFiles(OptimisticTransaction.scala:165)&#10;&#09;at org.apache.spark.sql.delta.files.TransactionalWrite.writeFiles(TransactionalWrite.scala:247)&#10;&#09;at org.apache.spark.sql.delta.files.TransactionalWrite.writeFiles$(TransactionalWrite.scala:243)&#10;&#09;at org.apache.spark.sql.delta.OptimisticTransaction.writeFiles(OptimisticTransaction.scala:165)&#10;&#09;at org.apache.spark.sql.delta.files.TransactionalWrite.writeFiles(TransactionalWrite.scala:236)&#10;&#09;at org.apache.spark.sql.delta.files.TransactionalWrite.writeFiles$(TransactionalWrite.scala:233)&#10;&#09;at org.apache.spark.sql.delta.OptimisticTransaction.writeFiles(OptimisticTransaction.scala:165)&#10;&#09;at org.apache.spark.sql.delta.commands.WriteIntoDelta.writeFiles(WriteIntoDelta.scala:377)&#10;&#09;at org.apache.spark.sql.delta.commands.WriteIntoDelta.writeAndReturnCommitData(WriteIntoDelta.scala:340)&#10;&#09;at org.apache.spark.sql.delta.commands.WriteIntoDelta.$anonfun$run$1(WriteIntoDelta.scala:108)&#10;&#09;at org.apache.spark.sql.delta.DeltaLog.withNewTransaction(DeltaLog.scala:241)&#10;&#09;at org.apache.spark.sql.delta.commands.WriteIntoDelta.run(WriteIntoDelta.scala:103)&#10;&#09;at org.apache.spark.sql.delta.sources.DeltaDataSource.createRelation(DeltaDataSource.scala:206)&#10;&#09;at org.apache.spark.sql.execution.datasources.SaveIntoDataSourceCommand.run(SaveIntoDataSourceCommand.scala:48)&#10;&#09;at org.apache.spark.sql.execution.command.ExecutedCommandExec.sideEffectResult$lzycompute(commands.scala:75)&#10;&#09;at org.apache.spark.sql.execution.command.ExecutedCommandExec.sideEffectResult(commands.scala:73)&#10;&#09;at org.apache.spark.sql.execution.command.ExecutedCommandExec.executeCollect(commands.scala:84)&#10;&#09;at org.apache.spark.sql.execution.QueryExecution$$anonfun$eagerlyExecuteCommands$1.$anonfun$applyOrElse$1(QueryExecution.scala:107)&#10;&#09;at org.apache.spark.sql.execution.SQLExecution$.$anonfun$withNewExecutionId$6(SQLExecution.scala:125)&#10;&#09;at org.apache.spark.sql.execution.SQLExecution$.withSQLConfPropagated(SQLExecution.scala:201)&#10;&#09;at org.apache.spark.sql.execution.SQLExecution$.$anonfun$withNewExecutionId$1(SQLExecution.scala:108)&#10;&#09;at org.apache.spark.sql.SparkSession.withActive(SparkSession.scala:900)&#10;&#09;at org.apache.spark.sql.execution.SQLExecution$.withNewExecutionId(SQLExecution.scala:66)&#10;&#09;at org.apache.spark.sql.execution.QueryExecution$$anonfun$eagerlyExecuteCommands$1.applyOrElse(QueryExecution.scala:107)&#10;&#09;at org.apache.spark.sql.execution.QueryExecution$$anonfun$eagerlyExecuteCommands$1.applyOrElse(QueryExecution.scala:98)&#10;&#09;at org.apache.spark.sql.catalyst.trees.TreeNode.$anonfun$transformDownWithPruning$1(TreeNode.scala:461)&#10;&#09;at org.apache.spark.sql.catalyst.trees.CurrentOrigin$.withOrigin(origin.scala:76)&#10;&#09;at org.apache.spark.sql.catalyst.trees.TreeNode.transformDownWithPruning(TreeNode.scala:461)&#10;&#09;at org.apache.spark.sql.catalyst.plans.logical.LogicalPlan.org$apache$spark$sql$catalyst$plans$logical$AnalysisHelper$$super$transformDownWithPruning(LogicalPlan.scala:32)&#10;&#09;at org.apache.spark.sql.catalyst.plans.logical.AnalysisHelper.transformDownWithPruning(AnalysisHelper.scala:267)&#10;&#09;at org.apache.spark.sql.catalyst.plans.logical.AnalysisHelper.transformDownWithPruning$(AnalysisHelper.scala:263)&#10;&#09;at org.apache.spark.sql.catalyst.plans.logical.LogicalPlan.transformDownWithPruning(LogicalPlan.scala:32)&#10;&#09;at org.apache.spark.sql.catalyst.plans.logical.LogicalPlan.transformDownWithPruning(LogicalPlan.scala:32)&#10;&#09;at org.apache.spark.sql.catalyst.trees.TreeNode.transformDown(TreeNode.scala:437)&#10;&#09;at org.apache.spark.sql.execution.QueryExecution.eagerlyExecuteCommands(QueryExecution.scala:98)&#10;&#09;at org.apache.spark.sql.execution.QueryExecution.commandExecuted$lzycompute(QueryExecution.scala:85)&#10;&#09;at org.apache.spark.sql.execution.QueryExecution.commandExecuted(QueryExecution.scala:83)&#10;&#09;at org.apache.spark.sql.execution.QueryExecution.assertCommandExecuted(QueryExecution.scala:142)&#10;&#09;at org.apache.spark.sql.DataFrameWriter.runCommand(DataFrameWriter.scala:869)&#10;&#09;at org.apache.spark.sql.DataFrameWriter.saveToV1Source(DataFrameWriter.scala:391)&#10;&#09;at org.apache.spark.sql.DataFrameWriter.saveInternal(DataFrameWriter.scala:358)&#10;&#09;at org.apache.spark.sql.DataFrameWriter.save(DataFrameWriter.scala:243)&#10;&#09;at java.base/jdk.internal.reflect.NativeMethodAccessorImpl.invoke0(Native Method)&#10;&#09;at java.base/jdk.internal.reflect.NativeMethodAccessorImpl.invoke(NativeMethodAccessorImpl.java:75)&#10;&#09;at java.base/jdk.internal.reflect.DelegatingMethodAccessorImpl.invoke(DelegatingMethodAccessorImpl.java:52)&#10;&#09;at java.base/java.lang.reflect.Method.invoke(Method.java:580)&#10;&#09;at py4j.reflection.MethodInvoker.invoke(MethodInvoker.java:244)&#10;&#09;at py4j.reflection.ReflectionEngine.invoke(ReflectionEngine.java:374)&#10;&#09;at py4j.Gateway.invoke(Gateway.java:282)&#10;&#09;at py4j.commands.AbstractCommand.invokeMethod(AbstractCommand.java:132)&#10;&#09;at py4j.commands.CallCommand.execute(CallCommand.java:79)&#10;&#09;at py4j.ClientServerConnection.waitForCommands(ClientServerConnection.java:182)&#10;&#09;at py4j.ClientServerConnection.run(ClientServerConnection.java:106)&#10;&#09;at java.base/java.lang.Thread.run(Thread.java:1583)&#10;Caused by: org.apache.spark.api.python.PythonException: Traceback (most recent call last):&#10;  File &quot;/tmp/de261-spark/pyspark/python/lib/pyspark.zip/pyspark/worker.py&quot;, line 1100, in main&#10;    raise PySparkRuntimeError(&#10;    ...&lt;5 lines&gt;...&#10;    )&#10;pyspark.errors.exceptions.base.PySparkRuntimeError: [PYTHON_VERSION_MISMATCH] Python in worker has different version (3, 14) than that in driver 3.12, PySpark cannot run with different minor versions.&#10;Please check environment variables PYSPARK_PYTHON and PYSPARK_DRIVER_PYTHON are correctly set.&#10;&#10;&#09;at org.apache.spark.api.python.BasePythonRunner$ReaderIterator.handlePythonException(PythonRunner.scala:572)&#10;&#09;at org.apache.spark.api.python.PythonRunner$$anon$3.read(PythonRunner.scala:784)&#10;&#09;at org.apache.spark.api.python.PythonRunner$$anon$3.read(PythonRunner.scala:766)&#10;&#09;at org.apache.spark.api.python.BasePythonRunner$ReaderIterator.hasNext(PythonRunner.scala:525)&#10;&#09;at org.apache.spark.InterruptibleIterator.hasNext(InterruptibleIterator.scala:37)&#10;&#09;at scala.collection.Iterator$$anon$11.hasNext(Iterator.scala:491)&#10;&#09;at scala.collection.Iterator$$anon$10.hasNext(Iterator.scala:460)&#10;&#09;at scala.collection.Iterator$$anon$10.hasNext(Iterator.scala:460)&#10;&#09;at org.apache.spark.sql.catalyst.expressions.GeneratedClass$GeneratedIteratorForCodegenStage1.processNext(Unknown Source)&#10;&#09;at org.apache.spark.sql.execution.BufferedRowIterator.hasNext(BufferedRowIterator.java:43)&#10;&#09;at org.apache.spark.sql.execution.WholeStageCodegenEvaluatorFactory$WholeStageCodegenPartitionEvaluator$$anon$1.hasNext(WholeStageCodegenEvaluatorFactory.scala:43)&#10;&#09;at org.apache.spark.sql.delta.files.DeltaFileFormatWriter$.executeTask(DeltaFileFormatWriter.scala:428)&#10;&#09;at org.apache.spark.sql.delta.files.DeltaFileFormatWriter$.$anonfun$executeWrite$3(DeltaFileFormatWriter.scala:279)&#10;&#09;at org.apache.spark.scheduler.ResultTask.runTask(ResultTask.scala:93)&#10;&#09;at org.apache.spark.TaskContext.runTaskWithListeners(TaskContext.scala:166)&#10;&#09;at org.apache.spark.scheduler.Task.run(Task.scala:141)&#10;&#09;at org.apache.spark.executor.Executor$TaskRunner.$anonfun$run$4(Executor.scala:620)&#10;&#09;at org.apache.spark.util.SparkErrorUtils.tryWithSafeFinally(SparkErrorUtils.scala:64)&#10;&#09;at org.apache.spark.util.SparkErrorUtils.tryWithSafeFinally$(SparkErrorUtils.scala:61)&#10;&#09;at org.apache.spark.util.Utils$.tryWithSafeFinally(Utils.scala:94)&#10;&#09;at org.apache.spark.executor.Executor$TaskRunner.run(Executor.scala:623)&#10;&#09;at java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1144)&#10;&#09;at java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:642)&#10;&#09;... 1 more">spark = &lt;pyspark.sql.session.SparkSession object at 0x7408f45754f0&gt;
+tmp_path = PosixPath('/tmp/pytest-of-anhpd/pytest-0/test_delta_correction_preserve0')
+
+    def test_delta_correction_preserves_old_snapshot_and_matches_oracle(spark, tmp_path):
+        root = str(tmp_path / "delta")
+        fixture = build("spark-oracle", T)
+        course = fixture["course_id"]
+        rows = fixture["baseline"]
+        changed = fixture["regrade"]["evaluations"][0]
+        # Add a second version and one invalid evaluation alongside the fixture's
+        # complete, missing, retry and infrastructure-error attempts.
+        question = rows["questions"][0]
+        case = rows["test_cases"][0]
+        submission = rows["submissions"][0]
+        evaluation = rows["evaluations"][0]
+        rows["questions"].append(question | {"version": 2})
+        rows["test_cases"].append(case | {"version": 2, "question_version": 2})
+        rows["submissions"].append(submission | {"id": "v2", "question_version": 2})
+        rows["evaluations"].append(
+            evaluation
+            | {
+                "id": "v2-invalid",
+                "submission_id": "v2",
+                "test_case_version": 2,
+                "is_valid_evaluation": False,
+            }
+        )
+
+        def event(table, row, sequence):
+            return (
+                str(sequence),
+                table,
+                row_key(table, row),
+                Decimal(sequence),
+                False,
+                json.dumps(row),
+                None,
+                sequence,
+            )
+
+        events = [
+            event(table, row, sequence)
+            for sequence, (table, row) in enumerate(
+                ((table, row) for table, records in rows.items() for row in records), start=1
+            )
+        ]
+&gt;       lakehouse.initialize(spark, root)
+
+tests/integration/test_br45_spark.py:101:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+src/edu_platform/br45/lakehouse.py:29: in initialize
+    spark.createDataFrame([], ROW_SCHEMA).write.format("delta").save(path)
+/tmp/de261-spark/pyspark/sql/readwriter.py:1463: in save
+    self._jwrite.save(path)
+/tmp/de261-spark/py4j/java_gateway.py:1322: in __call__
+    return_value = get_return_value(
+/tmp/de261-spark/pyspark/errors/exceptions/captured.py:179: in deco
+    return f(*a, **kw)
+           ^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+answer = 'xro59'
+gateway_client = &lt;py4j.clientserver.JavaClient object at 0x7408f537c8f0&gt;
+target_id = 'o58', name = 'save'
+
+    def get_return_value(answer, gateway_client, target_id=None, name=None):
+        """Converts an answer received from the Java gateway into a Python object.
+
+        For example, string representation of integers are converted to Python
+        integer, string representation of objects are converted to JavaObject
+        instances, etc.
+
+        :param answer: the string returned by the Java gateway
+        :param gateway_client: the gateway client used to communicate with the Java
+            Gateway. Only necessary if the answer is a reference (e.g., object,
+            list, map)
+        :param target_id: the name of the object from which the answer comes from
+            (e.g., *object1* in `object1.hello()`). Optional.
+        :param name: the name of the member from which the answer comes from
+            (e.g., *hello* in `object1.hello()`). Optional.
+        """
+        if is_error(answer)[0]:
+            if len(answer) &gt; 1:
+                type = answer[1]
+                value = OUTPUT_CONVERTER[type](answer[2:], gateway_client)
+                if answer[1] == REFERENCE_TYPE:
+&gt;                   raise Py4JJavaError(
+                        "An error occurred while calling {0}{1}{2}.\n".
+                        format(target_id, ".", name), value)
+E                   py4j.protocol.Py4JJavaError: An error occurred while calling o58.save.
+E                   : org.apache.spark.SparkException: Job aborted due to stage failure: Task 1 in stage 0.0 failed 1 times, most recent failure: Lost task 1.0 in stage 0.0 (TID 1) (localhost executor driver): org.apache.spark.api.python.PythonException: Traceback (most recent call last):
+E                     File "/tmp/de261-spark/pyspark/python/lib/pyspark.zip/pyspark/worker.py", line 1100, in main
+E                       raise PySparkRuntimeError(
+E                       ...&lt;5 lines&gt;...
+E                       )
+E                   pyspark.errors.exceptions.base.PySparkRuntimeError: [PYTHON_VERSION_MISMATCH] Python in worker has different version (3, 14) than that in driver 3.12, PySpark cannot run with different minor versions.
+E                   Please check environment variables PYSPARK_PYTHON and PYSPARK_DRIVER_PYTHON are correctly set.
+E
+E                   	at org.apache.spark.api.python.BasePythonRunner$ReaderIterator.handlePythonException(PythonRunner.scala:572)
+E                   	at org.apache.spark.api.python.PythonRunner$$anon$3.read(PythonRunner.scala:784)
+E                   	at org.apache.spark.api.python.PythonRunner$$anon$3.read(PythonRunner.scala:766)
+E                   	at org.apache.spark.api.python.BasePythonRunner$ReaderIterator.hasNext(PythonRunner.scala:525)
+E                   	at org.apache.spark.InterruptibleIterator.hasNext(InterruptibleIterator.scala:37)
+E                   	at scala.collection.Iterator$$anon$11.hasNext(Iterator.scala:491)
+E                   	at scala.collection.Iterator$$anon$10.hasNext(Iterator.scala:460)
+E                   	at scala.collection.Iterator$$anon$10.hasNext(Iterator.scala:460)
+E                   	at org.apache.spark.sql.catalyst.expressions.GeneratedClass$GeneratedIteratorForCodegenStage1.processNext(Unknown Source)
+E                   	at org.apache.spark.sql.execution.BufferedRowIterator.hasNext(BufferedRowIterator.java:43)
+E                   	at org.apache.spark.sql.execution.WholeStageCodegenEvaluatorFactory$WholeStageCodegenPartitionEvaluator$$anon$1.hasNext(WholeStageCodegenEvaluatorFactory.scala:43)
+E                   	at org.apache.spark.sql.delta.files.DeltaFileFormatWriter$.executeTask(DeltaFileFormatWriter.scala:428)
+E                   	at org.apache.spark.sql.delta.files.DeltaFileFormatWriter$.$anonfun$executeWrite$3(DeltaFileFormatWriter.scala:279)
+E                   	at org.apache.spark.scheduler.ResultTask.runTask(ResultTask.scala:93)
+E                   	at org.apache.spark.TaskContext.runTaskWithListeners(TaskContext.scala:166)
+E                   	at org.apache.spark.scheduler.Task.run(Task.scala:141)
+E                   	at org.apache.spark.executor.Executor$TaskRunner.$anonfun$run$4(Executor.scala:620)
+E                   	at org.apache.spark.util.SparkErrorUtils.tryWithSafeFinally(SparkErrorUtils.scala:64)
+E                   	at org.apache.spark.util.SparkErrorUtils.tryWithSafeFinally$(SparkErrorUtils.scala:61)
+E                   	at org.apache.spark.util.Utils$.tryWithSafeFinally(Utils.scala:94)
+E                   	at org.apache.spark.executor.Executor$TaskRunner.run(Executor.scala:623)
+E                   	at java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1144)
+E                   	at java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:642)
+E                   	at java.base/java.lang.Thread.run(Thread.java:1583)
+E
+E                   Driver stacktrace:
+E                   	at org.apache.spark.scheduler.DAGScheduler.failJobAndIndependentStages(DAGScheduler.scala:2856)
+E                   	at org.apache.spark.scheduler.DAGScheduler.$anonfun$abortStage$2(DAGScheduler.scala:2792)
+E                   	at org.apache.spark.scheduler.DAGScheduler.$anonfun$abortStage$2$adapted(DAGScheduler.scala:2791)
+E                   	at scala.collection.mutable.ResizableArray.foreach(ResizableArray.scala:62)
+E                   	at scala.collection.mutable.ResizableArray.foreach$(ResizableArray.scala:55)
+E                   	at scala.collection.mutable.ArrayBuffer.foreach(ArrayBuffer.scala:49)
+E                   	at org.apache.spark.scheduler.DAGScheduler.abortStage(DAGScheduler.scala:2791)
+E                   	at org.apache.spark.scheduler.DAGScheduler.$anonfun$handleTaskSetFailed$1(DAGScheduler.scala:1247)
+E                   	at org.apache.spark.scheduler.DAGScheduler.$anonfun$handleTaskSetFailed$1$adapted(DAGScheduler.scala:1247)
+E                   	at scala.Option.foreach(Option.scala:407)
+E                   	at org.apache.spark.scheduler.DAGScheduler.handleTaskSetFailed(DAGScheduler.scala:1247)
+E                   	at org.apache.spark.scheduler.DAGSchedulerEventProcessLoop.doOnReceive(DAGScheduler.scala:3060)
+E                   	at org.apache.spark.scheduler.DAGSchedulerEventProcessLoop.onReceive(DAGScheduler.scala:2994)
+E                   	at org.apache.spark.scheduler.DAGSchedulerEventProcessLoop.onReceive(DAGScheduler.scala:2983)
+E                   	at org.apache.spark.util.EventLoop$$anon$1.run(EventLoop.scala:49)
+E                   	at org.apache.spark.scheduler.DAGScheduler.runJob(DAGScheduler.scala:989)
+E                   	at org.apache.spark.SparkContext.runJob(SparkContext.scala:2393)
+E                   	at org.apache.spark.sql.delta.files.DeltaFileFormatWriter$.$anonfun$executeWrite$1(DeltaFileFormatWriter.scala:267)
+E                   	at org.apache.spark.sql.delta.files.DeltaFileFormatWriter$.writeAndCommit(DeltaFileFormatWriter.scala:300)
+E                   	at org.apache.spark.sql.delta.files.DeltaFileFormatWriter$.executeWrite(DeltaFileFormatWriter.scala:236)
+E                   	at org.apache.spark.sql.delta.files.DeltaFileFormatWriter$.write(DeltaFileFormatWriter.scala:216)
+E                   	at org.apache.spark.sql.delta.files.TransactionalWrite.$anonfun$writeFiles$2(TransactionalWrite.scala:456)
+E                   	at scala.runtime.java8.JFunction0$mcV$sp.apply(JFunction0$mcV$sp.java:23)
+E                   	at org.apache.spark.sql.execution.SQLExecution$.$anonfun$withNewExecutionId$6(SQLExecution.scala:125)
+E                   	at org.apache.spark.sql.execution.SQLExecution$.withSQLConfPropagated(SQLExecution.scala:201)
+E                   	at org.apache.spark.sql.execution.SQLExecution$.$anonfun$withNewExecutionId$1(SQLExecution.scala:108)
+E                   	at org.apache.spark.sql.SparkSession.withActive(SparkSession.scala:900)
+E                   	at org.apache.spark.sql.execution.SQLExecution$.withNewExecutionId(SQLExecution.scala:66)
+E                   	at org.apache.spark.sql.delta.files.TransactionalWrite.writeFiles(TransactionalWrite.scala:414)
+E                   	at org.apache.spark.sql.delta.files.TransactionalWrite.writeFiles$(TransactionalWrite.scala:372)
+E                   	at org.apache.spark.sql.delta.OptimisticTransaction.writeFiles(OptimisticTransaction.scala:165)
+E                   	at org.apache.spark.sql.delta.files.TransactionalWrite.writeFiles(TransactionalWrite.scala:247)
+E                   	at org.apache.spark.sql.delta.files.TransactionalWrite.writeFiles$(TransactionalWrite.scala:243)
+E                   	at org.apache.spark.sql.delta.OptimisticTransaction.writeFiles(OptimisticTransaction.scala:165)
+E                   	at org.apache.spark.sql.delta.files.TransactionalWrite.writeFiles(TransactionalWrite.scala:236)
+E                   	at org.apache.spark.sql.delta.files.TransactionalWrite.writeFiles$(TransactionalWrite.scala:233)
+E                   	at org.apache.spark.sql.delta.OptimisticTransaction.writeFiles(OptimisticTransaction.scala:165)
+E                   	at org.apache.spark.sql.delta.commands.WriteIntoDelta.writeFiles(WriteIntoDelta.scala:377)
+E                   	at org.apache.spark.sql.delta.commands.WriteIntoDelta.writeAndReturnCommitData(WriteIntoDelta.scala:340)
+E                   	at org.apache.spark.sql.delta.commands.WriteIntoDelta.$anonfun$run$1(WriteIntoDelta.scala:108)
+E                   	at org.apache.spark.sql.delta.DeltaLog.withNewTransaction(DeltaLog.scala:241)
+E                   	at org.apache.spark.sql.delta.commands.WriteIntoDelta.run(WriteIntoDelta.scala:103)
+E                   	at org.apache.spark.sql.delta.sources.DeltaDataSource.createRelation(DeltaDataSource.scala:206)
+E                   	at org.apache.spark.sql.execution.datasources.SaveIntoDataSourceCommand.run(SaveIntoDataSourceCommand.scala:48)
+E                   	at org.apache.spark.sql.execution.command.ExecutedCommandExec.sideEffectResult$lzycompute(commands.scala:75)
+E                   	at org.apache.spark.sql.execution.command.ExecutedCommandExec.sideEffectResult(commands.scala:73)
+E                   	at org.apache.spark.sql.execution.command.ExecutedCommandExec.executeCollect(commands.scala:84)
+E                   	at org.apache.spark.sql.execution.QueryExecution$$anonfun$eagerlyExecuteCommands$1.$anonfun$applyOrElse$1(QueryExecution.scala:107)
+E                   	at org.apache.spark.sql.execution.SQLExecution$.$anonfun$withNewExecutionId$6(SQLExecution.scala:125)
+E                   	at org.apache.spark.sql.execution.SQLExecution$.withSQLConfPropagated(SQLExecution.scala:201)
+E                   	at org.apache.spark.sql.execution.SQLExecution$.$anonfun$withNewExecutionId$1(SQLExecution.scala:108)
+E                   	at org.apache.spark.sql.SparkSession.withActive(SparkSession.scala:900)
+E                   	at org.apache.spark.sql.execution.SQLExecution$.withNewExecutionId(SQLExecution.scala:66)
+E                   	at org.apache.spark.sql.execution.QueryExecution$$anonfun$eagerlyExecuteCommands$1.applyOrElse(QueryExecution.scala:107)
+E                   	at org.apache.spark.sql.execution.QueryExecution$$anonfun$eagerlyExecuteCommands$1.applyOrElse(QueryExecution.scala:98)
+E                   	at org.apache.spark.sql.catalyst.trees.TreeNode.$anonfun$transformDownWithPruning$1(TreeNode.scala:461)
+E                   	at org.apache.spark.sql.catalyst.trees.CurrentOrigin$.withOrigin(origin.scala:76)
+E                   	at org.apache.spark.sql.catalyst.trees.TreeNode.transformDownWithPruning(TreeNode.scala:461)
+E                   	at org.apache.spark.sql.catalyst.plans.logical.LogicalPlan.org$apache$spark$sql$catalyst$plans$logical$AnalysisHelper$$super$transformDownWithPruning(LogicalPlan.scala:32)
+E                   	at org.apache.spark.sql.catalyst.plans.logical.AnalysisHelper.transformDownWithPruning(AnalysisHelper.scala:267)
+E                   	at org.apache.spark.sql.catalyst.plans.logical.AnalysisHelper.transformDownWithPruning$(AnalysisHelper.scala:263)
+E                   	at org.apache.spark.sql.catalyst.plans.logical.LogicalPlan.transformDownWithPruning(LogicalPlan.scala:32)
+E                   	at org.apache.spark.sql.catalyst.plans.logical.LogicalPlan.transformDownWithPruning(LogicalPlan.scala:32)
+E                   	at org.apache.spark.sql.catalyst.trees.TreeNode.transformDown(TreeNode.scala:437)
+E                   	at org.apache.spark.sql.execution.QueryExecution.eagerlyExecuteCommands(QueryExecution.scala:98)
+E                   	at org.apache.spark.sql.execution.QueryExecution.commandExecuted$lzycompute(QueryExecution.scala:85)
+E                   	at org.apache.spark.sql.execution.QueryExecution.commandExecuted(QueryExecution.scala:83)
+E                   	at org.apache.spark.sql.execution.QueryExecution.assertCommandExecuted(QueryExecution.scala:142)
+E                   	at org.apache.spark.sql.DataFrameWriter.runCommand(DataFrameWriter.scala:869)
+E                   	at org.apache.spark.sql.DataFrameWriter.saveToV1Source(DataFrameWriter.scala:391)
+E                   	at org.apache.spark.sql.DataFrameWriter.saveInternal(DataFrameWriter.scala:358)
+E                   	at org.apache.spark.sql.DataFrameWriter.save(DataFrameWriter.scala:243)
+E                   	at java.base/jdk.internal.reflect.NativeMethodAccessorImpl.invoke0(Native Method)
+E                   	at java.base/jdk.internal.reflect.NativeMethodAccessorImpl.invoke(NativeMethodAccessorImpl.java:75)
+E                   	at java.base/jdk.internal.reflect.DelegatingMethodAccessorImpl.invoke(DelegatingMethodAccessorImpl.java:52)
+E                   	at java.base/java.lang.reflect.Method.invoke(Method.java:580)
+E                   	at py4j.reflection.MethodInvoker.invoke(MethodInvoker.java:244)
+E                   	at py4j.reflection.ReflectionEngine.invoke(ReflectionEngine.java:374)
+E                   	at py4j.Gateway.invoke(Gateway.java:282)
+E                   	at py4j.commands.AbstractCommand.invokeMethod(AbstractCommand.java:132)
+E                   	at py4j.commands.CallCommand.execute(CallCommand.java:79)
+E                   	at py4j.ClientServerConnection.waitForCommands(ClientServerConnection.java:182)
+E                   	at py4j.ClientServerConnection.run(ClientServerConnection.java:106)
+E                   	at java.base/java.lang.Thread.run(Thread.java:1583)
+E                   Caused by: org.apache.spark.api.python.PythonException: Traceback (most recent call last):
+E                     File "/tmp/de261-spark/pyspark/python/lib/pyspark.zip/pyspark/worker.py", line 1100, in main
+E                       raise PySparkRuntimeError(
+E                       ...&lt;5 lines&gt;...
+E                       )
+E                   pyspark.errors.exceptions.base.PySparkRuntimeError: [PYTHON_VERSION_MISMATCH] Python in worker has different version (3, 14) than that in driver 3.12, PySpark cannot run with different minor versions.
+E                   Please check environment variables PYSPARK_PYTHON and PYSPARK_DRIVER_PYTHON are correctly set.
+E
+E                   	at org.apache.spark.api.python.BasePythonRunner$ReaderIterator.handlePythonException(PythonRunner.scala:572)
+E                   	at org.apache.spark.api.python.PythonRunner$$anon$3.read(PythonRunner.scala:784)
+E                   	at org.apache.spark.api.python.PythonRunner$$anon$3.read(PythonRunner.scala:766)
+E                   	at org.apache.spark.api.python.BasePythonRunner$ReaderIterator.hasNext(PythonRunner.scala:525)
+E                   	at org.apache.spark.InterruptibleIterator.hasNext(InterruptibleIterator.scala:37)
+E                   	at scala.collection.Iterator$$anon$11.hasNext(Iterator.scala:491)
+E                   	at scala.collection.Iterator$$anon$10.hasNext(Iterator.scala:460)
+E                   	at scala.collection.Iterator$$anon$10.hasNext(Iterator.scala:460)
+E                   	at org.apache.spark.sql.catalyst.expressions.GeneratedClass$GeneratedIteratorForCodegenStage1.processNext(Unknown Source)
+E                   	at org.apache.spark.sql.execution.BufferedRowIterator.hasNext(BufferedRowIterator.java:43)
+E                   	at org.apache.spark.sql.execution.WholeStageCodegenEvaluatorFactory$WholeStageCodegenPartitionEvaluator$$anon$1.hasNext(WholeStageCodegenEvaluatorFactory.scala:43)
+E                   	at org.apache.spark.sql.delta.files.DeltaFileFormatWriter$.executeTask(DeltaFileFormatWriter.scala:428)
+E                   	at org.apache.spark.sql.delta.files.DeltaFileFormatWriter$.$anonfun$executeWrite$3(DeltaFileFormatWriter.scala:279)
+E                   	at org.apache.spark.scheduler.ResultTask.runTask(ResultTask.scala:93)
+E                   	at org.apache.spark.TaskContext.runTaskWithListeners(TaskContext.scala:166)
+E                   	at org.apache.spark.scheduler.Task.run(Task.scala:141)
+E                   	at org.apache.spark.executor.Executor$TaskRunner.$anonfun$run$4(Executor.scala:620)
+E                   	at org.apache.spark.util.SparkErrorUtils.tryWithSafeFinally(SparkErrorUtils.scala:64)
+E                   	at org.apache.spark.util.SparkErrorUtils.tryWithSafeFinally$(SparkErrorUtils.scala:61)
+E                   	at org.apache.spark.util.Utils$.tryWithSafeFinally(Utils.scala:94)
+E                   	at org.apache.spark.executor.Executor$TaskRunner.run(Executor.scala:623)
+E                   	at java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1144)
+E                   	at java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:642)
+E                   	... 1 more
+
+/tmp/de261-spark/py4j/protocol.py:326: Py4JJavaError</failure></testcase><testcase classname="tests.integration.test_br45_spark" name="test_spark_window_checkpoint_deduplicates_after_restart" time="20.365"><failure message="KeyError: ('s', 'c', datetime.datetime(2026, 10, 16, 0, 0))">spark = &lt;pyspark.sql.session.SparkSession object at 0x7408f45754f0&gt;
+tmp_path = PosixPath('/tmp/pytest-of-anhpd/pytest-0/test_spark_window_checkpoint_d0')
+
+    def test_spark_window_checkpoint_deduplicates_after_restart(spark, tmp_path):
+        source = tmp_path / "input"
+        source.mkdir()
+        checkpoint = str(tmp_path / "checkpoint")
+        observed: dict[tuple[str, str, Any], int] = {}
+
+        def write(file: str, *events: dict[str, Any]) -&gt; None:
+            # File streaming is used here to verify state with the same Spark operators.
+            draft = Path(tmp_path, file)
+            draft.write_text("".join(json.dumps(event) + "\n" for event in events))
+            draft.replace(source / file)
+
+        def event(event_id: str, days: int, delta: int = 1) -&gt; dict[str, Any]:
+            return {
+                "event_id": event_id,
+                "student_id": "s",
+                "course_id": "c",
+                "event_time": (T - timedelta(days=days)).isoformat(),
+                "delta": delta,
+            }
+
+        def store(batch, _batch_id):
+            for row in batch.collect():
+                observed[(row.student_id, row.course_id, row.window.end)] = row.activity_count
+
+        def query():
+            events = spark.readStream.schema(
+                "event_id string,student_id string,course_id string,event_time timestamp,delta int"
+            ).json(str(source))
+            return (
+                activity_windows(events, AnalyticsSettings(slide_seconds=86400))
+                .writeStream.outputMode("update")
+                .foreachBatch(store)
+                .option("checkpointLocation", checkpoint)
+                .trigger(availableNow=True)
+                .start()
+            )
+
+        first = event("before", 2)
+        earlier = event("older", 4)
+        boundary = T.replace(hour=0)
+        write("01.json", first, first, earlier)
+        first_query = query()
+        assert first_query.awaitTermination(90)
+&gt;       assert observed[("s", "c", boundary.replace(tzinfo=None))] == 2
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       KeyError: ('s', 'c', datetime.datetime(2026, 10, 16, 0, 0))
+
+tests/integration/test_br45_spark.py:174: KeyError</failure></testcase></testsuite></testsuites>

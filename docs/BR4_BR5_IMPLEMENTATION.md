@@ -1,5 +1,7 @@
 # What was implemented for BR4 and BR5
 
+See the [November restoration report and runbook](BR45_RESTORATION.md) for the current implementation and verification status. The October report follows.
+
 Implemented and evaluated on 16 October 2026. This document describes the code
 delivered in this change, its executed checks, and how to reproduce the results.
 All demonstration and benchmark records are explicitly synthetic.

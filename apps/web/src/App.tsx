@@ -1,5 +1,6 @@
 import { Navigate, Route, Routes } from "react-router-dom";
 import { Shell } from "./components/Shell";
+import { LearnerAccess } from "./components/ClassroomStudent";
 import { LearnerHome } from "./views/learner/LearnerHome";
 import { CodeLab } from "./views/learner/CodeLab";
 import { AssessmentHealth } from "./views/instructor/AssessmentHealth";
@@ -15,8 +16,10 @@ export default function App() {
     <Shell>
       <Routes>
         <Route path="/" element={<Navigate to="/learner" replace />} />
-        <Route path="/learner" element={<LearnerHome />} />
-        <Route path="/learner/code-lab" element={<CodeLab />} />
+        <Route element={<LearnerAccess />}>
+          <Route path="/learner" element={<LearnerHome />} />
+          <Route path="/learner/code-lab" element={<CodeLab />} />
+        </Route>
         <Route path="/instructor" element={<Navigate to="/instructor/assessments" replace />} />
         <Route path="/instructor/assessments" element={<AssessmentHealth />} />
         <Route path="/instructor/videos" element={<VideoInsights />} />

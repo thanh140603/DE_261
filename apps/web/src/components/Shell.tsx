@@ -1,6 +1,7 @@
 import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import { Link, NavLink, useLocation, useNavigate } from "react-router-dom";
-import { formatTime, initials, relTime } from "../hooks";
+import { api } from "../api";
+import { formatTime, initials, relTime, useAction } from "../hooks";
 import { notificationIcon, useNotifications } from "../notifications";
 import { useStore } from "../store";
 import type { SseMessage } from "../types";
@@ -130,7 +131,11 @@ function AreaMenu({ ws }: { ws: WorkspaceDef }) {
 }
 
 function TopBar({ ws, page, onMenu, menuOpen }: { ws: WorkspaceDef; page: PageDef; onMenu?: () => void; menuOpen: boolean }) {
-  const { overview, learnerId, setLearnerId } = useStore();
+  const { overview, learnerId, setLearnerId, student, setStudent } = useStore();
+  const logout = useAction(async () => {
+    await api.classroom.logout();
+    setStudent(null);
+  });
   const auth = useAuth();
   const identity = ws.role ? auth.identity(ws.role) : null;
   const learners = overview?.learners ?? [];
@@ -149,7 +154,7 @@ function TopBar({ ws, page, onMenu, menuOpen }: { ws: WorkspaceDef; page: PageDe
       </nav>
       <div className="top-tools">
         <LiveEvents />
-        {ws.id === "learner" && (
+        {ws.id === "learner" && overview && !overview.classroom && (
           <>
             <label className="act-as"><span>Student</span>
               <select className="top-select" aria-label="Learner" value={learnerId} onChange={(e) => setLearnerId(e.target.value)}>
@@ -158,6 +163,15 @@ function TopBar({ ws, page, onMenu, menuOpen }: { ws: WorkspaceDef; page: PageDe
             </label>
             <Bell learnerId={learnerId} />
             <span className="avatar" title={learnerName}>{learnerName ? initials(learnerName) : "?"}</span>
+          </>
+        )}
+        {ws.id === "learner" && overview?.classroom && student && (
+          <>
+            <span className="session-chip"><Icon name="shield" />{student.name}</span>
+            <Bell learnerId={student.id} />
+            <button className="icon-btn" aria-label="Sign out" title="Sign out"
+              disabled={logout.pending} onClick={() => void logout.run()}><Icon name="logout" /></button>
+            {logout.error && <span role="alert">{logout.error}</span>}
           </>
         )}
         {ws.role && identity && (

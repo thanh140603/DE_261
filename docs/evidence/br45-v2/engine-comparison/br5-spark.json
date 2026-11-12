@@ -1,0 +1,229 @@
+{
+  "suite": "BR5",
+  "engine": "spark",
+  "run_id": "20261109a-spark",
+  "measured_at": "2026-11-09T15:39:40.681467+00:00",
+  "python": "3.12.3",
+  "platform": "Linux-7.0.0-42-generic-x86_64-with-glibc2.39",
+  "poll_seconds": 0.25,
+  "engine_version": "3.5.1",
+  "cpu_limit": 2,
+  "memory_limit_gib": 2,
+  "publish_interval_seconds": 5,
+  "flink_checkpoint_seconds": null,
+  "window_hours": 168,
+  "window_slide_hours": 1,
+  "allowed_lateness_days": 21,
+  "trials": [
+    {
+      "phase": "correctness",
+      "records": 0,
+      "repeat": 1,
+      "status": "PASS",
+      "checks": [
+        "duplicate",
+        "out_of_order",
+        "half_open_window",
+        "signed_retraction"
+      ]
+    },
+    {
+      "phase": "warmup",
+      "records": 1000,
+      "repeat": 0,
+      "status": "PASS",
+      "elapsed_ms": 12751.868087998446,
+      "events_per_second": 78.41988272613645,
+      "input_messages": 1026
+    },
+    {
+      "phase": "processing",
+      "records": 1000,
+      "repeat": 1,
+      "status": "PASS",
+      "elapsed_ms": 8933.419996003067,
+      "events_per_second": 111.9392125801108,
+      "input_messages": 1026
+    },
+    {
+      "phase": "processing",
+      "records": 1000,
+      "repeat": 2,
+      "status": "PASS",
+      "elapsed_ms": 10302.263884997956,
+      "events_per_second": 97.06604404262922,
+      "input_messages": 1026
+    },
+    {
+      "phase": "processing",
+      "records": 1000,
+      "repeat": 3,
+      "status": "PASS",
+      "elapsed_ms": 10697.371893998934,
+      "events_per_second": 93.4809044603736,
+      "input_messages": 1026
+    },
+    {
+      "phase": "warmup",
+      "records": 10000,
+      "repeat": 0,
+      "status": "PASS",
+      "elapsed_ms": 16797.178807999444,
+      "events_per_second": 595.3380692261028,
+      "input_messages": 10116
+    },
+    {
+      "phase": "processing",
+      "records": 10000,
+      "repeat": 1,
+      "status": "PASS",
+      "elapsed_ms": 13275.4727620013,
+      "events_per_second": 753.2688424191745,
+      "input_messages": 10116
+    },
+    {
+      "phase": "processing",
+      "records": 10000,
+      "repeat": 2,
+      "status": "PASS",
+      "elapsed_ms": 4821.954265000386,
+      "events_per_second": 2073.847956747304,
+      "input_messages": 10116
+    },
+    {
+      "phase": "processing",
+      "records": 10000,
+      "repeat": 3,
+      "status": "PASS",
+      "elapsed_ms": 5041.092815998127,
+      "events_per_second": 1983.6968619709928,
+      "input_messages": 10116
+    },
+    {
+      "phase": "warmup",
+      "records": 100000,
+      "repeat": 0,
+      "status": "PASS",
+      "elapsed_ms": 36765.59264000025,
+      "events_per_second": 2719.9343957045844,
+      "input_messages": 101016
+    },
+    {
+      "phase": "processing",
+      "records": 100000,
+      "repeat": 1,
+      "status": "PASS",
+      "elapsed_ms": 17604.591924002307,
+      "events_per_second": 5680.336155003902,
+      "input_messages": 101016
+    },
+    {
+      "phase": "processing",
+      "records": 100000,
+      "repeat": 2,
+      "status": "PASS",
+      "elapsed_ms": 41521.38588899834,
+      "events_per_second": 2408.397452516063,
+      "input_messages": 101016
+    },
+    {
+      "phase": "processing",
+      "records": 100000,
+      "repeat": 3,
+      "status": "PASS",
+      "elapsed_ms": 34590.69864900084,
+      "events_per_second": 2890.9505706930413,
+      "input_messages": 101016
+    },
+    {
+      "phase": "e2e_alert",
+      "records": 4,
+      "repeat": 1,
+      "status": "PASS",
+      "elapsed_ms": 14552.823067002464,
+      "score": 100
+    },
+    {
+      "phase": "e2e_recovery",
+      "records": 4,
+      "repeat": 1,
+      "status": "PASS",
+      "elapsed_ms": 4893.494039999496,
+      "score": 50
+    },
+    {
+      "phase": "e2e_alert",
+      "records": 4,
+      "repeat": 2,
+      "status": "PASS",
+      "elapsed_ms": 8194.142499996815,
+      "score": 100
+    },
+    {
+      "phase": "e2e_recovery",
+      "records": 4,
+      "repeat": 2,
+      "status": "PASS",
+      "elapsed_ms": 9939.403055999719,
+      "score": 50
+    },
+    {
+      "phase": "e2e_alert",
+      "records": 4,
+      "repeat": 3,
+      "status": "PASS",
+      "elapsed_ms": 13295.876652002335,
+      "score": 100
+    },
+    {
+      "phase": "e2e_recovery",
+      "records": 4,
+      "repeat": 3,
+      "status": "PASS",
+      "elapsed_ms": 7919.271154998569,
+      "score": 50
+    },
+    {
+      "phase": "e2e_alert",
+      "records": 4,
+      "repeat": 4,
+      "status": "PASS",
+      "elapsed_ms": 9270.667172997491,
+      "score": 100
+    },
+    {
+      "phase": "e2e_recovery",
+      "records": 4,
+      "repeat": 4,
+      "status": "PASS",
+      "elapsed_ms": 4964.728120001382,
+      "score": 50
+    },
+    {
+      "phase": "e2e_alert",
+      "records": 4,
+      "repeat": 5,
+      "status": "PASS",
+      "elapsed_ms": 13400.738048003404,
+      "score": 100
+    },
+    {
+      "phase": "e2e_recovery",
+      "records": 4,
+      "repeat": 5,
+      "status": "PASS",
+      "elapsed_ms": 12613.652269999875,
+      "score": 50
+    },
+    {
+      "phase": "restart",
+      "records": 0,
+      "repeat": 1,
+      "status": "PASS",
+      "checks": [
+        "checkpoint_window_state",
+        "checkpoint_event_identity"
+      ]
+    }
+  ]
+}

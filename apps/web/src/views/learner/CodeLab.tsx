@@ -11,8 +11,10 @@ import { SubmissionBadge } from "./LearnerHome";
 const ACTIVE = new Set(["queued", "running"]);
 
 export function CodeLab() {
-  const { overview, learnerId } = useStore();
-  const assignments = overview?.assignments ?? [];
+  const { overview, learnerId, student } = useStore();
+  const enrollment = useFetch(student ? () => api.learner.recommendations(learnerId) : null, [student, learnerId]);
+  const assignments = (overview?.assignments ?? []).filter((assignment) => !student
+    || enrollment.data?.enrolled.some((course) => course.course_id === assignment.course_id));
   const [params, setParams] = useSearchParams();
   const linked = params.get("submission");
   const [assignmentId, setAssignmentId] = usePersisted("lab-assignment", "");
@@ -33,10 +35,15 @@ export function CodeLab() {
   const shown = current && current.assignment_id === assignmentId ? current : attempts[0] ?? null;
 
   const [code, setCode] = useState("");
+  const request = useRef<{ assignmentId: string; code: string; id: string } | null>(null);
   useEffect(() => { setCode(assignment?.starter_code ?? ""); }, [assignment?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const submit = useAction(async () => {
-    const r = await api.learner.submit(learnerId, assignmentId, code);
+    if (student && (request.current?.assignmentId !== assignmentId || request.current.code !== code)) {
+      request.current = { assignmentId, code, id: crypto.randomUUID() };
+    }
+    const r = await api.learner.submit(learnerId, assignmentId, code, request.current?.id);
+    request.current = null;
     setPollError(null);
     setParams({}, { replace: true });
     setCurrent({ id: r.submission_id, learner_id: learnerId, assignment_id: assignmentId, language: assignment?.language ?? "", status: "queued", attempt_number: attempts.length + 1, submitted_at: new Date().toISOString(), result: null, feedback: null });
@@ -55,6 +62,8 @@ export function CodeLab() {
   }, [current]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const course = overview?.courses.find((c) => c.id === assignment?.course_id);
+  const completed = !!student && enrollment.data?.enrolled.some((item) =>
+    item.course_id === assignment?.course_id && item.completed);
   const grading = current && ACTIVE.has(current.status);
   return (
     <>
@@ -76,11 +85,14 @@ export function CodeLab() {
             <Editor value={code} onChange={setCode} language={assignment?.language ?? "python"} />
           </div>
           <div className="actions">
-            <Btn variant="primary" icon="upload" onClick={() => void submit.run()} pending={submit.pending} disabled={!assignmentId || !code.trim() || !!grading}>Submit code</Btn>
+            <Btn variant="primary" icon="upload" onClick={() => void submit.run()} pending={submit.pending}
+              disabled={!assignment || !code.trim() || !!grading || completed}>Submit code</Btn>
             <Btn variant="ghost" onClick={() => setCode(assignment?.starter_code ?? "")}>Reset to starter code</Btn>
             {grading && <span className="grading" aria-live="polite"><span className="spinner" />{current!.status === "queued" ? "Queued for the sandbox" : "Running tests in the sandbox"}…</span>}
           </div>
           {submit.error && <div className="mt"><Callout tone="bad">{submit.error}</Callout></div>}
+          {enrollment.error && <div className="mt"><Callout tone="bad">{enrollment.error}</Callout></div>}
+          {completed && <p className="small muted">This course is complete. You can review your earlier attempts.</p>}
           {pollError && <div className="mt"><Callout tone="bad">{pollError}</Callout></div>}
         </Card>
         <Feedback submission={shown} />

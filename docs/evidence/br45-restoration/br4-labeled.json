@@ -1,0 +1,57 @@
+{
+  "synthetic": true,
+  "engine": "postgres",
+  "independent_source_oracle": "PASS",
+  "status": "PASS",
+  "scenarios": [
+    {
+      "scenario": "suspicious test",
+      "expected": "SUSPICIOUS_TEST_CASE",
+      "observed": "SUSPICIOUS_TEST_CASE",
+      "label": 1,
+      "predicted": 1,
+      "students": 24,
+      "pass_rate": 0.08333333333333333,
+      "lead_days": 0
+    },
+    {
+      "scenario": "difficult question",
+      "expected": "LOW_PASS_RATE",
+      "observed": "LOW_PASS_RATE",
+      "label": 1,
+      "predicted": 1,
+      "students": 24,
+      "pass_rate": 0.16666666666666666,
+      "lead_days": 0
+    },
+    {
+      "scenario": "normal assessment",
+      "expected": "NORMAL",
+      "observed": "NORMAL",
+      "label": 0,
+      "predicted": 0,
+      "students": 24,
+      "pass_rate": 0.8571428571428571,
+      "lead_days": 0
+    },
+    {
+      "scenario": "insufficient sample",
+      "expected": "INSUFFICIENT_DATA",
+      "observed": "INSUFFICIENT_DATA",
+      "label": 0,
+      "predicted": 0,
+      "students": 5,
+      "pass_rate": 1.0,
+      "lead_days": 0
+    }
+  ],
+  "detection": {
+    "tp": 2,
+    "fp": 0,
+    "tn": 2,
+    "fn": 0,
+    "precision": 1.0,
+    "recall": 1.0,
+    "f1": 1.0
+  }
+}

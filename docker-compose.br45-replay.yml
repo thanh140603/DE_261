@@ -1,0 +1,4 @@
+services:
+  demo:
+    environment:
+      EDU_BR45_MODE: replay

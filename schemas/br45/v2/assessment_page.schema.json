@@ -1,0 +1,274 @@
+{
+  "$defs": {
+    "Metric": {
+      "additionalProperties": true,
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "course_id": {
+          "title": "Course Id",
+          "type": "string"
+        },
+        "assignment_id": {
+          "title": "Assignment Id",
+          "type": "string"
+        },
+        "question_id": {
+          "title": "Question Id",
+          "type": "string"
+        },
+        "question_version": {
+          "title": "Question Version",
+          "type": "integer"
+        },
+        "total_valid_evaluations": {
+          "title": "Total Valid Evaluations",
+          "type": "integer"
+        },
+        "passed_evaluations": {
+          "title": "Passed Evaluations",
+          "type": "integer"
+        },
+        "failed_evaluations": {
+          "title": "Failed Evaluations",
+          "type": "integer"
+        },
+        "unique_students": {
+          "title": "Unique Students",
+          "type": "integer"
+        },
+        "invalid_evaluations": {
+          "title": "Invalid Evaluations",
+          "type": "integer"
+        },
+        "infrastructure_errors": {
+          "title": "Infrastructure Errors",
+          "type": "integer"
+        },
+        "pass_rate": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Pass Rate"
+        },
+        "state": {
+          "enum": [
+            "NORMAL",
+            "INSUFFICIENT_DATA",
+            "LOW_PASS_RATE",
+            "SUSPICIOUS_TEST_CASE",
+            "NEEDS_REVIEW"
+          ],
+          "title": "State",
+          "type": "string"
+        },
+        "severity": {
+          "enum": [
+            "INFO",
+            "MEDIUM",
+            "HIGH"
+          ],
+          "title": "Severity",
+          "type": "string"
+        },
+        "reasons": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Reasons",
+          "type": "array"
+        },
+        "threshold": {
+          "title": "Threshold",
+          "type": "number"
+        },
+        "minimum_students": {
+          "title": "Minimum Students",
+          "type": "integer"
+        },
+        "window_start": {
+          "format": "date-time",
+          "title": "Window Start",
+          "type": "string"
+        },
+        "window_end": {
+          "format": "date-time",
+          "title": "Window End",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "course_id",
+        "assignment_id",
+        "question_id",
+        "question_version",
+        "total_valid_evaluations",
+        "passed_evaluations",
+        "failed_evaluations",
+        "unique_students",
+        "invalid_evaluations",
+        "infrastructure_errors",
+        "pass_rate",
+        "state",
+        "severity",
+        "reasons",
+        "threshold",
+        "minimum_students",
+        "window_start",
+        "window_end"
+      ],
+      "title": "Metric",
+      "type": "object"
+    }
+  },
+  "additionalProperties": true,
+  "properties": {
+    "items": {
+      "items": {
+        "$ref": "#/$defs/Metric"
+      },
+      "title": "Items",
+      "type": "array"
+    },
+    "total": {
+      "title": "Total",
+      "type": "integer"
+    },
+    "offset": {
+      "title": "Offset",
+      "type": "integer"
+    },
+    "limit": {
+      "title": "Limit",
+      "type": "integer"
+    },
+    "window_start": {
+      "format": "date-time",
+      "title": "Window Start",
+      "type": "string"
+    },
+    "window_end": {
+      "format": "date-time",
+      "title": "Window End",
+      "type": "string"
+    },
+    "materialization_status": {
+      "title": "Materialization Status",
+      "type": "string"
+    },
+    "job_id": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Job Id"
+    },
+    "computed_at": {
+      "anyOf": [
+        {
+          "format": "date-time",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Computed At"
+    },
+    "engine": {
+      "title": "Engine",
+      "type": "string"
+    },
+    "error": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Error"
+    },
+    "published_revision": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Published Revision"
+    },
+    "pending_revision": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Pending Revision"
+    },
+    "publication_id": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Publication Id"
+    },
+    "source_delta_version": {
+      "anyOf": [
+        {
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Source Delta Version"
+    },
+    "stale": {
+      "title": "Stale",
+      "type": "boolean"
+    }
+  },
+  "required": [
+    "items",
+    "total",
+    "offset",
+    "limit",
+    "window_start",
+    "window_end",
+    "materialization_status",
+    "job_id",
+    "computed_at",
+    "engine",
+    "error",
+    "published_revision",
+    "pending_revision",
+    "publication_id",
+    "source_delta_version",
+    "stale"
+  ],
+  "title": "AssessmentPage",
+  "type": "object"
+}

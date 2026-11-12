@@ -1,0 +1,22 @@
+{
+  "properties": {
+    "idempotency_key": {
+      "maxLength": 200,
+      "minLength": 1,
+      "title": "Idempotency Key",
+      "type": "string"
+    },
+    "note": {
+      "maxLength": 2000,
+      "minLength": 1,
+      "title": "Note",
+      "type": "string"
+    }
+  },
+  "required": [
+    "idempotency_key",
+    "note"
+  ],
+  "title": "NoteBody",
+  "type": "object"
+}
