@@ -24,6 +24,8 @@ Trình duyệt & 7 & Playwright: drill-down của giảng viên và cập nhật
 
 Ngoài ra, mã Python qua \code{ruff} và \code{mypy}; kho dữ liệu chạy cả 10 cổng chất lượng sau mỗi lần build.
 
+Bảng~\ref{tab:tests} ghi số test trình duyệt của lần chạy có đủ dịch vụ. Sau khi thiết kế lại giao diện (Chương~\ref{chap:ui}), bộ test này được chạy lại khi chỉ có Postgres, Redis, MinIO, Hive Metastore, Trino và Kafka đang chạy. Kết quả: 3 test đạt, 1 test tự bỏ qua vì OpenSearch không chạy, và 3 test dừng ở bước cần các container \code{br45-cdc}, \code{br45-stream} và \code{demo}. Ở cả ba test này, các bước giao diện trước đó đều qua. Lần chạy cũng tìm ra và sửa một lỗi về vai trò truy cập của hàng đợi cố vấn (Mục~\ref{sec:ui-test}).
+
 \section{Kiểm chứng nghiệp vụ}
 
 Mỗi BR có ít nhất một kịch bản dữ liệu được thiết kế để kiểm tra đúng quy tắc nghiệp vụ, rồi được quan sát đến tận giao diện.
