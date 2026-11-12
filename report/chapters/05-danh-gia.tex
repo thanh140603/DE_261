@@ -286,37 +286,37 @@ alternative columnar đáng chuyển khi mart lớn, dù vận hành thêm một
 
 \subsection{Feature store: Redis và PostgreSQL}
 
-ScyllaDB single-node được chạy với 1GB memory và 1 vCPU; đây là disk-backed
-alternative thật, không phải PostgreSQL thay thế. Redis bị giới hạn \code{maxmemory=512mb},
-\code{allkeys-lru} để mô phỏng working set vượt RAM. Bảng~\ref{tab:alt-feature}
-cho thấy điều kiện mất tính đầy đủ của Redis.
+Hai engine nhận cùng 1M/5M feature key, cùng payload JSON và cùng 10 batch
+1.000 key. Redis chạy với \code{maxmemory=4gb}, không evict; PostgreSQL lưu
+JSONB trên disk. Mỗi bên có một lần warm-up và ba lần lặp, đo p50 của một batch
+1.000 lookup.
 
 \begin{table}[H]
 \centering\small
-\caption{Feature store: load, lookup p50 và hit rate}
+\caption{Feature store: cùng dữ liệu, cùng batch 1.000 key}
 \label{tab:alt-feature}
 \begin{tabular}{@{}rrrrrr@{}}
 \toprule
-\textbf{Keys} & \textbf{Redis load} & \textbf{PG load} & \textbf{Redis p50} & \textbf{PG p50} & \textbf{Redis hit} \\
+\textbf{Keys} & \textbf{Redis load} & \textbf{PG load} & \textbf{Redis p50/batch} & \textbf{PG p50/batch} & \textbf{Hit} \\
 \midrule
-1.000.000 & 24,43 s & 20,27 s & 161,8 ms & 548,5 ms & 100,0\% \\
-5.000.000 & 131,38 s & 99,43 s & 147,9 ms & 657,9 ms & 21,68\% \\
+1.000.000 & 23,10 s & 20,27 s & 6,93 ms & 51,37 ms & 100\% \\
+5.000.000 & 121,79 s & 99,43 s & 8,13 ms & 66,54 ms & 100\% \\
 \bottomrule
 \end{tabular}
 \end{table}
 
-Ở 1M khoá, Redis dùng 477,7 MiB và vẫn dưới 512 MiB. Ở 5M khoá, Redis chạm trần,
-đã evict 3.926.686 khoá và chỉ phục vụ 21,68\% lookup; p50 Redis vì vậy không đại diện
-cho toàn bộ working set. PostgreSQL giữ đủ 100\% nhưng chậm hơn khoảng 4 lần cho cùng
-batch 10.000 lookup. ScyllaDB single-node nạp 1M khoá trong 142,23 s và đạt p50
-5.021,6 ms cho cùng batch, hit rate 100\%; với 5M khoá, thời gian nạp là 702,39 s
-và p50 là 5.004,6 ms, vẫn giữ đủ 100\% working set. Cấu hình 1--2GB chưa tối ưu
-cho latency single-node, nhưng ScyllaDB giữ được toàn bộ dữ liệu trên disk.
+Ở 5M, Redis dùng 2,38 GB và PostgreSQL dùng 2,85 GB; cả hai giữ đủ 100\% key.
+Redis nhanh hơn khoảng 7,4 lần ở 1M và 8,2 lần ở 5M cho cùng batch. Đây là so
+sánh cùng setup: cùng dữ liệu, cùng kích thước batch, cùng số round trip.
 
-\textbf{Kết luận.} Redis đúng khi working set nằm trong RAM; khi vượt ngưỡng, cần
-scale-out hoặc disk-backed store. ScyllaDB single-node giữ đủ dữ liệu nhưng không
-nhanh hơn PostgreSQL ở cấu hình 1GB; giá trị của nó là scale ngang, không phải
-giảm latency một nút.
+\textbf{Memory pressure.} Khi Redis bị cap 512 MB, 5M key vượt dung lượng:
+Redis evict 3.926.686 key, chỉ còn 21,68\% key và p50 147,9 ms. Con số đó không
+dùng để so trực tiếp với PostgreSQL vì 78\% request là miss; nó chỉ chứng minh
+Redis cần đủ RAM hoặc scale-out.
+
+\textbf{Kết luận.} Với working set vừa RAM, Redis nhanh hơn PostgreSQL rõ rệt.
+Khi vượt RAM, Redis mất tính đầy đủ; cần tăng RAM, dùng Redis Cluster hoặc
+disk-backed store. PostgreSQL vẫn phù hợp khi cần giao dịch/nguồn sự thật.
 
 \subsection{Streaming: Spark Structured Streaming và Flink}
 
@@ -355,7 +355,7 @@ một thí nghiệm SLA riêng, không dùng các số filter này để đại 
 \textbf{Vai trò} & \textbf{Alternative} & \textbf{Điều kiện chuyển} \\
 \midrule
 OLAP mart & ClickHouse/StarRocks & Mart vượt vài triệu dòng, query p95 > 1--2 s hoặc nhiều dashboard đồng thời \\
-Feature serving & ScyllaDB/Cassandra & Working set vượt RAM, cần scale ngang/multi-DC; Redis evict làm mất tính đầy đủ \\
+Feature serving & Redis Cluster/disk store & Working set vượt RAM; Redis evict làm mất tính đầy đủ \\
 Streaming & Flink & Cần p95 < 1 s, state lớn hoặc checkpoint Spark không đáp ứng SLA \\
 \bottomrule
 \end{tabularx}

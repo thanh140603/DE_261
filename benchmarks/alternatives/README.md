@@ -8,11 +8,11 @@ It is **not** part of the BR1–BR8 serving path.
 | Pair | Current | Alternative | Status |
 |---|---|---|---|
 | B. OLAP | PostgreSQL | ClickHouse (StarRocks fallback) | measured 1M/5M/10M |
-| C. Feature store | Redis (512 MiB cap) | PostgreSQL disk store (ScyllaDB fallback) | measured 1M/5M |
-| A. Streaming | Spark Structured Streaming | Flink | not completed on this host |
+| C. Feature store | Redis (4 GiB, full data) | PostgreSQL JSONB | measured 1M/5M |
+| A. Streaming | Spark Structured Streaming | Flink 1.19 SQL | measured 100k filter |
 
 See [results/summary.md](results/summary.md) for numbers and caveats.
-StarRocks/ScyllaDB/Flink numbers must not be inferred from the fallbacks.
+StarRocks/Flink numbers must not be inferred from the fallbacks.
 
 ## Data
 
@@ -39,21 +39,19 @@ docker compose -f docker-compose.yml -f docker-compose.bench.yml \
 ```bash
 docker compose -f docker-compose.yml -f docker-compose.bench.yml \
   --profile bench-kv up -d bench-redis
-.venv/bin/python -m benchmarks.alternatives.feature_store.load_redis data/features-1m.jsonl
+.venv/bin/python -m benchmarks.alternatives.feature_store.load_redis \
+  data/features-1m.jsonl --port 6381
 .venv/bin/python -m benchmarks.alternatives.feature_store.load_postgres data/features-1m.jsonl
-.venv/bin/python -m benchmarks.alternatives.feature_store.load_scylla data/features-1m.jsonl
-.venv/bin/python -m benchmarks.alternatives.feature_store.workload --rows 1000000 --label 1m
-.venv/bin/python -m benchmarks.alternatives.feature_store.query_scylla --rows 1000000 --label 1m
+.venv/bin/python -m benchmarks.alternatives.feature_store.workload_fair \
+  --rows 1000000 --label 1m
 ```
 
-ScyllaDB needs a larger cgroup than the default 1 GiB image reservation:
-
-```bash
-docker compose -f docker-compose.yml -f docker-compose.bench.yml \
-  --profile bench-kv up -d bench-scylla
-```
+`bench-redis-full` uses 4 GiB and must hold the complete working set for the
+fair comparison. `bench-redis` (512 MiB) remains only for the separate memory
+pressure experiment.
 
 ## Streaming
 
-Not run. A Flink Kafka SQL connector JAR is required and is not committed;
-see `docs/ALTERNATIVE_STACK_BENCHMARK_PLAN.md` for the follow-up checklist.
+Measured on a 100k-event filter: see `results/streaming/summary.json`.
+The Flink Kafka SQL connector JAR is not committed; download it before rerunning
+the Flink side.

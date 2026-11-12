@@ -24,32 +24,27 @@ marts, but its row-store aggregation degrades quickly with scale. ClickHouse
 (MPP/columnar) is clearly better from 1M rows onward. StarRocks was not installed
 on this host; ClickHouse is the documented fallback, not a StarRocks measurement.
 
-## Pair C — Redis vs PostgreSQL disk store (feature serving)
+## Pair C — Redis vs PostgreSQL (feature serving)
 
-Same `features` JSONL, 1M/5M keys. Redis is capped at **512 MiB** with
-`allkeys-lru` to simulate a working set larger than memory; PostgreSQL stores
-the payload as JSONB on disk. Workload: ~10,000 distinct point lookups per run,
-3 measured runs after 1 warm-up.
+Fair setup: same 1M/5M feature keys, same JSON payload, same 10 batches of 1,000
+lookups, same number of round trips and 3 measured runs after 1 warm-up. Redis
+uses `maxmemory=4gb` and does not evict; PostgreSQL stores JSONB on disk.
 
-| Keys | Redis load | PostgreSQL load | Redis p50 | PG p50 | Redis hit rate | Evicted |
-|---:|---:|---:|---:|---:|---:|---:|
-| 1,000,000 | 24.43 s | 20.27 s | 161.8 ms | 548.5 ms | 100.0% | 0 |
-| 5,000,000 | 131.38 s | 99.43 s | 147.9 ms | 657.9 ms | 21.68% | 3,926,686 |
+| Keys | Redis load | PG load | Redis p50/batch | PG p50/batch | Hit rate |
+|---:|---:|---:|---:|---:|---:|
+| 1,000,000 | 23.10 s | 20.27 s | 6.93 ms | 51.37 ms | 100% |
+| 5,000,000 | 121.79 s | 99.43 s | 8.13 ms | 66.54 ms | 100% |
 
-Redis at 1M keys uses 477.7 MiB and fits under the cap. At 5M keys it reaches
-512 MiB, evicts 3.93M keys and serves only 21.68% of lookups; its latency number
-therefore excludes most misses. PostgreSQL serves 100% of keys but is ~4× slower
-per 10k-key batch.
+At 5M, Redis uses 2.38 GB and PostgreSQL uses 2,849 MB. Redis is ~7.4× faster
+at 1M and ~8.2× faster at 5M for the same batch.
 
-ScyllaDB 6.2 single-node loaded 1M keys in 142.23 s (1 GB memory, 1 vCPU) and
-5M keys in 702.39 s (2 GB memory, 2 vCPU). The 10k-key batch had p50 5,021.6 ms
-at 1M and 5,004.6 ms at 5M, with 100% hit rate at both sizes. At this single-node
-size it does not beat PostgreSQL; its value is keeping the complete working set
-on disk and scaling horizontally.
+**Memory-pressure side experiment:** with Redis capped at 512 MB, 5M keys do not
+fit. Redis evicts 3.93M keys, serves only 21.68% of lookups and its p50 of
+147.9 ms is therefore not comparable with PostgreSQL serving 100% of keys.
 
-**Conclusion.** Redis is correct and fast only while the working set fits in its
-memory budget. At 5M keys the capped instance cannot serve the feature store
-completely; a disk-backed store is required or Redis must be scaled out.
+**Conclusion.** Redis is substantially faster while the complete working set
+fits in RAM. When it does not fit, Redis requires more memory, Redis Cluster or
+a disk-backed store.
 
 ## Pair A — Spark Structured Streaming vs Flink
 
