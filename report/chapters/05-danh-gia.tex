@@ -318,9 +318,9 @@ scale-out hoặc disk-backed store. ScyllaDB vẫn là alternative cần đo ti�
 
 \todofix{chưa chạy Flink streaming; cần connector Kafka và job ổn định}
 
-Flink 1.19 có trong image nhưng connector Kafka và job streaming chưa được kiểm chứng
-trên máy 7,4 GiB. Không đưa số liệu streaming vào báo cáo cho đến khi chạy cùng một
-topic Kafka với Spark và đo event-to-alert p50/p95.
+Flink 1.19 có trong image, connector Kafka đã được tải và job SQL đã submit; tuy nhiên
+output/watermark/checkpoint chưa ổn định trên máy 7,4 GiB. Không đưa số liệu streaming
+vào báo cáo cho đến khi chạy cùng một topic Kafka với Spark và đo event-to-alert p50/p95.
 
 \subsection{Khi nào chuyển stack}
 
