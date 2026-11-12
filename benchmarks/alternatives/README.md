@@ -41,7 +41,16 @@ docker compose -f docker-compose.yml -f docker-compose.bench.yml \
   --profile bench-kv up -d bench-redis
 .venv/bin/python -m benchmarks.alternatives.feature_store.load_redis data/features-1m.jsonl
 .venv/bin/python -m benchmarks.alternatives.feature_store.load_postgres data/features-1m.jsonl
+.venv/bin/python -m benchmarks.alternatives.feature_store.load_scylla data/features-1m.jsonl
 .venv/bin/python -m benchmarks.alternatives.feature_store.workload --rows 1000000 --label 1m
+.venv/bin/python -m benchmarks.alternatives.feature_store.query_scylla --rows 1000000 --label 1m
+```
+
+ScyllaDB needs a larger cgroup than the default 1 GiB image reservation:
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.bench.yml \
+  --profile bench-kv up -d bench-scylla
 ```
 
 ## Streaming

@@ -23,6 +23,27 @@ services:
       retries: 20
     restart: "no"
 
+  bench-scylla:
+    profiles: ["bench-kv"]
+    image: scylladb/scylla:6.2
+    container_name: de261-bench-scylla
+    ports: ["9042:9042"]
+    command:
+      - --smp
+      - "1"
+      - --memory
+      - 1G
+      - --overprovisioned
+      - "1"
+      - --developer-mode
+      - "1"
+      - --api-address
+      - 0.0.0.0
+    volumes:
+      - scylla-bench-data:/var/lib/scylla
+    mem_limit: 3g
+    restart: "no"
+
   bench-clickhouse:
     profiles: ["bench-olap"]
     image: clickhouse/clickhouse-server:24.8-alpine
@@ -49,3 +70,4 @@ services:
 
 volumes:
   clickhouse-bench-data:
+  scylla-bench-data:
