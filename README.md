@@ -158,6 +158,18 @@ topics with `edu infra create-topics infra/kafka/topics.yaml`, and start
 schedules (Airflow DAGs in `orchestration/airflow/dags`) and replay procedures:
 `docs/architecture/pipelines.md`; warehouse model: `docs/architecture/data-warehouse.md`.
 
+To run those schedules, start Airflow (it builds on the Spark image and pulls in the
+metastore and MinIO it needs), then unpause DAGs at <http://localhost:8088> (`admin` / `admin`):
+
+```bash
+docker compose build spark
+docker compose --profile airflow up -d --build airflow-webserver airflow-scheduler
+docker compose exec airflow-scheduler airflow dags unpause medallion_daily
+docker compose exec airflow-scheduler airflow dags backfill analytics_marts_daily -s 2026-10-10 -e 2026-10-17
+```
+
+See `orchestration/airflow/README.md` for the DAG list and local settings.
+
 The other demo pipelines run in one process with in-memory adapters behind
 the same ports the production entrypoints use (ADR 0008). What to show:
 

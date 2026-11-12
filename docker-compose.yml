@@ -17,6 +17,7 @@
 #   trino           SQL warehouse over Delta (read-only)     http://localhost:8091
 #   flink-*         streaming engine                         http://localhost:8082
 #   spark, spark-worker  batch engine (Spark 3.5 + Delta)    http://localhost:8080
+#   airflow-*       batch schedules (opt-in, --profile airflow) http://localhost:8088 (AIRFLOW_PORT)
 #
 # Lakehouse warehouse (ADR 0010-0012, docs/architecture/pipelines.md):
 #   docker compose run --rm spark-jobs edu warehouse bootstrap
@@ -534,8 +535,119 @@ services:
     command: ["edu", "stream", "telemetry-live"]
     restart: unless-stopped
 
-  # TODO: airflow (webserver + scheduler running orchestration/airflow/dags),
-  #       prometheus/grafana for consumer-lag and checkpoint metrics.
+  # --- orchestration: Airflow (opt-in: --profile airflow) -------------------------------------
+  # Schedules the batch cadences in orchestration/airflow/dags (medallion hourly, marts daily,
+  # engagement weekly, features on gold refresh, maintenance, content re-index). LocalExecutor:
+  # the scheduler runs each task as `edu ...` with the same Spark/Delta runtime as spark-jobs,
+  # so Spark stays the only Delta writer (ADR 0011). Start only what it needs:
+  #   docker compose build spark                                  # base image of de261/airflow
+  #   docker compose --profile airflow up -d --build airflow-webserver airflow-scheduler
+  #   open http://localhost:8088 (admin / admin; AIRFLOW_ADMIN_USER / AIRFLOW_ADMIN_PASSWORD)
+  # DAGs start paused. One task slot (default_pool = 1) runs one Spark job at a time, which keeps
+  # the stack inside an 8 GB Docker VM. content_embedding also needs the br678 services.
+  airflow-db:
+    image: postgres:16-alpine
+    container_name: de261-airflow-db
+    profiles: ["airflow"]
+    environment:
+      POSTGRES_USER: airflow
+      POSTGRES_PASSWORD: airflow
+      POSTGRES_DB: airflow
+    volumes:
+      - airflow-db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U airflow -d airflow"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  airflow-init:
+    # Idempotent: migrate the metadata DB, create the admin user once.
+    build:
+      context: .
+      dockerfile: infra/airflow/Dockerfile
+    image: de261/airflow:local
+    profiles: ["airflow"]
+    environment: &airflow-env
+      <<: *lakehouse-env
+      EDU_SPARK_MASTER: local[2]
+      EDU_SPARK_SHUFFLE_PARTITIONS: "4"
+      AIRFLOW__CORE__EXECUTOR: LocalExecutor
+      AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:airflow@airflow-db:5432/airflow
+      AIRFLOW__CORE__DAGS_FOLDER: /opt/airflow/dags
+      AIRFLOW__CORE__LOAD_EXAMPLES: "false"
+      AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION: "true"
+      AIRFLOW__CORE__PARALLELISM: "2"
+      AIRFLOW__CORE__MAX_ACTIVE_TASKS_PER_DAG: "1"
+      AIRFLOW__CORE__DEFAULT_POOL_TASK_SLOT_COUNT: "1"
+      AIRFLOW__SCHEDULER__DAG_DIR_LIST_INTERVAL: "30"
+      AIRFLOW__WEBSERVER__WORKERS: "2"
+      AIRFLOW__WEBSERVER__EXPOSE_CONFIG: "false"
+      # Local only: set real values for any shared deployment.
+      AIRFLOW__WEBSERVER__SECRET_KEY: ${AIRFLOW_SECRET_KEY:-de261-local-only}
+      AIRFLOW_ADMIN_USER: ${AIRFLOW_ADMIN_USER:-admin}
+      AIRFLOW_ADMIN_PASSWORD: ${AIRFLOW_ADMIN_PASSWORD:-admin}
+    volumes: &airflow-volumes
+      - ./orchestration/airflow/dags:/opt/airflow/dags:ro
+      - ./src:/app/src:ro                      # edu is installed editable: tasks run current code
+      - ./warehouse:/app/warehouse:ro
+      - airflow-logs:/opt/airflow/logs
+    depends_on:
+      airflow-db:
+        condition: service_healthy
+    command:
+      - sh
+      - -c
+      - >-
+        airflow db migrate &&
+        (airflow users list -o plain | grep -qw "$${AIRFLOW_ADMIN_USER}" ||
+        airflow users create --role Admin --username "$${AIRFLOW_ADMIN_USER}"
+        --password "$${AIRFLOW_ADMIN_PASSWORD}" --firstname Data --lastname Platform
+        --email admin@example.com)
+    healthcheck:
+      disable: true
+
+  airflow-scheduler:
+    image: de261/airflow:local
+    container_name: de261-airflow-scheduler
+    hostname: airflow-scheduler
+    profiles: ["airflow"]
+    environment: *airflow-env
+    volumes: *airflow-volumes
+    depends_on:
+      airflow-init:
+        condition: service_completed_successfully
+      hive-metastore:
+        condition: service_healthy
+    command: ["airflow", "scheduler"]
+    healthcheck:
+      test: ["CMD-SHELL", "airflow jobs check --job-type SchedulerJob --hostname \"$${HOSTNAME}\""]
+      interval: 30s
+      timeout: 30s
+      retries: 5
+      start_period: 60s
+    restart: unless-stopped
+
+  airflow-webserver:
+    image: de261/airflow:local
+    container_name: de261-airflow-webserver
+    profiles: ["airflow"]
+    ports: ["${AIRFLOW_PORT:-8088}:8080"]
+    environment: *airflow-env
+    volumes: *airflow-volumes
+    depends_on:
+      airflow-init:
+        condition: service_completed_successfully
+    command: ["airflow", "webserver"]
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8080/health', timeout=5)"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+    restart: unless-stopped
+
+  # TODO: prometheus/grafana for consumer-lag and checkpoint metrics.
 
 volumes:
   postgres-data:
@@ -544,3 +656,5 @@ volumes:
   metastore-db-data:
   br45-checkpoints:
   opensearch-data:
+  airflow-db-data:
+  airflow-logs:
