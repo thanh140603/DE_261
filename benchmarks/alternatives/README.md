@@ -1,7 +1,7 @@
 # Alternative-stack benchmarks
 
 Local-only harness for comparing the selected stack with scale-oriented alternatives.
-It is **not** part of the BR1–BR8 serving path. Full handoff: [RUNBOOK.md](RUNBOOK.md).
+It is **not** part of the BR1–BR8 serving path.
 
 ## Status
 
