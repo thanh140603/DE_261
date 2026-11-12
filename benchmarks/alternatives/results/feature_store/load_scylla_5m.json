@@ -1,0 +1,6 @@
+{
+  "engine": "scylla",
+  "file": "benchmarks/alternatives/data/features-5m.jsonl",
+  "rows": 5000000,
+  "seconds": 702.392
+}

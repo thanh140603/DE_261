@@ -41,11 +41,15 @@ Redis at 1M keys uses 477.7 MiB and fits under the cap. At 5M keys it reaches
 therefore excludes most misses. PostgreSQL serves 100% of keys but is ~4× slower
 per 10k-key batch.
 
+ScyllaDB 6.2 single-node loaded 1M keys in 142.23 s (1 GB memory, 1 vCPU) and
+5M keys in 702.39 s (2 GB memory, 2 vCPU). The 10k-key batch had p50 5,021.6 ms
+at 1M and 5,004.6 ms at 5M, with 100% hit rate at both sizes. At this single-node
+size it does not beat PostgreSQL; its value is keeping the complete working set
+on disk and scaling horizontally.
+
 **Conclusion.** Redis is correct and fast only while the working set fits in its
 memory budget. At 5M keys the capped instance cannot serve the feature store
 completely; a disk-backed store is required or Redis must be scaled out.
-ScyllaDB was not run on this host; PostgreSQL is the disk-backed reference, not
-a ScyllaDB measurement.
 
 ## Pair A — Spark Structured Streaming vs Flink
 

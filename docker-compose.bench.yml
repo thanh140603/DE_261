@@ -30,9 +30,9 @@ services:
     ports: ["9042:9042"]
     command:
       - --smp
-      - "1"
+      - "2"
       - --memory
-      - 1G
+      - 2G
       - --overprovisioned
       - "1"
       - --developer-mode
@@ -41,7 +41,7 @@ services:
       - 0.0.0.0
     volumes:
       - scylla-bench-data:/var/lib/scylla
-    mem_limit: 3g
+    mem_limit: 4g
     restart: "no"
 
   bench-clickhouse:
