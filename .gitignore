@@ -60,3 +60,4 @@ docs/ALTERNATIVE_STACK_BENCHMARK_PLAN.md
 # Local benchmark data (5 GiB files are not committed)
 benchmarks/alternatives/data/
 docs/REPORT_6PART_REWRITE_PLAN.md
+benchmarks/alternatives/streaming/jars/
