@@ -225,5 +225,6 @@ Stop without losing data: `docker compose --profile br678 stop`. `down -v` delet
 - **Live events carry no content version**: on a re-cut day the overlay mixes both versions.
 - **Single-node services** (Trino, OpenSearch, Kafka) with local-only security settings
   (OpenSearch security plugin disabled); production needs TLS, auth and replication.
-- **Warehouse cadence**: marts are daily; `br678-init` builds once, Airflow DAGs
-  (`orchestration/airflow`) remain the production schedule and are not in compose.
+- **Warehouse cadence**: marts are daily; `br678-init` builds once, and the Airflow DAGs
+  (`orchestration/airflow`, compose profile `airflow`) keep them on schedule. They start
+  paused and run one Spark task at a time to fit a single-node Docker VM.
