@@ -1,15 +1,17 @@
 % =====================================================================
-%  Preamble — compile with XeLaTeX (tectonic, latexmk -xelatex, Overleaf: XeLaTeX)
+%  Preamble — biên dịch bằng XeLaTeX (tectonic, latexmk -xelatex, Overleaf: XeLaTeX)
 % =====================================================================
-\usepackage[a4paper,top=2.5cm,bottom=2.5cm,left=3cm,right=2cm,headheight=15pt]{geometry}
+\usepackage[a4paper,top=2.9cm,bottom=2.5cm,left=3cm,right=2cm,
+  headheight=40pt,headsep=13pt,footskip=27pt]{geometry}
 % Extra stretch so long English terms and code names in Vietnamese text never push past the margin
 \setlength{\emergencystretch}{1.5em}
 
 \PassOptionsToPackage{obeyspaces,spaces}{url}
 
-% ---- Fonts and Vietnamese ----
+% ---- Phông chữ và tiếng Việt ----
 \usepackage{fontspec}
 \usepackage[vietnamese]{babel}
+\addto\captionsvietnamese{\renewcommand{\refname}{Tài liệu tham khảo}}
 \setmainfont{texgyretermes}[
   Extension=.otf, UprightFont=*-regular, BoldFont=*-bold,
   ItalicFont=*-italic, BoldItalicFont=*-bolditalic]
@@ -20,7 +22,7 @@
   Extension=.otf, UprightFont=*-regular, BoldFont=*-bold,
   ItalicFont=*-italic, BoldItalicFont=*-bolditalic, Scale=0.95]
 
-% ---- Layout ----
+% ---- Bố cục ----
 \usepackage{setspace}
 \setstretch{1.3}
 \setlength{\parskip}{4pt}
@@ -28,7 +30,7 @@
 \usepackage{enumitem}
 \setlist{itemsep=2pt,topsep=4pt,parsep=0pt}
 
-% ---- Colours (validated chart palette: slots 1-4 + status colours) ----
+% ---- Màu (bảng màu biểu đồ đã kiểm định: slot 1-4 + trạng thái) ----
 \usepackage[table]{xcolor}
 \definecolor{brand}{HTML}{1F7A5A}
 \definecolor{brandsoft}{HTML}{E2F1EA}
@@ -47,36 +49,35 @@
 \definecolor{silver}{HTML}{8D99A6}
 \definecolor{gold}{HTML}{C9A227}
 
-% TODO marker for the report rewrite. Remove before submission.
-\DeclareRobustCommand{\todofix}[1]{\textcolor{red}{\textbf{[TODO: #1]}}}
-
-% ---- Chapter / section headings ----
+% ---- Tiêu đề mục ----
 \usepackage{titlesec}
-\titleformat{\chapter}[display]
-  {\normalfont\bfseries\color{ink}}
-  {\large\color{brand}\MakeUppercase{\chaptertitlename}\ \thechapter}
-  {6pt}
-  {\LARGE\MakeUppercase}
-  [\vspace{4pt}{\color{brand}\titlerule[1.2pt]}]
-\titlespacing*{\chapter}{0pt}{-10pt}{18pt}
-\titleformat{\section}{\normalfont\large\bfseries\color{ink}}{\thesection}{0.8em}{}
-\titleformat{\subsection}{\normalfont\normalsize\bfseries\color{ink}}{\thesubsection}{0.8em}{}
-\titleformat{\subsubsection}{\normalfont\normalsize\bfseries\itshape\color{ink}}{\thesubsubsection}{0.8em}{}
+\titleformat{\section}{\normalfont\Large\bfseries}{\thesection}{0.8em}{}
+\titleformat{\subsection}{\normalfont\large\bfseries}{\thesubsection}{0.8em}{}
+\titleformat{\subsubsection}{\normalfont\normalsize\bfseries}{\thesubsubsection}{0.8em}{}
+\titleformat{\paragraph}[block]{\normalfont\normalsize\bfseries\itshape}{}{0em}{}
+\titlespacing*{\paragraph}{0pt}{1.25ex plus 0.3ex minus 0.2ex}{0.5ex}
 \setcounter{secnumdepth}{3}
-\setcounter{tocdepth}{2}
+\setcounter{tocdepth}{3}
 
-% ---- Header / footer ----
+% ---- Đầu trang / chân trang ----
 \usepackage{fancyhdr}
+\usepackage{lastpage}
+\newcommand{\hcmutlogo}{figures/hcmut-logo.png}
 \pagestyle{fancy}
 \fancyhf{}
-\fancyhead[L]{\small\color{muted}\coursenameEn{} --- \projectcode}
-\fancyhead[R]{\small\color{muted}\nouppercase{\leftmark}}
-\fancyfoot[C]{\small\thepage}
-\renewcommand{\headrulewidth}{0.4pt}
-\renewcommand{\headrule}{{\color{rulegray}\hrule width\headwidth height\headrulewidth}}
-\fancypagestyle{plain}{\fancyhf{}\fancyfoot[C]{\small\thepage}\renewcommand{\headrulewidth}{0pt}}
+\fancyhead[L]{%
+  \raisebox{-0.5\height}{\includegraphics[width=8mm]{\hcmutlogo}}%
+  \hspace{0.75em}%
+  \raisebox{-0.5\height}{\small\bfseries
+    \shortstack[l]{Trường Đại học Bách khoa TP. Hồ Chí Minh\\
+      Khoa Khoa học và Kỹ thuật Máy tính}}%
+}
+\fancyfoot[L]{\footnotesize Kỹ thuật dữ liệu (\coursecode) -- \semester}
+\fancyfoot[R]{\footnotesize Trang \thepage/\pageref*{LastPage}}
+\renewcommand{\headrulewidth}{0.3pt}
+\renewcommand{\footrulewidth}{0.3pt}
 
-% ---- Tables, figures, source code ----
+% ---- Bảng, hình, mã nguồn ----
 \usepackage{graphicx}
 \usepackage{float}
 \usepackage{booktabs}
@@ -105,13 +106,13 @@
 }
 \lstdefinelanguage{yaml}{keywords={true,false,null}, comment=[l]\#, morestring=[b]"}
 
-% ---- Diagrams and charts ----
+% ---- Sơ đồ, biểu đồ ----
 \usepackage{tikz}
 \usetikzlibrary{positioning,arrows.meta,shapes.geometric,shapes.misc,fit,backgrounds,calc,decorations.pathreplacing}
 \usepackage{pgfplots}
 \pgfplotsset{compat=1.18}
 \usepgfplotslibrary{groupplots}
-\pgfkeys{/pgf/number format/.cd, use comma, 1000 sep={.}}  % 1.000 and 92.1 using Vietnamese separators
+\pgfkeys{/pgf/number format/.cd, use comma, 1000 sep={.}}  % 1.000 và 92,1 theo cách viết tiếng Việt
 \pgfplotsset{
   every axis/.append style={
     font=\small, axis line style={rulegray}, tick style={rulegray},
@@ -129,20 +130,20 @@
   grplabel/.style={font=\scriptsize\bfseries\color{muted}, anchor=south west},
 }
 
-% ---- Note boxes ----
+% ---- Hộp ghi chú ----
 \usepackage[most]{tcolorbox}
 \newtcolorbox{notebox}[1][]{colback=brandsoft, colframe=brand, boxrule=0.6pt, arc=2pt,
   left=6pt, right=6pt, top=4pt, bottom=4pt, fonttitle=\bfseries\small, #1}
 \newtcolorbox{warnbox}[1][]{colback=sfour!10, colframe=sfour!80!black, boxrule=0.6pt, arc=2pt,
   left=6pt, right=6pt, top=4pt, bottom=4pt, fonttitle=\bfseries\small, #1}
 
-% ---- Utility commands ----
+% ---- Lệnh tiện ích ----
 \newcommand{\br}[1]{\textbf{\color{sone}BR#1}}
 \newcommand{\en}[1]{\textit{#1}}
 
-% ---- Links ----
+% ---- Liên kết ----
 \usepackage[hidelinks,unicode]{hyperref}
 \usepackage{bookmark}
-\hypersetup{pdftitle={Báo cáo DE\_261 --- Nền tảng kỹ thuật dữ liệu cho giáo dục trực tuyến}}
+\hypersetup{pdftitle={Báo cáo Project --- Nền tảng kỹ thuật dữ liệu cho giáo dục trực tuyến}}
 \usepackage{xurl}
-\DeclareUrlCommand\code{\def\UrlFont{\small\ttfamily}}  % allow line breaks at . _ /
+\DeclareUrlCommand\code{\def\UrlFont{\small\ttfamily}}  % ngắt dòng được tại . _ /

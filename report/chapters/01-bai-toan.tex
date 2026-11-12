@@ -1,62 +1,64 @@
 \chapter{Bài toán, stakeholders và yêu cầu}
 \label{chap:requirements}
 
-Phần này trình bày bối cảnh, các bên liên quan, yêu cầu nghiệp vụ và nguồn dữ liệu của nền tảng.
+\section{Giới thiệu}
 
-\section{Bối cảnh}
+\subsection{Bối cảnh}
 
-Các nền tảng giáo dục trực tuyến quy mô lớn sinh ra dữ liệu liên tục và đa dạng. Mỗi lần người học mở bài giảng, tua video, nộp bài lập trình hay thảo luận đều để lại dấu vết. Hệ thống quản lý học tập (LMS) ghi nhận tiến độ, bài nộp và điểm số. Kho học liệu gồm transcript video, slide và tài liệu PDF được cập nhật theo từng phiên bản. Các sandbox chấm bài sinh ra nhật ký thực thi chi tiết. Những dữ liệu này có giá trị lớn cho \en{learning analytics}: giúp giảng viên biết bài tập nào có vấn đề, giúp cố vấn học tập phát hiện sớm người học có nguy cơ bỏ dở, và giúp người học nhận phản hồi và gợi ý kịp thời.
+Nền tảng giáo dục trực tuyến quy mô lớn sinh ra dữ liệu liên tục và đa dạng. Mỗi thao tác của người học --- mở bài giảng, tua video, nộp bài lập trình, thảo luận --- đều để lại dấu vết. LMS ghi nhận tiến độ, bài nộp và điểm số; kho học liệu chứa transcript, slide và PDF được cập nhật theo phiên bản; sandbox chấm bài sinh ra nhật ký thực thi chi tiết. Dữ liệu này có giá trị lớn cho \en{learning analytics}: giúp giảng viên phát hiện bài tập có vấn đề, cố vấn nhận diện sớm nguy cơ bỏ học và người học nhận phản hồi kịp thời.
 
-Tuy vậy, các nguồn này rời rạc, khác nhau về định dạng, tốc độ và độ tin cậy. Telemetry từ thiết bị di động có thể đến trễ nhiều ngày hoặc sai thứ tự. Thay đổi trong cơ sở dữ liệu giao dịch phải được bắt theo đúng thứ tự mà không làm nặng hệ thống production. Tài liệu học tập cần được chia đoạn và quản lý phiên bản. Dữ liệu cá nhân của người học cần được bảo vệ, nhất là khi báo cáo cho các tổ chức đối tác (B2B). Đây là bài toán kỹ thuật dữ liệu điển hình, đòi hỏi kết hợp xử lý luồng, xử lý theo lô, lưu trữ phân tích và phục vụ độ trễ thấp~\cite{kleppmann2017}.
+Tuy nhiên, các nguồn dữ liệu rời rạc và khác nhau về định dạng, tốc độ, độ tin cậy. Telemetry từ thiết bị di động có thể đến trễ nhiều ngày hoặc sai thứ tự; thay đổi trong cơ sở dữ liệu giao dịch phải được bắt đúng thứ tự mà không làm nặng hệ thống production; tài liệu học tập cần chia đoạn và quản lý phiên bản; dữ liệu cá nhân phải được bảo vệ, nhất là trong báo cáo cho tổ chức đối tác (B2B). Đây là bài toán kỹ thuật dữ liệu điển hình, đòi hỏi kết hợp xử lý luồng, xử lý lô, lưu trữ phân tích và phục vụ độ trễ thấp~\cite{kleppmann2017}.
 
-\section{Phát biểu bài toán}
+\subsection{Phát biểu bài toán}
 
-Đề bài DE\_261 yêu cầu xây dựng một nền tảng dữ liệu biến bốn nguồn dữ liệu thô thành các kho dữ liệu phục vụ ba mục tiêu: phân tích học tập, hệ thống gợi ý thích ứng và phát hiện sớm nguy cơ bỏ học. Đề bài xác định tám yêu cầu nghiệp vụ (BR1--BR8) cho bốn nhóm người dùng (người học, giảng viên, cố vấn học tập, quản trị viên tổ chức). Đề bài cũng gợi ý một kiến trúc tham chiếu gồm Kafka và Debezium cho tiếp nhận, Flink cho xử lý luồng, Spark cho xử lý lô, Delta Lake hoặc Iceberg cho lakehouse, và Redis hoặc Cassandra cho tầng phục vụ. Phần này phân tích chi tiết các yêu cầu này.
+Project hướng tới xây dựng nền tảng dữ liệu biến bốn nguồn thô thành kho dữ liệu phục vụ ba mục tiêu: phân tích học tập, gợi ý thích ứng và cảnh báo sớm nguy cơ bỏ học. Từ yêu cầu thiết kế một hệ thống dữ liệu trong giáo dục, nhóm sinh viên lựa chọn tám yêu cầu kỹ thuật dữ liệu (BR1--BR8) cho bốn nhóm người dùng và chọn kiến trúc tham chiếu: Kafka và Debezium cho tiếp nhận, Flink cho xử lý luồng, Spark cho xử lý lô, Delta Lake hoặc Iceberg cho lakehouse, Redis hoặc Cassandra cho tầng phục vụ. Các mục sau phân tích chi tiết các yêu cầu này.
 
-\section{Mục tiêu và phạm vi}
+\subsection{Mục tiêu và phạm vi}
 
-Nhóm đặt ra các mục tiêu sau:
+Mục tiêu của nhóm gồm:
 \begin{enumerate}
-  \item Thiết kế một kiến trúc dữ liệu đầu cuối bao phủ cả tám yêu cầu nghiệp vụ, bám sát kiến trúc tham chiếu. Mọi điểm điều chỉnh đều có lý do và được ghi lại.
-  \item Hiện thực các pipeline chạy được trên máy cá nhân bằng Docker Compose: tiếp nhận CDC thật qua Debezium, lakehouse Delta Lake với kho dữ liệu dạng hình sao, các data mart theo từng BR, và các đường xử lý thời gian thực.
-  \item Bảo đảm các tính chất quan trọng của hệ thống dữ liệu: xử lý theo thời gian sự kiện, chịu được dữ liệu trễ và trùng lặp, khả năng chạy lại idempotent, khử định danh và k-anonymity, kiểm tra chất lượng dữ liệu.
-  \item Cung cấp API và giao diện web cho từng nhóm người dùng, để kết quả của pipeline thực sự được sử dụng.
-  \item Đánh giá tính đúng đắn và hiệu năng bằng kiểm thử tự động và đo đạc có thể tái lập.
+  \item Thiết kế kiến trúc dữ liệu đầu cuối bao phủ tám yêu cầu nghiệp vụ, bám sát kiến trúc tham chiếu; mọi điều chỉnh đều có lý do và được ghi lại.
+  \item Hiện thực pipeline chạy trên máy cá nhân bằng Docker Compose: CDC thật qua Debezium, lakehouse Delta Lake với kho dữ liệu hình sao, data mart theo từng BR và các đường xử lý thời gian thực.
+  \item Bảo đảm các tính chất cốt lõi: xử lý theo thời gian sự kiện, chịu dữ liệu trễ và trùng lặp, chạy lại idempotent, khử định danh và k-anonymity, kiểm tra chất lượng dữ liệu.
+  \item Cung cấp API và giao diện web cho từng nhóm người dùng để kết quả pipeline được sử dụng thực tế.
+  \item Đánh giá tính đúng đắn và hiệu năng bằng kiểm thử tự động và đo đạc tái lập được.
 \end{enumerate}
 
-Về phạm vi: toàn bộ dữ liệu dùng trong báo cáo là \textbf{dữ liệu tổng hợp} (synthetic). Hệ thống được triển khai trên một máy, không nhằm chứng minh khả năng mở rộng ngang hay độ sẵn sàng cao. Các số đo hiệu năng là quan sát cục bộ, không phải cam kết năng lực.
+Phạm vi: báo cáo dùng \textbf{dữ liệu tổng hợp} (synthetic); hệ thống chạy trên một máy, không nhằm chứng minh mở rộng ngang hay độ sẵn sàng cao. Các số đo hiệu năng là quan sát cục bộ, không phải cam kết năng lực.
 
-\section{Đóng góp chính}
+\subsection{Đóng góp chính}
 
 \begin{itemize}
-  \item Một \textbf{lakehouse Delta Lake} ba lớp với 50 bảng và 43 model SQL. \todofix{xác nhận 50 bảng / 43 model / 9 dim + 11 fact} Lớp gold là kho dữ liệu Kimball gồm 9 bảng chiều và 11 bảng sự kiện, dùng khoá thay thế tất định. Các mart cho BR4, BR6, BR7, BR8 và một kho đặc trưng ngoại tuyến cho BR2. Kho được lập danh mục bằng Hive Metastore và phục vụ qua Trino có phân quyền theo vai trò.
-  \item Một đường \textbf{CDC thật}: PostgreSQL WAL, rồi Debezium, Kafka, Spark Structured Streaming, đến các mart, trạng thái rủi ro và cảnh báo cho BR4/BR5. Đường này chịu được phát lại (replay), cập nhật và xoá, và khởi động lại checkpoint.
-  \item Đồng bộ nội dung \textbf{BR8 dựa trên CDC}: vô hiệu hoá cache Redis, chia đoạn và nhúng vector vào OpenSearch, tìm kiếm lai, với ngữ nghĩa idempotent theo phiên bản.
+  \item \textbf{Lakehouse Delta Lake} ba lớp với 50 bảng và 43 model SQL; lớp gold là kho dữ liệu Kimball gồm 9 bảng chiều và 11 bảng sự kiện, dùng khoá thay thế tất định; các mart cho BR4, BR6, BR7, BR8 và kho đặc trưng ngoại tuyến cho BR2; Hive Metastore lập danh mục, Trino phục vụ truy vấn có phân quyền theo vai trò.
+  \item \textbf{Đường chạy thật cho BR1--BR3}: dịch vụ thông báo và chấm bài trên Kafka, Redis, PostgreSQL; feature store hai nhánh cho gợi ý.
+  \item Đường \textbf{CDC thật} từ PostgreSQL WAL qua Debezium, Kafka và Spark Structured Streaming đến mart, trạng thái rủi ro và cảnh báo cho BR4--BR5; đường này chịu được replay, cập nhật, xoá và khởi động lại checkpoint.
+  \item Đồng bộ nội dung \textbf{BR8 dựa trên CDC}: vô hiệu hoá cache Redis, chia đoạn, nhúng vector vào OpenSearch và tìm kiếm lai, idempotent theo phiên bản.
   \item \textbf{Lớp phủ thời gian thực} cho heatmap video (BR7) và điểm tương tác (BR8) trên Redis, ghép với mart theo ngày.
-  \item Mười bốn \textbf{ADR}, một kiến trúc phần mềm DDD/hexagonal có test bảo vệ ranh giới, và một bộ kiểm thử nhiều tầng có kèm bằng chứng đo đạc.
-  \item Một \textbf{giao diện web} mới cho năm không gian làm việc (workspace), thiết kế từ mockup và nối với API thật.
+  \item Mười sáu \textbf{ADR}, kiến trúc DDD/hexagonal có test bảo vệ ranh giới và bộ kiểm thử nhiều tầng kèm bằng chứng đo đạc.
+  \item \textbf{Giao diện web} cho năm workspace, thiết kế từ mockup và nối với API thật.
 \end{itemize}
 
-\section{Phương pháp thực hiện}
+\subsection{Phương pháp thực hiện}
 
-Nhóm làm việc theo vòng lặp ngắn: phân tích yêu cầu, ghi quyết định kiến trúc (ADR), hiện thực, rồi kiểm chứng bằng test và số đo. Lõi nghiệp vụ (các \en{policy} và \en{use case}) được viết trước, kiểm thử độc lập với engine. Sau đó các adapter cho Kafka, Spark, Delta, Redis, PostgreSQL và OpenSearch được bổ sung dần. Mỗi nhóm BR có một tài liệu kế hoạch và một tài liệu hiện thực trong thư mục \code{docs/}. Các tài liệu này ghi rõ cái gì đã chạy thật, cái gì còn là demo, và các lỗi tìm ra trong quá trình kiểm chứng.
+Nhóm làm việc theo vòng lặp ngắn: phân tích yêu cầu, ghi ADR, hiện thực, kiểm chứng bằng test và số đo. Lõi nghiệp vụ (\en{policy} và \en{use case}) được viết trước và kiểm thử độc lập với engine; sau đó bổ sung dần adapter cho Kafka, Spark, Delta, Redis, PostgreSQL và OpenSearch. Mỗi nhóm BR có tài liệu kế hoạch và tài liệu hiện thực riêng, ghi rõ phần đã hiện thực, phần còn hạn chế và lỗi phát hiện khi kiểm chứng.
 
-\section{Cấu trúc báo cáo}
+\subsection{Cấu trúc báo cáo}
 
-Báo cáo được tổ chức thành sáu phần:
-
+Báo cáo gồm sáu chương:
 \begin{itemize}
-  \item \textbf{Phần 1} --- bài toán, stakeholders, tám yêu cầu nghiệp vụ, nguồn dữ liệu và yêu cầu phi chức năng.
-  \item \textbf{Phần 2} --- kiến trúc tổng thể, lựa chọn công nghệ, kiến trúc phần mềm và các quyết định kiến trúc.
-  \item \textbf{Phần 3} --- lakehouse, mô hình medallion, khử định danh, kho dữ liệu Kimball, data mart và kiểm tra chất lượng.
-  \item \textbf{Phần 4} --- thiết kế và hiện thực BR1--BR8, giao diện người dùng và cách chạy demo/service.
-  \item \textbf{Phần 5} --- kiểm thử, đánh giá hiệu năng và mục alternative solutions để điền sau.
-  \item \textbf{Phần 6} --- hạn chế, hướng phát triển và kết luận.
+  \item Chương~\ref{chap:requirements}: người dùng, yêu cầu nghiệp vụ, nguồn dữ liệu và yêu cầu phi chức năng.
+  \item Chương~\ref{chap:architecture}: kiến trúc, lựa chọn công nghệ và các quyết định thiết kế.
+  \item Chương~\ref{chap:lakehouse}: lakehouse, mô hình medallion, kho dữ liệu và data mart.
+  \item Chương~\ref{chap:impl}: hiện thực BR1--BR8 và giao diện ứng dụng.
+  \item Chương~\ref{chap:eval}: kiểm thử, đánh giá hiệu năng và benchmark Debezium--polling.
+  \item Chương~\ref{chap:limits}: hạn chế, hướng phát triển và kết luận.
 \end{itemize}
 
-\section{Các bên liên quan và yêu cầu nghiệp vụ}
+\section{Phân tích yêu cầu và nguồn dữ liệu}
 
-Đề bài xác định bốn nhóm người dùng và tám yêu cầu nghiệp vụ. Bảng~\ref{tab:br} tóm tắt mỗi yêu cầu cùng nhu cầu kỹ thuật dữ liệu tương ứng, theo cách đọc của nhóm.
+\subsection{Các bên liên quan và yêu cầu nghiệp vụ}
+
+Nhóm xác định bốn nhóm người dùng và tám yêu cầu nghiệp vụ. Bảng~\ref{tab:br} tóm tắt từng yêu cầu và nhu cầu kỹ thuật tương ứng theo cách đọc của nhóm.
 
 {\small
 \begin{longtable}{@{}L{1.0cm}L{2.2cm}L{4.6cm}L{6.6cm}@{}}
@@ -81,12 +83,12 @@ Báo cáo được tổ chức thành sáu phần:
 \end{longtable}}
 
 \begin{notebox}[title=Nhận xét về BR8]
-Cột yêu cầu nghiệp vụ của BR8 (đồng bộ cache và chỉ mục tìm kiếm khi nội dung thay đổi) và cột nhu cầu kỹ thuật (pipeline xu hướng tương tác) mô tả hai nhu cầu khác nhau. Nhóm hiện thực \textbf{cả hai}: đồng bộ nội dung dựa trên CDC (Mục~\ref{sec:br8-sync}) và mart xu hướng tương tác (Mục~\ref{sec:br8-trend}).
+Yêu cầu nghiệp vụ của BR8 (đồng bộ cache và chỉ mục khi nội dung thay đổi) và nhu cầu kỹ thuật (pipeline xu hướng tương tác) là hai nhu cầu khác nhau. Nhóm hiện thực \textbf{cả hai}: đồng bộ nội dung dựa trên CDC (Mục~\ref{sec:br8-sync}) và mart xu hướng tương tác (Mục~\ref{sec:br8-trend}).
 \end{notebox}
 
-\section{Nguồn dữ liệu}
+\subsection{Nguồn dữ liệu}
 
-Bảng~\ref{tab:sources} mô tả bốn nguồn dữ liệu thô, đặc tính của chúng và cách nền tảng tiếp nhận. Nguồn nào cũng có một thách thức riêng, và thách thức đó quyết định thiết kế của tầng tiếp nhận.
+Bảng~\ref{tab:sources} mô tả bốn nguồn dữ liệu thô, đặc tính và cách nền tảng tiếp nhận. Mỗi nguồn có thách thức riêng, quyết định thiết kế tầng tiếp nhận.
 
 {\small
 \begin{longtable}{@{}L{2.6cm}L{3.6cm}L{4.2cm}L{4.0cm}@{}}
@@ -106,26 +108,26 @@ Nhật ký sandbox & stdout, stderr, thời gian chạy, bộ nhớ, trạng th�
 \bottomrule
 \end{longtable}}
 
-Danh mục topic Kafka gồm 26 topic, được khai báo dưới dạng mã trong \code{infra/kafka/topics.yaml}. Ngoài các topic ở trên còn có các topic sự kiện miền: \code{lms.*} (bài tập mới, sắp đến hạn, khoá học cập nhật), \code{risk.*} (điểm rủi ro, cảnh báo), \code{notification.*} và \code{content.*}.
+Danh mục Kafka gồm 26 topic, khai báo dưới dạng mã. Ngoài các topic trên còn có topic sự kiện miền: \code{lms.*} (bài tập mới, sắp đến hạn, khoá học cập nhật), \code{risk.*} (điểm rủi ro, cảnh báo), \code{notification.*} và \code{content.*}.
 
-\section{Yêu cầu phi chức năng}
+\subsection{Yêu cầu phi chức năng}
 
-Từ đặc tính của nguồn dữ liệu và nhu cầu của người dùng, nhóm rút ra các yêu cầu phi chức năng sau. Chúng là tiêu chí để đánh giá các quyết định kiến trúc ở Chương~\ref{chap:architecture}.
+Từ đặc tính nguồn dữ liệu và nhu cầu người dùng, nhóm rút ra các yêu cầu phi chức năng sau, dùng làm tiêu chí đánh giá các quyết định kiến trúc ở Chương~\ref{chap:architecture}.
 
 \begin{description}[style=nextline, leftmargin=0.6cm]
   \item[Độ trễ phù hợp từng BR] Thông báo, phản hồi chấm bài và cảnh báo rủi ro cần độ trễ tính bằng giây. Báo cáo tổ chức và heatmap chấp nhận cập nhật theo ngày, kèm lớp phủ cho hôm nay. Tra cứu đặc trưng cho gợi ý cần dưới 10 ms.
-  \item[Đúng một lần, idempotent] Gửi lại từ Kafka, chạy lại job và backfill không được làm sai số liệu. Mọi lệnh batch phải idempotent theo ngày chạy.
-  \item[Xử lý theo thời gian sự kiện] Cửa sổ thời gian tính theo lúc sự kiện xảy ra, có watermark. Dữ liệu trễ vẫn được lưu và gắn cờ, không bị bỏ qua âm thầm.
-  \item[Quyền riêng tư] Định danh thật chỉ tồn tại ở lớp thô và bị hạn chế truy cập. Các lớp phân tích chỉ dùng bút danh. Báo cáo tổ chức không công bố số liệu của nhóm dưới $k = 5$ người.
-  \item[Tiến hoá schema] Payload của client có nhiều phiên bản; hệ thống phải chuyển đổi về phiên bản hiện hành hoặc từ chối có lý do.
-  \item[Tái lập và kiểm toán] Có thể dựng lại toàn bộ dữ liệu từ lớp thô, xem lại trạng thái cũ (time travel), và truy vết mỗi lần build.
-  \item[Chất lượng dữ liệu] Có cổng kiểm tra sau mỗi lớp; lỗi nghiêm trọng phải dừng pipeline.
-  \item[Chạy được trên máy cá nhân] Toàn bộ hệ thống chạy bằng Docker Compose, chỉ dùng CPU, không phụ thuộc dịch vụ trả phí.
+  \item[Đúng một lần, idempotent] Gửi lại từ Kafka, chạy lại job và backfill không được làm sai số liệu; mọi lệnh batch phải idempotent theo ngày chạy.
+  \item[Xử lý theo thời gian sự kiện] Cửa sổ thời gian tính theo thời điểm sự kiện, có watermark; dữ liệu trễ vẫn được lưu và gắn cờ, không bị bỏ qua.
+  \item[Quyền riêng tư] Định danh thật chỉ tồn tại ở lớp thô và bị hạn chế truy cập; lớp phân tích chỉ dùng bút danh; báo cáo tổ chức không công bố số liệu của nhóm dưới $k = 5$ người.
+  \item[Tiến hoá schema] Payload client có nhiều phiên bản; hệ thống chuyển đổi về phiên bản hiện hành hoặc từ chối kèm lý do.
+  \item[Tái lập và kiểm toán] Có thể dựng lại dữ liệu từ lớp thô, xem trạng thái cũ (time travel) và truy vết mỗi lần build.
+  \item[Chất lượng dữ liệu] Cổng kiểm tra sau mỗi lớp; lỗi nghiêm trọng dừng pipeline.
+  \item[Chạy được trên máy cá nhân] Toàn hệ thống chạy bằng Docker Compose, chỉ dùng CPU và không phụ thuộc dịch vụ trả phí.
 \end{description}
 
-\section{Ánh xạ yêu cầu vào pipeline}
+\subsection{Ánh xạ yêu cầu vào pipeline}
 
-Bảng~\ref{tab:br-map} cho thấy mỗi BR được giao cho bounded context nào, chạy trên runtime nào và được phục vụ từ đâu. Cột cuối nêu mức độ hoàn thiện thực tế; Chương~\ref{chap:limits} giải thích thêm.
+Bảng~\ref{tab:br-map} ánh xạ mỗi BR vào bounded context, runtime xử lý và nguồn phục vụ; cột cuối ghi mức hoàn thiện thực tế, được giải thích ở Chương~\ref{chap:limits}.
 
 {\small
 \begin{longtable}{@{}L{0.9cm}L{2.7cm}L{4.0cm}L{3.6cm}L{2.9cm}@{}}
@@ -138,9 +140,9 @@ Bảng~\ref{tab:br-map} cho thấy mỗi BR được giao cho bounded context n�
 \textbf{BR} & \textbf{Context} & \textbf{Runtime xử lý} & \textbf{Lưu trữ / phục vụ} & \textbf{Mức hoàn thiện} \\
 \midrule
 \endhead
-1 & notification & Rule engine trên sự kiện Kafka & Redis (dedup, giới hạn tần suất) & Logic hoàn chỉnh; runtime demo \\
-2 & recommendation & Luật tại thời điểm truy vấn; đặc trưng lô \code{features.learner_longterm} & Delta (ngoại tuyến), API & Rút gọn về rule-based \\
-3 & grading & Hàng đợi Kafka, sandbox, \code{FeedbackPolicy} & API & Logic hoàn chỉnh; runtime demo \\
+1 & notification & Dịch vụ Kafka + rule engine; fan-out theo PostgreSQL & Redis (dedup, inbox); SSE & Chạy thật \\
+2 & recommendation & Spark batch + session streaming; xếp hạng bằng luật & Delta, Redis, API & Chạy thật \\
+3 & grading & Kafka + grading-ingest/worker/normalizer & Redis; PostgreSQL \code{grading.*} & Chạy thật \\
 4 & analytics + br45 & CDC, SQL aggregation & PostgreSQL \code{analytics}; lịch sử ở \code{mart.assessment_item_stats} & Chạy thật \\
 5 & risk + br45 & CDC, Spark Structured Streaming (cửa sổ 7 ngày) & PostgreSQL; lịch sử ở \code{gold.fct_risk_score_daily} & Chạy thật \\
 6 & telemetry + analytics & Medallion Spark & Delta, Trino (\code{mart.org_progress}) & Chạy thật \\

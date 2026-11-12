@@ -1,20 +1,20 @@
 \chapter*{Tóm tắt}
 \addcontentsline{toc}{chapter}{Tóm tắt}
-\markboth{Tóm tắt}{Tóm tắt}
 
-Báo cáo trình bày việc thiết kế và hiện thực \textbf{DE\_261}, một nền tảng kỹ thuật dữ liệu cho hệ thống giáo dục trực tuyến quy mô lớn. Nền tảng nhận bốn nguồn dữ liệu rời rạc: luồng clickstream telemetry từ web và mobile, nhật ký thay đổi giao dịch (CDC) từ PostgreSQL, kho tài liệu học tập phi cấu trúc và nhật ký thực thi bài nộp từ sandbox. Từ đó, nền tảng biến chúng thành các kho dữ liệu phục vụ tám yêu cầu nghiệp vụ (BR1--BR8) của bốn nhóm người dùng: người học, giảng viên, cố vấn học tập và quản trị viên tổ chức.
+Báo cáo trình bày thiết kế và hiện thực \textbf{Project}, nền tảng kỹ thuật dữ liệu cho hệ thống giáo dục trực tuyến quy mô lớn. Nền tảng tiếp nhận bốn nguồn dữ liệu rời rạc --- telemetry clickstream từ web và mobile, CDC từ PostgreSQL, kho học liệu phi cấu trúc và nhật ký sandbox --- rồi chuyển hoá thành kho dữ liệu phục vụ tám yêu cầu nghiệp vụ (BR1--BR8) của bốn nhóm người dùng: người học, giảng viên, cố vấn học tập và quản trị viên tổ chức.
 
-Kiến trúc dùng Apache Kafka và Debezium làm tầng tiếp nhận và event bus. Apache Spark (batch và Structured Streaming) là engine xử lý chính. Delta Lake trên object storage (MinIO) tổ chức theo mô hình medallion bronze--silver--gold, với lớp gold là một kho dữ liệu dạng lược đồ hình sao Kimball. Kho được Hive Metastore lập danh mục và Trino phục vụ truy vấn SQL. Redis là tầng phục vụ độ trễ thấp, OpenSearch phục vụ tìm kiếm lai (keyword và vector). Mọi pipeline được tổ chức thành bảy \en{bounded context} theo Domain-Driven Design với kiến trúc lục giác (hexagonal), nên cùng một use case chạy được trên nhiều engine và kiểm thử được mà không cần engine. Mười lăm quyết định kiến trúc được ghi lại bằng ADR, bao gồm các điểm nhóm chủ động điều chỉnh so với kiến trúc gợi ý của đề bài. \todofix{cập nhật bảng ADR 0015}
+Kiến trúc dùng Kafka và Debezium làm tầng tiếp nhận và event bus; Spark (batch và Structured Streaming) là engine xử lý chính; Delta Lake trên MinIO tổ chức theo mô hình medallion bronze--silver--gold, với lớp gold là kho dữ liệu hình sao Kimball; Hive Metastore lập danh mục và Trino phục vụ SQL; Redis đảm nhận phục vụ độ trễ thấp, OpenSearch tìm kiếm lai. Mã nguồn tổ chức thành bảy \en{bounded context} theo DDD và kiến trúc lục giác, cho phép cùng một use case chạy trên nhiều engine và kiểm thử độc lập với engine. Mười sáu ADR ghi lại các quyết định, gồm những điều chỉnh so với kiến trúc tham chiếu. BR1--BR3 chạy end-to-end trên Kafka, Redis, PostgreSQL và Delta; BR4--BR8 chạy trên hạ tầng lakehouse.
 
 Về kết quả đo trên máy cá nhân với dữ liệu tổng hợp:
 \begin{itemize}
-  \item \textbf{BR5}: luồng CDC đến cảnh báo bỏ học thật đi hết khoảng 10{,}2 giây. \todofix{chạy lại BR5}
-  \item \textbf{BR8}: nội dung khoá học đã xuất bản trở nên tìm kiếm được sau trung vị 535 ms. \todofix{chạy lại BR8}
-  \item \textbf{BR7, BR8}: lớp phủ thời gian thực hiển thị sau khoảng 7 giây, ổn định khi tải tăng 15 lần. \todofix{chạy lại live overlay}
-  \item \textbf{BR6--BR8}: các data mart được đọc thẳng qua Trino với trung vị 42--92 ms, và qua API có cache với trung vị 1{,}4--2{,}5 ms. \todofix{chạy lại serving}
-  \item \textbf{Kho dữ liệu}: toàn bộ kho (43 model) được xây trong khoảng 2--2{,}5 phút và vượt qua mọi cổng kiểm tra chất lượng. \todofix{xác nhận 43 model + build time}
+  \item \textbf{BR1--BR3}: trung vị 15{,}9 ms từ sự kiện đến thông báo, 4{,}2 ms cho API gợi ý, 27{,}6 ms để nhận 202 và 172{,}9 ms từ nộp bài đến khi chấm xong.
+  \item \textbf{BR5}: từ thay đổi CDC đến cảnh báo bỏ học mất khoảng 10{,}2 giây.
+  \item \textbf{BR8}: nội dung xuất bản được lập chỉ mục sau trung vị 535 ms.
+  \item \textbf{BR7--BR8}: lớp phủ hiển thị sau khoảng 7 giây, ổn định khi tải tăng 15 lần.
+  \item \textbf{BR6--BR8}: mart qua Trino 42--92 ms; qua API có cache 1{,}4--2{,}5 ms.
+  \item \textbf{Kho dữ liệu}: 43 model xây trong 2--2{,}5 phút, đạt mọi cổng chất lượng.
 \end{itemize}
-Hệ thống có 346 test đơn vị \todofix{353 pass, 3 skip}, các test tích hợp với dịch vụ thật, test end-to-end và test trình duyệt. Báo cáo cũng mô tả giao diện web cho năm nhóm người dùng, thiết kế theo quy ước của các LMS phổ biến (Canvas, Moodle) với chế độ sáng tông xanh da trời làm mặc định, và nêu rõ những phần còn ở mức demo cùng hướng phát triển tiếp theo.
+Hệ thống có 353 test đơn vị (3 skip), 1 test tích hợp end-to-end, 9 test trình duyệt cùng các kịch bản chấp nhận; báo cáo cũng trình bày giao diện web, các giới hạn còn lại và hướng phát triển.
 
-\vspace{6pt}
-\textbf{Từ khoá:} kỹ thuật dữ liệu, lakehouse, Delta Lake, Kafka, Debezium, CDC, Spark Structured Streaming, kho dữ liệu Kimball, learning analytics, cảnh báo bỏ học.
+\vspace{3pt}
+{\small\textbf{Từ khoá:} kỹ thuật dữ liệu, lakehouse, Delta Lake, Kafka, Debezium, CDC, Spark Structured Streaming, learning analytics.}

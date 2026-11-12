@@ -20,3 +20,4 @@ edited after acceptance - supersede with a new ADR instead.
 | 0013 | BR8 content sync driven by CDC of course_content into OpenSearch | accepted |
 | 0014 | Spark Structured Streaming for the telemetry fast path and BR7/BR8 live overlays | accepted |
 | 0015 | Session features on Spark Structured Streaming with Redis state | accepted |
+| 0016 | Real runtime for BR1–BR3: service mode and the BR2 feature store | accepted |

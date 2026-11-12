@@ -3,72 +3,54 @@
 
 \section{Yêu cầu}
 
-Docker (khuyến nghị 8 GB RAM cho VM), Python 3.11 trở lên, Node.js 20 trở lên. Postgres của dự án mặc định ở cổng 5433 để tránh xung đột với các dự án khác.
+Docker (khuyến nghị 8 GB RAM cho VM), Python 3.11+, Node.js 20+. PostgreSQL mặc định ở cổng 5433 để tránh xung đột.
 
 \section{Khởi động}
 
-\textbf{BR1--BR3.} 
-
 \begin{lstlisting}[language=bash]
+# BR1/BR3: full stack with Kafka, Redis, PostgreSQL and separate services
+docker compose -f docker-compose.yml -f docker-compose.br13.yml up -d --build
 
-docker compose -f docker-compose.yml -f docker-compose.br13.yml \
-  up -d --build kafka-init br13-init grading-ingest grading-worker \
-  grading-normalizer notification demo mailpit push-sink
-
-
-curl -s http://localhost:8000/api/health   # {"status":"ok","mode":"service"}
-
-
-docker compose -f docker-compose.yml -f docker-compose.br13.yml \
-  --profile jobs run --rm spark-jobs edu batch features-online --run-date 2026-11-10
-
-
-docker compose -f docker-compose.yml -f docker-compose.br13.yml \
-  --profile br13-project up -d grading-projector
-\end{lstlisting}
-
-\textbf{BR4/BR5.} 
-
-\begin{lstlisting}[language=bash]
-docker compose -f docker-compose.yml -f docker-compose.br13.yml \
-  --profile br45 up -d --build demo br45-init br45-cdc br45-stream
+# BR4/BR5: real CDC + Spark Structured Streaming
+docker compose --profile br45 up -d --build demo br45-init br45-cdc br45-stream
 docker compose exec -T br45-cdc python -m edu_platform.br45.cli seed
-\end{lstlisting}
 
-\textbf{BR6/BR7/BR8.} :
-
-\begin{lstlisting}[language=bash]
-docker compose -f docker-compose.yml -f docker-compose.br13.yml \
-  --profile br678 up -d --build       # first run takes about 4-5 minutes
+# BR6/BR7/BR8: warehouse, content sync, live overlays
+docker compose --profile br678 up -d --build     # first run takes about 4-5 minutes
 docker compose exec demo edu telemetry simulate --sessions 50
+
+# BR2: live session branch + materialise long-term features into Redis
+docker compose --profile br678 run --rm --no-deps telemetry-live edu stream telemetry-live --once
+docker compose run --rm spark-jobs edu batch features-online --run-date 2026-11-11
+
+# Warehouse with synthetic data
+docker compose run --rm spark-jobs edu warehouse bootstrap
+docker compose run --rm spark-jobs edu warehouse seed-bronze --end-date 2026-10-17 --days 35
+docker compose run --rm spark-jobs edu warehouse run --run-date 2026-10-17 --start-date 2026-08-01
+docker compose exec trino trino --user analyst --catalog lakehouse
 \end{lstlisting}
 
-\textbf{Kho dữ liệu với dữ liệu tổng hợp:}
-
-\begin{lstlisting}[language=bash]
-docker compose --profile jobs run --rm spark-jobs edu warehouse bootstrap
-docker compose --profile jobs run --rm spark-jobs edu warehouse seed-bronze --end-date 2026-10-17 --days 35
-docker compose --profile jobs run --rm spark-jobs edu warehouse run --run-date 2026-10-17 --start-date 2026-08-01
-docker exec -it de261-trino trino --user analyst --catalog lakehouse
-\end{lstlisting}
-
-Mở ứng dụng tại \code{http://localhost:8000}. Token demo cục bộ: \code{instructor-demo}, \code{advisor-demo}, \code{admin-demo} (cả hai tổ chức), \code{acme-admin-demo} (chỉ Acme).
+Mở ứng dụng tại \code{http://localhost:8000}. Overlay \code{br13} dựng các dịch vụ notification và grading trên Kafka, Redis, PostgreSQL. Token cục bộ: \code{instructor-demo}, \code{advisor-demo}, \code{admin-demo} (cả hai tổ chức), \code{acme-admin-demo} (chỉ Acme).
 
 \section{Kiểm thử}
 
 \begin{lstlisting}[language=bash]
 .venv/bin/ruff check src tests && .venv/bin/mypy
-.venv/bin/python -m pytest tests/unit                       # 346 unit tests  # TODO: 353 pass, 3 skip
+.venv/bin/python -m pytest tests/unit                       # 353 unit tests, 3 skipped
+EDU_BR13_BASE_URL=http://localhost:8000 .venv/bin/python -m pytest -m integration tests/integration/test_br13_services.py
 .venv/bin/python -m pytest -m spark tests/integration       # requires JDK
 EDU_BR45_E2E=1 .venv/bin/python -m pytest tests/e2e/test_br45.py
 cd apps/web && npm ci && npm run build && npx playwright install chromium
-BR45_BASE_URL=http://localhost:8000 npx playwright test
-BR45_BASE_URL=http://localhost:8000 npx playwright test tests/br123.spec.ts  # BR1-BR3
+BR45_BASE_URL=http://localhost:8000 npx playwright test tests/br123.spec.ts   # BR1--BR3
+BR45_BASE_URL=http://localhost:8000 npx playwright test                       # all 9 tests
 \end{lstlisting}
 
 \section{Đo hiệu năng}
 
+Các phép đo BR1--BR3 chạy trên stack đầy đủ như mục khởi động: bật thêm \code{--profile br678} và \code{--profile airflow} để Kafka, Debezium, Spark, Trino, OpenSearch, Airflow và các dịch vụ cùng chạy trong lúc đo, đúng như cấu hình mô tả ở Chương~\ref{chap:architecture}.
+
 \begin{lstlisting}[language=bash]
+.venv/bin/python benchmarks/br123_latency.py --samples 20 --br2-samples 30   # BR1--BR3
 .venv/bin/python -m edu_platform.br45.cli benchmark          # BR4
 .venv/bin/python -m edu_platform.br45.stream_benchmark       # BR5
 uv run edu benchmark serving --out docs/evidence/br678/serving_latency.csv
@@ -76,39 +58,36 @@ uv run edu benchmark content --out docs/evidence/br678/content_sync_latency.csv
 uv run edu benchmark live    --out docs/evidence/br678/live_overlay.csv
 \end{lstlisting}
 
-Các file CSV gốc dùng trong Chương~\ref{chap:eval} được chép vào thư mục \code{report/data/}: \code{br4_benchmark.csv}, \code{br5_stream_benchmark.csv}, \code{serving_latency.csv}, \code{content_sync_latency.csv}, \code{live_overlay.csv}, \code{mart_build.csv}.
 
 \section{Đo Debezium và polling}
 
-Negative-control benchmark dùng bảng nguồn 100.000 dòng trong
-\code{benchmarks/cdc/data/} (gitignored):
+Negative-control benchmark dùng bảng nguồn 100.000 dòng:
 
 \begin{lstlisting}[language=bash]
-# Tạo bảng nguồn + index updated_at
+# Create source table + updated_at index
 .venv/bin/python -m benchmarks.cdc.setup_source \
   benchmarks/cdc/data/org-facts-1m.csv --rows 100000
 
-# Đăng ký connector Debezium (một lần)
+# Register the Debezium connector (once)
 curl -sS -X DELETE http://localhost:8083/connectors/bench-cdc >/dev/null 2>&1 || true
 curl -sS -X POST -H 'Content-Type: application/json' \
   --data @benchmarks/cdc/connector.json http://localhost:8083/connectors
 
-# Chờ snapshot đạt 100.000 offset
-docker exec de261-kafka kafka-run-class kafka.tools.GetOffsetShell \
+# Wait for the snapshot to reach 100,000 offsets
+docker compose exec kafka kafka-run-class kafka.tools.GetOffsetShell \
   --broker-list localhost:9092 --topic bench.bench.cdc_source
 
-# Chạy 100 UPDATE + 10 DELETE
+# Run 100 UPDATEs + 10 DELETEs
 .venv/bin/python -m benchmarks.cdc.run_benchmark \
   --duration 8 --updates 100 --deletes 10 \
   --out benchmarks/cdc/results/cdc_100k_indexed.json
 \end{lstlisting}
 
-Kết quả chi tiết: \code{benchmarks/cdc/results/}.
 
 \section{Biên dịch báo cáo}
 
 \begin{lstlisting}[language=bash]
 cd report
-tectonic main.tex            # or: latexmk -xelatex main.tex
+tectonic -X compile main.tex   # hoặc: latexmk -xelatex main.tex
 \end{lstlisting}
 Trên Overleaf, chọn trình biên dịch XeLaTeX.
