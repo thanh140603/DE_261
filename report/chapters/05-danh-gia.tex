@@ -284,39 +284,42 @@ trung bình lệch dưới $10^{-9}$. PostgreSQL phù hợp với mart nhỏ và
 ClickHouse thắng rõ từ 1M dòng và khoảng cách tăng theo quy mô. Đây là lý do
 alternative columnar đáng chuyển khi mart lớn, dù vận hành thêm một hệ thống.
 
-\subsection{Feature store: Redis và PostgreSQL}
+\subsection{Feature store: Redis và Memcached}
 
-Hai engine nhận cùng 1M/5M feature key, cùng payload JSON và cùng 10 batch
-1.000 key. Redis chạy với \code{maxmemory=4gb}, không evict; PostgreSQL lưu
-JSONB trên disk. Mỗi bên có một lần warm-up và ba lần lặp, đo p50 của một batch
-1.000 lookup.
+Hai engine cùng lớp in-memory KV nhận cùng 1M/5M key, cùng payload JSON, cùng
+10 batch 1.000 key. Cả hai chạy với 4 GB, không evict; mỗi bên có một lần
+warm-up và ba lần lặp.
 
 \begin{table}[H]
 \centering\small
-\caption{Feature store: cùng dữ liệu, cùng batch 1.000 key}
+\caption{Feature store: Redis và Memcached, cùng batch 1.000 key}
 \label{tab:alt-feature}
 \begin{tabular}{@{}rrrrrr@{}}
 \toprule
-\textbf{Keys} & \textbf{Redis load} & \textbf{PG load} & \textbf{Redis p50/batch} & \textbf{PG p50/batch} & \textbf{Hit} \\
+\textbf{Keys} & \textbf{Redis load} & \textbf{Memcached load} & \textbf{Redis p50/batch} & \textbf{Memcached p50/batch} & \textbf{Hit} \\
 \midrule
-1.000.000 & 23,10 s & 20,27 s & 6,93 ms & 51,37 ms & 100\% \\
-5.000.000 & 121,79 s & 99,43 s & 8,13 ms & 66,54 ms & 100\% \\
+1.000.000 & 23,10 s & 14,72 s & 6,93 ms & 6,66 ms & 100\% \\
+5.000.000 & 121,79 s & 73,84 s & 8,13 ms & 6,68 ms & 100\% \\
 \bottomrule
 \end{tabular}
 \end{table}
 
-Ở 5M, Redis dùng 2,38 GB và PostgreSQL dùng 2,85 GB; cả hai giữ đủ 100\% key.
-Redis nhanh hơn khoảng 7,4 lần ở 1M và 8,2 lần ở 5M cho cùng batch. Đây là so
-sánh cùng setup: cùng dữ liệu, cùng kích thước batch, cùng số round trip.
+Ở 5M, Redis dùng 2,38 GB và Memcached dùng 2,36 GB; cả hai giữ đủ 100\% key.
+Memcached nhanh hơn khoảng 4\% ở 1M và 18\% ở 5M cho lookup, và nạp nhanh hơn
+đáng kể. Đây là so sánh cùng setup: cùng dữ liệu, cùng batch, cùng số round trip.
+
+PostgreSQL được giữ làm reference cho store bền/giao dịch, không phải đối thủ
+tốc độ: cùng 5M key, load 99,43 s và p50 66,54 ms/batch. Nó chậm hơn cả Redis
+và Memcached cho lookup, nhưng giữ được giao dịch và là nguồn sự thật.
 
 \textbf{Memory pressure.} Khi Redis bị cap 512 MB, 5M key vượt dung lượng:
 Redis evict 3.926.686 key, chỉ còn 21,68\% key và p50 147,9 ms. Con số đó không
-dùng để so trực tiếp với PostgreSQL vì 78\% request là miss; nó chỉ chứng minh
-Redis cần đủ RAM hoặc scale-out.
+dùng để so trực tiếp vì 78\% request là miss; nó chỉ chứng minh Redis cần đủ RAM
+hoặc scale-out.
 
-\textbf{Kết luận.} Với working set vừa RAM, Redis nhanh hơn PostgreSQL rõ rệt.
-Khi vượt RAM, Redis mất tính đầy đủ; cần tăng RAM, dùng Redis Cluster hoặc
-disk-backed store. PostgreSQL vẫn phù hợp khi cần giao dịch/nguồn sự thật.
+\textbf{Kết luận.} Memcached nhanh hơn Redis cho pure KV lookup ở cả 1M và 5M.
+Redis vẫn có lợi thế về cấu trúc dữ liệu, TTL, pub/sub và persistence; PostgreSQL
+phù hợp khi cần giao dịch/nguồn sự thật, không phải cache.
 
 \subsection{Streaming: Spark Structured Streaming và Flink}
 
@@ -355,7 +358,7 @@ một thí nghiệm SLA riêng, không dùng các số filter này để đại 
 \textbf{Vai trò} & \textbf{Alternative} & \textbf{Điều kiện chuyển} \\
 \midrule
 OLAP mart & ClickHouse/StarRocks & Mart vượt vài triệu dòng, query p95 > 1--2 s hoặc nhiều dashboard đồng thời \\
-Feature serving & Redis Cluster/disk store & Working set vượt RAM; Redis evict làm mất tính đầy đủ \\
+Feature serving & Memcached/Redis Cluster & Pure KV throughput cao hơn; cần thêm TTL/persistence thì giữ Redis \\
 Streaming & Flink & Cần p95 < 1 s, state lớn hoặc checkpoint Spark không đáp ứng SLA \\
 \bottomrule
 \end{tabularx}

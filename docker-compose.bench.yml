@@ -46,6 +46,20 @@ services:
       retries: 20
     restart: "no"
 
+  bench-memcached:
+    profiles: ["bench-kv"]
+    image: memcached:1.6-alpine
+    container_name: de261-bench-memcached
+    ports: ["11211:11211"]
+    command: ["-m", "4096", "-c", "1024", "-I", "2m"]
+    mem_limit: 5g
+    healthcheck:
+      test: ["CMD-SHELL", "printf 'version\r\n' | nc 127.0.0.1 11211 | grep -q VERSION"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    restart: "no"
+
   bench-clickhouse:
     profiles: ["bench-olap"]
     image: clickhouse/clickhouse-server:24.8-alpine

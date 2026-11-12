@@ -24,27 +24,30 @@ marts, but its row-store aggregation degrades quickly with scale. ClickHouse
 (MPP/columnar) is clearly better from 1M rows onward. StarRocks was not installed
 on this host; ClickHouse is the documented fallback, not a StarRocks measurement.
 
-## Pair C — Redis vs PostgreSQL (feature serving)
+## Pair C — Redis vs Memcached (feature serving)
 
-Fair setup: same 1M/5M feature keys, same JSON payload, same 10 batches of 1,000
-lookups, same number of round trips and 3 measured runs after 1 warm-up. Redis
-uses `maxmemory=4gb` and does not evict; PostgreSQL stores JSONB on disk.
+Same in-memory KV class: same 1M/5M keys, same JSON payload, same 10 batches of
+1,000 lookups, 3 measured runs after 1 warm-up. Both use 4 GB and hold 100% of
+the data without eviction.
 
-| Keys | Redis load | PG load | Redis p50/batch | PG p50/batch | Hit rate |
+| Keys | Redis load | Memcached load | Redis p50/batch | Memcached p50/batch | Hit rate |
 |---:|---:|---:|---:|---:|---:|
-| 1,000,000 | 23.10 s | 20.27 s | 6.93 ms | 51.37 ms | 100% |
-| 5,000,000 | 121.79 s | 99.43 s | 8.13 ms | 66.54 ms | 100% |
+| 1,000,000 | 23.10 s | 14.72 s | 6.93 ms | 6.66 ms | 100% |
+| 5,000,000 | 121.79 s | 73.84 s | 8.13 ms | 6.68 ms | 100% |
 
-At 5M, Redis uses 2.38 GB and PostgreSQL uses 2,849 MB. Redis is ~7.4× faster
-at 1M and ~8.2× faster at 5M for the same batch.
+At 5M, Redis uses 2.38 GB and Memcached 2.36 GB. Memcached is ~4% faster at
+1M and ~18% faster at 5M; load is substantially faster.
+
+PostgreSQL is a disk/transactional reference, not a speed competitor: 5M load
+99.43 s and p50 66.54 ms/batch for the same 1,000-key batches.
 
 **Memory-pressure side experiment:** with Redis capped at 512 MB, 5M keys do not
 fit. Redis evicts 3.93M keys, serves only 21.68% of lookups and its p50 of
-147.9 ms is therefore not comparable with PostgreSQL serving 100% of keys.
+147.9 ms is therefore not comparable with a full-data store.
 
-**Conclusion.** Redis is substantially faster while the complete working set
-fits in RAM. When it does not fit, Redis requires more memory, Redis Cluster or
-a disk-backed store.
+**Conclusion.** Memcached wins pure KV lookup and load. Redis remains preferable
+when TTL, data structures, pub/sub or persistence are needed. PostgreSQL remains
+the transactional source of truth.
 
 ## Pair A — Spark Structured Streaming vs Flink
 

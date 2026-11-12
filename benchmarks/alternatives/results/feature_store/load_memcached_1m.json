@@ -1,0 +1,6 @@
+{
+  "engine": "memcached",
+  "file": "benchmarks/alternatives/data/features-1m.jsonl",
+  "rows": 1000000,
+  "seconds": 14.717
+}

@@ -8,7 +8,7 @@ It is **not** part of the BR1–BR8 serving path.
 | Pair | Current | Alternative | Status |
 |---|---|---|---|
 | B. OLAP | PostgreSQL | ClickHouse (StarRocks fallback) | measured 1M/5M/10M |
-| C. Feature store | Redis (4 GiB, full data) | PostgreSQL JSONB | measured 1M/5M |
+| C. Feature store | Redis (4 GiB) | Memcached (4 GiB) | measured 1M/5M |
 | A. Streaming | Spark Structured Streaming | Flink 1.19 SQL | measured 100k filter |
 
 See [results/summary.md](results/summary.md) for numbers and caveats.
@@ -38,17 +38,17 @@ docker compose -f docker-compose.yml -f docker-compose.bench.yml \
 
 ```bash
 docker compose -f docker-compose.yml -f docker-compose.bench.yml \
-  --profile bench-kv up -d bench-redis
+  --profile bench-kv up -d bench-redis bench-memcached
 .venv/bin/python -m benchmarks.alternatives.feature_store.load_redis \
   data/features-1m.jsonl --port 6381
-.venv/bin/python -m benchmarks.alternatives.feature_store.load_postgres data/features-1m.jsonl
-.venv/bin/python -m benchmarks.alternatives.feature_store.workload_fair \
+.venv/bin/python -m benchmarks.alternatives.feature_store.load_memcached data/features-1m.jsonl
+.venv/bin/python -m benchmarks.alternatives.feature_store.query_memcached \
   --rows 1000000 --label 1m
 ```
 
-`bench-redis-full` uses 4 GiB and must hold the complete working set for the
-fair comparison. `bench-redis` (512 MiB) remains only for the separate memory
-pressure experiment.
+`bench-redis-full` and `bench-memcached` use 4 GiB; both hold the complete
+working set. `bench-redis` (512 MiB) remains only for the separate memory
+pressure experiment. PostgreSQL is a disk reference, not the speed comparison.
 
 ## Streaming
 
