@@ -1,0 +1,10 @@
+{
+  "engine": "redis",
+  "file": "benchmarks/alternatives/data/features-1m.jsonl",
+  "rows": 1000000,
+  "seconds": 24.433,
+  "used_memory": "477.67M",
+  "maxmemory": "512.00M",
+  "evicted_keys": 0,
+  "evicted_keys_total": 7853622
+}

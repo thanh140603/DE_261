@@ -1,0 +1,51 @@
+# Local benchmark-only services. Not part of the production path.
+services:
+  bench-redis:
+    profiles: ["bench-kv"]
+    image: redis:7-alpine
+    container_name: de261-bench-redis
+    ports: ["6380:6379"]
+    command:
+      - redis-server
+      - --save
+      - ""
+      - --appendonly
+      - "no"
+      - --maxmemory
+      - 512mb
+      - --maxmemory-policy
+      - allkeys-lru
+    mem_limit: 768m
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    restart: "no"
+
+  bench-clickhouse:
+    profiles: ["bench-olap"]
+    image: clickhouse/clickhouse-server:24.8-alpine
+    container_name: de261-bench-clickhouse
+    ports: ["8123:8123", "9002:9000"]
+    environment:
+      CLICKHOUSE_DB: bench
+      CLICKHOUSE_USER: default
+      CLICKHOUSE_PASSWORD: ""
+      CLICKHOUSE_DEFAULT_ACCESS_MANAGEMENT: "1"
+    volumes:
+      - ./benchmarks/alternatives/data:/data:ro
+      - clickhouse-bench-data:/var/lib/clickhouse
+    ulimits:
+      nofile: { soft: 262144, hard: 262144 }
+    mem_limit: 2g
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8123/ping | grep -q Ok"]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+      start_period: 10s
+    restart: "no"
+
+volumes:
+  clickhouse-bench-data:

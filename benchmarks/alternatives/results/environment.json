@@ -1,0 +1,26 @@
+{
+  "timestamp": "2026-11-12T10:43:21.252523+00:00",
+  "commit": "720a550a07a28f6aba4967e01e852473511bd935",
+  "host": "lordofweebs",
+  "os": "PRETTY_NAME=\"Ubuntu 26.04.1 LTS\"",
+  "kernel": "6.6.87.2-microsoft-standard-WSL2",
+  "cpu_model": "AMD Ryzen 7 8745H with Radeon 780M Graphics",
+  "cpu_count": "16",
+  "memory_total": "7.4Gi",
+  "docker": "29.9.2",
+  "datasets": {
+    "events_5gb": {
+      "rows": 17410669,
+      "bytes": 5368709155
+    },
+    "facts_5gb": {
+      "rows": 44492023,
+      "bytes": 5368709188
+    },
+    "features_5gb": {
+      "rows": 14375660,
+      "bytes": 5368709338
+    }
+  },
+  "notes": "Subsets 1M/5M/10M were sliced from the full generated files; same seed and schema."
+}

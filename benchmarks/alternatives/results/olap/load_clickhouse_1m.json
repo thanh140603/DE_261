@@ -1,0 +1,5 @@
+{
+  "engine": "clickhouse",
+  "file": "/data/org-facts-1m.csv",
+  "seconds": 4.432
+}

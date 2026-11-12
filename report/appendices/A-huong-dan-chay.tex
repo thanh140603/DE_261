@@ -78,6 +78,36 @@ uv run edu benchmark live    --out docs/evidence/br678/live_overlay.csv
 
 Các file CSV gốc dùng trong Chương~\ref{chap:eval} được chép vào thư mục \code{report/data/}: \code{br4_benchmark.csv}, \code{br5_stream_benchmark.csv}, \code{serving_latency.csv}, \code{content_sync_latency.csv}, \code{live_overlay.csv}, \code{mart_build.csv}.
 
+\section{Đo alternative solutions}
+
+Các benchmark alternative dùng file 5 GiB trong
+\code{benchmarks/alternatives/data/} (gitignored). Chạy trên các tiền tố
+1M/5M/10M dòng:
+
+\begin{lstlisting}[language=bash]
+# OLAP: PostgreSQL vs ClickHouse (profile bench-olap)
+docker compose -f docker-compose.yml -f docker-compose.bench.yml \
+  --profile bench-olap up -d bench-clickhouse
+.venv/bin/python -m benchmarks.alternatives.olap.load_postgres \
+  benchmarks/alternatives/data/org-facts-1m.csv
+.venv/bin/python -m benchmarks.alternatives.olap.load_clickhouse \
+  benchmarks/alternatives/data/org-facts-1m.csv
+.venv/bin/python -m benchmarks.alternatives.olap.query_olap \
+  --engine both --repeat 3 --label 1m
+
+# Feature store: Redis bị giới hạn 512 MiB vs PostgreSQL disk
+docker compose -f docker-compose.yml -f docker-compose.bench.yml \
+  --profile bench-kv up -d bench-redis
+.venv/bin/python -m benchmarks.alternatives.feature_store.load_redis \
+  benchmarks/alternatives/data/features-1m.jsonl
+.venv/bin/python -m benchmarks.alternatives.feature_store.load_postgres \
+  benchmarks/alternatives/data/features-1m.jsonl
+.venv/bin/python -m benchmarks.alternatives.feature_store.workload \
+  --rows 1000000 --ops 10000 --label 1m
+\end{lstlisting}
+
+Kết quả chi tiết: \code{benchmarks/alternatives/results/}.
+
 \section{Biên dịch báo cáo}
 
 \begin{lstlisting}[language=bash]
