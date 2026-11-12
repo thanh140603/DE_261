@@ -1,0 +1,230 @@
+{
+  "suite": "BR5",
+  "engine": "flink",
+  "run_id": "restoration-final-flink",
+  "measured_at": "2026-11-12T16:40:46.019656+00:00",
+  "python": "3.12.3",
+  "platform": "Linux-7.0.0-43-generic-x86_64-with-glibc2.39",
+  "poll_seconds": 0.25,
+  "source_revision": "3cfd70d51ffced9850c705297bf7707ba43d3d04",
+  "engine_version": "1.19.3",
+  "cpu_limit": 2,
+  "memory_limit_gib": 2,
+  "publish_interval_seconds": 5,
+  "flink_checkpoint_seconds": 10,
+  "window_hours": 168,
+  "window_slide_hours": 1,
+  "allowed_lateness_days": 21,
+  "trials": [
+    {
+      "phase": "correctness",
+      "records": 0,
+      "repeat": 1,
+      "status": "PASS",
+      "checks": [
+        "duplicate",
+        "out_of_order",
+        "half_open_window",
+        "signed_retraction"
+      ]
+    },
+    {
+      "phase": "warmup",
+      "records": 1000,
+      "repeat": 0,
+      "status": "PASS",
+      "elapsed_ms": 10266.105943999719,
+      "events_per_second": 97.40791741823733,
+      "input_messages": 1026
+    },
+    {
+      "phase": "processing",
+      "records": 1000,
+      "repeat": 1,
+      "status": "PASS",
+      "elapsed_ms": 10184.817397999723,
+      "events_per_second": 98.18536365673064,
+      "input_messages": 1026
+    },
+    {
+      "phase": "processing",
+      "records": 1000,
+      "repeat": 2,
+      "status": "PASS",
+      "elapsed_ms": 10759.948703998816,
+      "events_per_second": 92.93724603244262,
+      "input_messages": 1026
+    },
+    {
+      "phase": "processing",
+      "records": 1000,
+      "repeat": 3,
+      "status": "PASS",
+      "elapsed_ms": 10109.44354199819,
+      "events_per_second": 98.91741279781105,
+      "input_messages": 1026
+    },
+    {
+      "phase": "warmup",
+      "records": 10000,
+      "repeat": 0,
+      "status": "PASS",
+      "elapsed_ms": 10422.245081001165,
+      "events_per_second": 959.4861685059699,
+      "input_messages": 10116
+    },
+    {
+      "phase": "processing",
+      "records": 10000,
+      "repeat": 1,
+      "status": "PASS",
+      "elapsed_ms": 12014.082345998759,
+      "events_per_second": 832.3565389353653,
+      "input_messages": 10116
+    },
+    {
+      "phase": "processing",
+      "records": 10000,
+      "repeat": 2,
+      "status": "PASS",
+      "elapsed_ms": 10983.261771001708,
+      "events_per_second": 910.4763419553797,
+      "input_messages": 10116
+    },
+    {
+      "phase": "processing",
+      "records": 10000,
+      "repeat": 3,
+      "status": "PASS",
+      "elapsed_ms": 15715.659306999441,
+      "events_per_second": 636.3080163964995,
+      "input_messages": 10116
+    },
+    {
+      "phase": "warmup",
+      "records": 100000,
+      "repeat": 0,
+      "status": "PASS",
+      "elapsed_ms": 41675.52707899813,
+      "events_per_second": 2399.489748754582,
+      "input_messages": 101016
+    },
+    {
+      "phase": "processing",
+      "records": 100000,
+      "repeat": 1,
+      "status": "PASS",
+      "elapsed_ms": 60746.88945900198,
+      "events_per_second": 1646.1748229510567,
+      "input_messages": 101016
+    },
+    {
+      "phase": "processing",
+      "records": 100000,
+      "repeat": 2,
+      "status": "PASS",
+      "elapsed_ms": 62898.08406299926,
+      "events_per_second": 1589.8735468609686,
+      "input_messages": 101016
+    },
+    {
+      "phase": "processing",
+      "records": 100000,
+      "repeat": 3,
+      "status": "PASS",
+      "elapsed_ms": 29868.936732000293,
+      "events_per_second": 3347.9598184981355,
+      "input_messages": 101016
+    },
+    {
+      "phase": "e2e_alert",
+      "records": 4,
+      "repeat": 1,
+      "status": "PASS",
+      "elapsed_ms": 23357.40366200116,
+      "score": 100
+    },
+    {
+      "phase": "e2e_recovery",
+      "records": 4,
+      "repeat": 1,
+      "status": "PASS",
+      "elapsed_ms": 15203.968616999191,
+      "score": 50
+    },
+    {
+      "phase": "e2e_alert",
+      "records": 4,
+      "repeat": 2,
+      "status": "PASS",
+      "elapsed_ms": 13986.366958997678,
+      "score": 100
+    },
+    {
+      "phase": "e2e_recovery",
+      "records": 4,
+      "repeat": 2,
+      "status": "PASS",
+      "elapsed_ms": 25871.047279000777,
+      "score": 50
+    },
+    {
+      "phase": "e2e_alert",
+      "records": 4,
+      "repeat": 3,
+      "status": "PASS",
+      "elapsed_ms": 23756.55967000057,
+      "score": 100
+    },
+    {
+      "phase": "e2e_recovery",
+      "records": 4,
+      "repeat": 3,
+      "status": "PASS",
+      "elapsed_ms": 15571.504174997244,
+      "score": 50
+    },
+    {
+      "phase": "e2e_alert",
+      "records": 4,
+      "repeat": 4,
+      "status": "PASS",
+      "elapsed_ms": 12777.474292000988,
+      "score": 100
+    },
+    {
+      "phase": "e2e_recovery",
+      "records": 4,
+      "repeat": 4,
+      "status": "PASS",
+      "elapsed_ms": 11496.486258001823,
+      "score": 50
+    },
+    {
+      "phase": "e2e_alert",
+      "records": 4,
+      "repeat": 5,
+      "status": "PASS",
+      "elapsed_ms": 14252.881802000047,
+      "score": 100
+    },
+    {
+      "phase": "e2e_recovery",
+      "records": 4,
+      "repeat": 5,
+      "status": "PASS",
+      "elapsed_ms": 11515.871417999733,
+      "score": 50
+    },
+    {
+      "phase": "restart",
+      "records": 0,
+      "repeat": 1,
+      "status": "PASS",
+      "checks": [
+        "checkpoint_window_state",
+        "checkpoint_event_identity"
+      ]
+    }
+  ]
+}

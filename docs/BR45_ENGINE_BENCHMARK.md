@@ -15,7 +15,7 @@ Spark Streaming đặt nhịp micro-batch 5 giây, tối đa 50.000 Kafka offset
 
 ## Chạy lại
 
-Chạy tại thư mục gốc với Python trong `.venv`, Docker Compose, Kafka và Connect của stack. Overlay sử dụng các image cục bộ đã cài. Bước chuẩn bị lấy các JAR cố định từ bộ nhớ đệm hoặc Maven Central và biên dịch job Flink trong container. Cơ sở dữ liệu benchmark ở cổng 15434, API đo ở cổng 18001. Mỗi lượt BR5 có Kafka topic, Kafka group hoặc offset log và checkpoint riêng.
+Chạy tại thư mục gốc với Python trong `.venv`, Docker Compose, Kafka và Connect của stack. Bước chuẩn bị build image từ checkout hiện tại và có thể dùng cache của Docker. Bước chuẩn bị lấy các JAR cố định từ bộ nhớ đệm hoặc Maven Central và biên dịch job Flink trong container. Cơ sở dữ liệu benchmark ở cổng 15434, API đo ở cổng 18001. Mỗi lượt BR5 có Kafka topic, Kafka group hoặc offset log và checkpoint riêng.
 
 ```bash
 bash infra/br45/run-engine-benchmark.sh prepare
@@ -31,7 +31,7 @@ cp data/br45-engine-benchmark/runs/"$run"-br5-{spark,flink}.json "$archive/"
 {
   uname -srmo
   lscpu | sed -n '/^CPU(s):/p; /^Model name:/p'
-  docker image inspect postgres:16 de261/demo:local de261/br45-spark:local \
+  docker image inspect postgres:16 de261/demo:local de261/spark:local \
     flink:1.19-scala_2.12-java11 confluentinc/cp-kafka:7.6.1 debezium/connect:2.6 \
     --format '{{join .RepoTags ", "}} {{.Id}}'
 } > "$archive/host.txt"
@@ -63,4 +63,7 @@ docker compose -f docker-compose.yml -f docker-compose.br45-classroom.yml restar
 
 Kết quả phản ánh cấu hình trên một máy và nhịp ghi, checkpoint đã chọn. Phép đo BR4 bao gồm chi phí JDBC và khởi chạy tác vụ Spark sau warmup. Phép đo BR5 bao gồm chi phí Kafka, chờ lưu cửa sổ và chờ xác nhận offsets.
 
-Đợt đo ngày 9 tháng 11 năm 2026 có [số liệu hiển thị trên web](evidence/br45/engine_comparison.json) và [journal cùng cấu hình máy](evidence/br45-v2/engine-comparison/).
+Đợt đo lịch sử ngày 9 tháng 11 năm 2026 có [số liệu hiển thị trên web](evidence/br45/engine_comparison.json) và [journal cùng cấu hình máy](evidence/br45-v2/engine-comparison/).
+
+
+Đợt chạy khôi phục trên revision `3cfd70d` đạt 36 lượt đo và 30 lượt đầu cuối. Spark và Flink đều đạt kiểm tra khởi động lại. [Bảng tổng hợp mới](evidence/br45-restoration/engine-comparison/summary.json), [journal từng lượt](evidence/br45-restoration/engine-comparison/) và [cấu hình máy, image ID](evidence/br45-restoration/compose-build.json).

@@ -35,6 +35,23 @@ The classroom password applies on first initialization and must have at least 12
 
 The base profile stores Delta and checkpoints on the BR45 volume. The [MinIO overlay](../docker-compose.br45-v2.yml) puts Delta on MinIO and enables the shared Hive catalog. To populate the warehouse risk models, also start the existing lakehouse landing service and run the existing warehouse build as described in [the warehouse guide](architecture/data-warehouse.md).
 
+### Verify alongside an existing Compose deployment
+
+The verification overlay uses its own image tags, loopback ports and Compose project. Keep the application DSN scoped to the verification command on the host. The Compose services use the `postgres` service address.
+
+```sh
+export COMPOSE_PROJECT_NAME=de261-br45-verify
+export COMPOSE_FILE=docker-compose.yml:infra/br45/compose.verify.yml
+export EDU_BR45_CLOCK_MODE=manual
+docker compose --profile br45 up -d --build demo br45-cdc br45-stream
+docker compose --profile br45 exec -T br45-cdc python -m edu_platform.br45.cli seed
+# Wait until the Instructor API serves the seeded question, then run the end-to-end check.
+EDU_BR45_DSN=postgresql://lms:lms@127.0.0.1:15433/lms EDU_BR45_KAFKA=localhost:19092 \
+  python -m edu_platform.br45.verify --url http://127.0.0.1:18080 --restart --output data/br45-e2e
+```
+
+For comparisons against that broker, set `BR45_BENCH_COMPOSE_OVERLAY=infra/br45/compose.verify.yml`, `BR45_BENCH_CONNECT_URL=http://127.0.0.1:18083`, and `BR45_BENCH_KAFKA=localhost:19092`. Set the benchmark API and Spark image overrides to the verification tags and run one engine at a time.
+
 ## Contracts and runtime behavior
 
 | Requirement | Implementation | Verification |
@@ -45,7 +62,7 @@ The base profile stores Delta and checkpoints on the BR45 volume. The [MinIO ove
 | Advisor policy and intervention | [Policy and note endpoints](../src/edu_platform/br45/api.py), [outbox](../src/edu_platform/br45/events.py), [warehouse transitions](../warehouse/transform/silver/dropout_alert_transitions.sql) | Scoped policy conflicts, retries, actor audit and boundary activation in [PostgreSQL integration](../tests/integration/test_br45.py) |
 | Classroom and replay | [Classroom](../src/edu_platform/br45/classroom.py), [replay](../src/edu_platform/br45/replay.py), [React dashboard](../apps/web/src/App.tsx) | [Ownership and logout](../tests/unit/test_classroom_accounts.py), [replay contract](../tests/unit/test_br45_replay.py) |
 | BR5 effectiveness | [OULAD evaluator](../src/edu_platform/br45/effectiveness.py) | [New OULAD results](evidence/br45-restoration/oulad/oulad_evaluation.json), [historical runs](evidence/br45-v2/oulad_evaluation.json) |
-| Engine comparisons | [Engine harness](../infra/br45/run-engine-benchmark.sh) | [Historical raw results and restart logs](evidence/br45-v2/engine-comparison/) |
+| Engine comparisons | [Engine harness](../infra/br45/run-engine-benchmark.sh) | [Fresh results](evidence/br45-restoration/engine-comparison/summary.json), [historical raw results](evidence/br45-v2/engine-comparison/) |
 
 FastAPI serves the mode-specific OpenAPI document at `/openapi.json`. [JSON Schemas](../schemas/br45/v2/) cover the new request and response models.
 
@@ -88,4 +105,15 @@ Quarantined events remain available with their original envelope. The rebuild re
 
 The new PostgreSQL runs include lease fencing, policy activation and note idempotency. Four labeled synthetic BR4 scenarios matched their expected states and the independent oracle agreed with PostgreSQL counts. The OULAD rerun consumed 10,655,280 daily-aggregate VLE rows and produced 77,106 observations. Threshold 65 tied version 1 on the 2013 validation set, so version 1 was retained. The 2014 results had been inspected previously and are a retrospective evaluation.
 
-Run the full Compose acceptance, fresh Docker image build, and coordinated backup and restore on a host with Docker access. Historic engine results are retained for comparison. The Docker-dependent gates for this checkout are pending.
+The clean verification build and the live CDC acceptance passed. The synthetic correction moved BR4 from 2/24 to 3/24 passes. BR5 recovered after a worker restart with zero duplicate alerts. Both the current and prior BR4 publication prefixes were present in MinIO. The Classroom check traced a real Code Lab submission into its five CDC-landed evaluations. The Replay check verified shared synthetic stages in the browser.
+
+| Gate | Evidence |
+| --- | --- |
+| Unit and PostgreSQL regression | [375 passed with the optional dependencies installed](evidence/br45-restoration/native-python.xml) |
+| Native Spark | [Delta snapshot parity and checkpoint deduplication](evidence/br45-restoration/native-spark.xml) |
+| Fresh Compose build and actual CDC | [Build revision and image IDs](evidence/br45-restoration/compose-build.json), [end-to-end result](evidence/br45-restoration/compose-e2e.json), [immutable publications](evidence/br45-restoration/compose-publications.json) |
+| Classroom and Replay | [Classroom browser and CDC](evidence/br45-restoration/classroom-compose/), [Classroom mobile](evidence/br45-restoration/classroom-mobile/browser-results.json), [Replay](evidence/br45-restoration/replay-compose/browser-results.json) |
+| Engine comparisons | [36 measured trials and 30 end-to-end trials](evidence/br45-restoration/engine-comparison/summary.json) passed. Spark and Flink both passed checkpoint restart. |
+| Warehouse and backfill staging | [Risk merge replay](evidence/br45-restoration/warehouse-risk.json), [backfill audit history](evidence/br45-restoration/backfill-history.json) |
+
+The initial live run exposed Spark's idle progress report using the next batch ID with unchanged offsets. The first persistent browser run also timed out waiting for actual Spark publications. The corrected runtime and the revised browser deadline have separate evidence. [Initial Compose run](evidence/br45-restoration/compose-initial.json), [initial browser run](evidence/br45-restoration/compose-browser-initial/browser-results.json).

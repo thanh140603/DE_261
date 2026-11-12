@@ -1,0 +1,28 @@
+{
+  "sink": {
+    "batch_id": 1,
+    "checkpoint": "/checkpoints/br45-v2-ff4b0f4a118a",
+    "window_rows": 0,
+    "last_success_at": "2026-11-12T16:12:17.629534+00:00"
+  },
+  "reason": "Idle Spark report could precede the next sink batch",
+  "status": "FAIL",
+  "landing": {
+    "version": 1,
+    "batch_id": 0,
+    "sequence": 178,
+    "last_success_at": "2026-11-12T16:12:32.849875+00:00"
+  },
+  "revision": "6aed0b5",
+  "freshness": {
+    "caught_up": false,
+    "outbox_pending": false,
+    "consumed_offsets": {
+      "0": 92
+    },
+    "published_offsets": {
+      "0": 92
+    }
+  },
+  "reported_batch": 2
+}

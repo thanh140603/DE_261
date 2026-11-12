@@ -1,0 +1,19 @@
+{
+  "status": "PASS",
+  "revision": "3cfd70d51ffced9850c705297bf7707ba43d3d04",
+  "host": "Linux-7.0.0-43-generic-x86_64-with-glibc2.39",
+  "logical_cpus": 6,
+  "memory_bytes": 19766132736,
+  "docker_server": "29.9.3",
+  "images": {
+    "de261/verify-demo:local": "sha256:67247200eac61eb72d147b999557a463e6938fcaba8e6dc438dddd944812494f",
+    "de261/verify-spark:local": "sha256:e73b977eddea5184cf8c2aa664f401e4e71f7cf6d84e56397fb8c7826af35829",
+    "de261/verify-minio:local": "sha256:36564ec55dbb0287c95f57a4adbe320e6f5fe75ba96570c2f37243d737c8a6f9",
+    "postgres:16": "sha256:f9a7b9ebf6f56201f949db745e47bc423c0f0f8294bafe991cc10bf74b029657",
+    "confluentinc/cp-kafka:7.6.1": "sha256:620734d9fc0bb1f9886932e5baf33806074469f40e3fe246a3fdbb59309535fa",
+    "debezium/connect:2.6": "sha256:baa0dbbc404eb4da82e07c31482d6c63d8dc4e64c76260dd1933110235ee0809",
+    "flink:1.19-scala_2.12-java11": "sha256:1bf0a2e91e8640900914dfd54ed605776778b1d978257e72438547004e49c6a9"
+  },
+  "docker_compose_overlay": "infra/br45/compose.verify.yml",
+  "verification_project": "de261-br45-final"
+}

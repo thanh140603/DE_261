@@ -1,0 +1,15 @@
+{
+  "status": "PASS",
+  "rows": [
+    {
+      "score_event_id": "first",
+      "risk_score": 0.65,
+      "policy_version": 1
+    },
+    {
+      "score_event_id": "second",
+      "risk_score": 0.65,
+      "policy_version": 2
+    }
+  ]
+}
