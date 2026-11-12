@@ -10,6 +10,7 @@ It is **not** part of the BR1–BR8 serving path.
 | B. OLAP | PostgreSQL | ClickHouse (StarRocks fallback) | measured 1M/5M/10M |
 | C. Feature store | Redis (4 GiB) | Memcached (4 GiB) | measured 1M/5M |
 | A. Streaming | Spark Structured Streaming | Flink 1.19 SQL | measured 100k filter |
+| D. Data layout | Partition by date | Z-order / liquid clustering | measured 1M/5M/10M |
 
 See [results/summary.md](results/summary.md) for numbers and caveats.
 StarRocks/Flink numbers must not be inferred from the fallbacks.
@@ -49,6 +50,18 @@ docker compose -f docker-compose.yml -f docker-compose.bench.yml \
 `bench-redis-full` and `bench-memcached` use 4 GiB; both hold the complete
 working set. `bench-redis` (512 MiB) remains only for the separate memory
 pressure experiment. PostgreSQL is a disk reference, not the speed comparison.
+
+## Data layout
+
+```bash
+docker run --rm --memory=6g --network de261_default \
+  -v "$PWD/benchmarks/alternatives/data:/data:ro" \
+  -v "$PWD/benchmarks/alternatives/layout:/script:ro" \
+  -v "$PWD/benchmarks/alternatives/results/layout:/results" \
+  de261/spark:local spark-submit --driver-memory 4g \
+  /script/run_layout.py --csv /data/org-facts-5m.csv --rows 5000000 \
+  --out /results/layout_5m.json
+```
 
 ## Streaming
 

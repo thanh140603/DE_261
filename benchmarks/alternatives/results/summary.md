@@ -49,6 +49,21 @@ fit. Redis evicts 3.93M keys, serves only 21.68% of lookups and its p50 of
 when TTL, data structures, pub/sub or persistence are needed. PostgreSQL remains
 the transactional source of truth.
 
+## Pair D — Data layout: partition vs Z-order/liquid clustering
+
+Same 10M fact rows, same four filters, Spark local. p50 includes plan/launch
+overhead, so compare relative values only.
+
+| Layout | Date | Course | Org | Combined | Active files |
+|---|---:|---:|---:|---:|---:|
+| Partition by date | 499 ms | 927 ms | 579 ms | 356 ms | 41 |
+| Partition + Z-order | 331 ms | 597 ms | 782 ms | 325 ms | 41 |
+| Liquid clustering | 393 ms | 495 ms | 497 ms | 395 ms | 2 |
+
+No layout wins every query: partition wins date-only, Z-order wins date/combined,
+liquid wins course/org. Z-order and liquid require rewrite/OPTIMIZE time; partition
+is cheaper to write but scans all files for non-date filters.
+
 ## Pair A — Spark Structured Streaming vs Flink
 
 Same Kafka topic (`bench.events3`), same 100,000 events, same filter

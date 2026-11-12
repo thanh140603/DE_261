@@ -321,6 +321,39 @@ hoặc scale-out.
 Redis vẫn có lợi thế về cấu trúc dữ liệu, TTL, pub/sub và persistence; PostgreSQL
 phù hợp khi cần giao dịch/nguồn sự thật, không phải cache.
 
+\subsection{Data layout: Hive partition và Z-order/liquid clustering}
+
+Cùng 10M dòng fact, cùng bốn query, chỉ đổi cách tổ chức file. Bảng~\ref{tab:alt-layout}
+đo p50 của query trên Spark local; số thời gian đã gồm chi phí plan/launch nên chỉ so
+tương đối.
+
+\begin{table}[H]
+\centering\small
+\caption{Data layout: p50 theo loại filter (10M dòng)}
+\label{tab:alt-layout}
+\begin{tabular}{@{}lrrrrrr@{}}
+\toprule
+\textbf{Layout} & \textbf{Date} & \textbf{Course} & \textbf{Org} & \textbf{Combined} & \textbf{Files} & \textbf{Write/optimize} \\
+\midrule
+Partition ngày & 499 ms & 927 ms & 579 ms & 356 ms & 41 & 73,5 s \\
+Partition + Z-order & 331 ms & 597 ms & 782 ms & 325 ms & 41 & 71,6 + 30,4 s \\
+Liquid clustering & 393 ms & 495 ms & 497 ms & 395 ms & 2 & 43,8 + 55,0 s \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Kết quả cho thấy không có layout thắng mọi query:
+\begin{itemize}
+  \item Partition ngày tốt khi filter đúng ngày, nhưng scan toàn bộ khi filter course/org.
+  \item Z-order cải thiện query ngày và combined; query org lại chậm hơn partition trong lần đo này.
+  \item Liquid clustering tốt nhất cho course/org, nhưng kém hơn Z-order ở date/combined.
+  \item Liquid/Z-order cần thời gian rewrite/OPTIMIZE; partition rẻ hơn khi ghi nhưng hại query đa chiều.
+\end{itemize}
+
+Vì vậy layout phải chọn theo **mẫu query thực tế**, không theo tên công nghệ. Với dashboard
+BR6/BR7 lọc theo ngày và vài chiều, Z-order/liquid có thể giảm thời gian; với query chỉ theo
+ngày, partition vẫn đủ.
+
 \subsection{Streaming: Spark Structured Streaming và Flink}
 
 Hai engine đọc cùng topic Kafka \code{bench.events3} với 100.000 event, lọc

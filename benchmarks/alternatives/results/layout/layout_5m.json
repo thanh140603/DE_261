@@ -1,0 +1,130 @@
+{
+  "rows": 5000000,
+  "queries": [
+    [
+      "date",
+      "event_date = '2026-10-15'"
+    ],
+    [
+      "course",
+      "course_id = 'c-sql-101'"
+    ],
+    [
+      "org",
+      "org_id = 'org-acme'"
+    ],
+    [
+      "combined",
+      "event_date = '2026-10-15' AND course_id = 'c-sql-101' AND org_id = 'org-acme'"
+    ]
+  ],
+  "layouts": {
+    "partitioned": {
+      "write_s": 31.861,
+      "files": 41,
+      "bytes": 138897705,
+      "queries": [
+        {
+          "where": "event_date = '2026-10-15'",
+          "rows": 121894,
+          "p50_ms": 449.471,
+          "files": 1,
+          "bytes": 3386861
+        },
+        {
+          "where": "course_id = 'c-sql-101'",
+          "rows": 834226,
+          "p50_ms": 683.425,
+          "files": 41,
+          "bytes": 138897705
+        },
+        {
+          "where": "org_id = 'org-acme'",
+          "rows": 2500330,
+          "p50_ms": 463.494,
+          "files": 41,
+          "bytes": 138897705
+        },
+        {
+          "where": "event_date = '2026-10-15' AND course_id = 'c-sql-101' AND org_id = 'org-acme'",
+          "rows": 10254,
+          "p50_ms": 403.707,
+          "files": 1,
+          "bytes": 3386861
+        }
+      ]
+    },
+    "partitioned_zorder": {
+      "write_s": 26.965,
+      "zorder_s": 24.951,
+      "files": 41,
+      "bytes": 138897705,
+      "queries": [
+        {
+          "where": "event_date = '2026-10-15'",
+          "rows": 121894,
+          "p50_ms": 347.915,
+          "files": 1,
+          "bytes": 3386861
+        },
+        {
+          "where": "course_id = 'c-sql-101'",
+          "rows": 834226,
+          "p50_ms": 443.952,
+          "files": 41,
+          "bytes": 138897705
+        },
+        {
+          "where": "org_id = 'org-acme'",
+          "rows": 2500330,
+          "p50_ms": 393.004,
+          "files": 41,
+          "bytes": 138897705
+        },
+        {
+          "where": "event_date = '2026-10-15' AND course_id = 'c-sql-101' AND org_id = 'org-acme'",
+          "rows": 10254,
+          "p50_ms": 267.834,
+          "files": 1,
+          "bytes": 3386861
+        }
+      ]
+    },
+    "liquid": {
+      "write_s": 21.681,
+      "optimize_s": 42.788,
+      "files": 1,
+      "bytes": 134782310,
+      "queries": [
+        {
+          "where": "event_date = '2026-10-15'",
+          "rows": 121894,
+          "p50_ms": 309.257,
+          "files": 1,
+          "bytes": 134782310
+        },
+        {
+          "where": "course_id = 'c-sql-101'",
+          "rows": 834226,
+          "p50_ms": 490.154,
+          "files": 1,
+          "bytes": 134782310
+        },
+        {
+          "where": "org_id = 'org-acme'",
+          "rows": 2500330,
+          "p50_ms": 483.852,
+          "files": 1,
+          "bytes": 134782310
+        },
+        {
+          "where": "event_date = '2026-10-15' AND course_id = 'c-sql-101' AND org_id = 'org-acme'",
+          "rows": 10254,
+          "p50_ms": 377.336,
+          "files": 1,
+          "bytes": 134782310
+        }
+      ]
+    }
+  }
+}
