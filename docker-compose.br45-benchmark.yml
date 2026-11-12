@@ -34,7 +34,7 @@ services:
       retries: 20
 
   br45-bench-init:
-    image: de261/demo:local
+    image: ${BR45_BENCH_API_IMAGE:-de261/demo:local}
     build:
       context: .
       dockerfile: Dockerfile
@@ -64,7 +64,7 @@ services:
       disable: true
 
   br45-bench-cdc:
-    image: de261/demo:local
+    image: ${BR45_BENCH_API_IMAGE:-de261/demo:local}
     environment: *benchmark
     volumes: ["./src:/app/src:ro"]
     depends_on:
@@ -75,7 +75,7 @@ services:
       disable: true
 
   br45-bench-api:
-    image: de261/demo:local
+    image: ${BR45_BENCH_API_IMAGE:-de261/demo:local}
     environment: *benchmark
     ports: ["127.0.0.1:18001:8000"]
     volumes: ["./src:/app/src:ro"]
@@ -84,7 +84,7 @@ services:
         condition: service_completed_successfully
 
   br45-bench-spark:
-    image: de261/spark:local
+    image: ${BR45_BENCH_SPARK_IMAGE:-de261/spark:local}
     build:
       context: .
       dockerfile: infra/spark/Dockerfile

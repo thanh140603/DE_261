@@ -1,0 +1,31 @@
+{
+  "replacement_database": "br45_rebuild_history",
+  "verified_source_row_counts": {
+    "courses": 12,
+    "assignments": 1,
+    "questions": 1,
+    "test_cases": 3,
+    "enrollments": 28,
+    "submissions": 24,
+    "evaluations": 72,
+    "activity_events": 36,
+    "clocks": 1,
+    "course_policies": 0,
+    "risk_history": 1,
+    "dropout_alerts": 1,
+    "intervention_notes": 1
+  },
+  "next_step": "Run the isolated connector, topics, and checkpoints before cutover.",
+  "classroom_submissions": [
+    {
+      "submission_id": "5b8007ad-8ec4-417c-898e-3156176adf6b",
+      "evaluations": 5
+    },
+    {
+      "submission_id": "6bbadf6e-f234-4733-9aed-064257ffe655",
+      "evaluations": 5
+    }
+  ],
+  "intervention_sequence_preserved": true,
+  "status": "PASS"
+}

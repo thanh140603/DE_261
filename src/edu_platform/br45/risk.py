@@ -170,7 +170,7 @@ def persist(conn: Db, result: dict[str, Any], cfg: AnalyticsSettings | None = No
         (sid, cid, result["score"], result["level"], result["eligible"], evaluated, Jsonb(result)),
     )
     history_id = identity(result)
-    conn.execute(
+    inserted_history = conn.execute(
         (
             "INSERT INTO "
             "analytics.risk_history(id,student_id,course_id,evaluated_at,score,data) "
@@ -178,7 +178,7 @@ def persist(conn: Db, result: dict[str, Any], cfg: AnalyticsSettings | None = No
         ),
         (history_id, sid, cid, evaluated, result["score"], Jsonb(result)),
     )
-    if not old or old["data"] != result:
+    if inserted_history.rowcount:
         enqueue(
             conn,
             cfg.domain_topic,

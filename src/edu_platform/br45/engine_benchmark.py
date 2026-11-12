@@ -74,6 +74,7 @@ class Journal:
             "python": platform.python_version(),
             "platform": platform.platform(),
             "poll_seconds": POLL,
+            "source_revision": os.environ.get("BR45_BENCH_REVISION"),
         }
 
     def write(self) -> None:

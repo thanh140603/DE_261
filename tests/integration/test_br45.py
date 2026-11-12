@@ -581,3 +581,49 @@ def test_risk_refresh_waits_for_matching_committed_sink(conn, monkeypatch):
     assert not calls
     streaming.score_committed_batch(conn, progress, cfg)
     assert len(calls) == 1
+
+
+def test_failed_generation_leaves_the_last_assessment_publication(conn):
+    from edu_platform.br45 import jobs
+
+    source(conn)
+    before, _ = results(conn)
+    start = T - timedelta(days=30)
+    cfg = AnalyticsSettings(assessment_engine="postgres")
+    job = jobs.request(conn, "c", start, T, cfg)
+    claimed = jobs.pending(conn, "postgres")
+    assert claimed and claimed["id"] == job["id"]
+    with pytest.raises(RuntimeError, match="lease was lost"), conn.transaction():
+        conn.execute("DELETE FROM analytics.mart_question_pass_statistics WHERE course_id='c'")
+        jobs.complete(
+            conn, claimed | {"lease_generation": claimed["lease_generation"] - 1},
+            "stale", "stale-publication",
+        )
+    jobs.fail(conn, claimed, RuntimeError("injected publication failure"))
+    after = conn.execute(
+        "SELECT data FROM analytics.mart_question_pass_statistics WHERE course_id='c'"
+    ).fetchone()
+    assert after["data"] == before[0]
+    status = conn.execute("SELECT status FROM analytics.assessment_jobs").fetchone()["status"]
+    assert status == "FAILED"
+
+
+def test_retention_dry_run_blocks_while_job_or_outbox_pending(conn):
+    from edu_platform.br45 import jobs
+    from edu_platform.br45.retention import activity_deliveries
+
+    cfg = AnalyticsSettings()
+    published = {"0": 8}
+    state(conn, "published_offsets", published)
+    state(conn, "feature_freshness", {"caught_up": True, "published_offsets": published})
+    state(conn, "stream_watermark", T.isoformat())
+    conn.execute(
+        "INSERT INTO analytics.outbox(event_id,payload,published_at) "
+        "VALUES ('old',jsonb_build_object('event_time',%s::text),now()-interval '90 days')",
+        (T.isoformat(),),
+    )
+    preview = activity_deliveries(conn, cfg, 60)
+    assert preview["status"] == "PREVIEW" and preview["eligible"] == 1
+    assert conn.execute("SELECT count(*) n FROM analytics.outbox").fetchone()["n"] == 1
+    jobs.request(conn, "c", T - timedelta(days=30), T)
+    assert activity_deliveries(conn, cfg, 60, apply=True)["status"] == "BLOCKED"

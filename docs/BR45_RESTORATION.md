@@ -66,13 +66,23 @@ For an existing v1 deployment, take a cold backup before building v2. If Kafka u
 3. Restore into fresh volumes with the recorded image versions, cluster ID, network listener settings and checkpoint paths. Start PostgreSQL, MinIO and Kafka, then Connect, then the BR45 workers and API. Confirm WAL slot, connector and consumer progress before enabling source writes.
 4. Verify a known mart, one risk history, a duplicate delivery and a new event before accepting the restore. Keep the original volumes available for rollback. Routine fixture reset is scoped to `br45-demo-*` rows.
 
+For the verification deployment with BR4 on MinIO, use the scoped volume helper after stopping the project. It archives PostgreSQL, Kafka, MinIO and Spark checkpoints, verifies SHA-256 checksums, and restores only to an unused project name.
+
+```sh
+bash infra/br45/cold-volume-copy.sh backup de261-br45-verify "$ARCHIVE"
+bash infra/br45/cold-volume-copy.sh restore de261-br45-restore "$ARCHIVE"
+docker compose -p de261-br45-restore -f docker-compose.yml -f infra/br45/compose.verify.yml   --profile br45 up -d demo br45-cdc br45-stream
+```
+
+Use the same clock mode and image digests after restore. The verification overlay publishes fixed loopback ports, so stop the verification project before starting its restored copy. Include the separate metastore volume in a deployment that uses Hive.
+
 ### Rebuild after a change beyond the watermark
 
 Quarantined events remain available with their original envelope. The rebuild reads the authoritative source snapshot, including the effects of late corrections and deletions.
 
-1. Pause source writes, record the clock and back up the active environment. Create an empty `br45_rebuild_<run>` database and run `python -m edu_platform.br45.cli backfill --target-dsn "$REBUILD_DSN"`. The command copies and checks each source table and the immutable policies in a separate database.
+1. Pause source writes, record the clock and back up the active environment. Create an empty `br45_rebuild_<run>` database and run `python -m edu_platform.br45.cli backfill --target-dsn "$REBUILD_DSN"`. The command copies and checks each source table, immutable policies, risk history, alerts and intervention notes in a separate database.
 2. In a separate Compose deployment, set the BR45 DSN to the replacement database and use unique `EDU_BR45_CDC_IDENTITY`, `EDU_BR45_TOPIC_PREFIX` (ending in `.br45.`), `EDU_BR45_LANDING_GROUP`, activity, clean and domain topics, checkpoint and lakehouse paths. Ensure the source host and port in the connector are reachable from Connect. Initialize and let the replacement stream catch up before changing where the API reads.
-3. Compare rebuilt seven-day and prior-week counts, published revisions, and expected corrections for the affected courses. Preserve the original database as the archive for pre-cutover risk history, alert IDs and notes. Redirect the API and source writers together after validation. Keep the old runtime stopped with its volumes intact for rollback.
+3. Compare rebuilt seven-day and prior-week counts, published revisions, and expected corrections for the affected courses. The staging command preserves prior risk history, alert IDs and intervention notes. Keep the original database as the rollback source. Redirect the API and source writers together after validation. Keep the old runtime stopped with its volumes intact for rollback.
 
 ## Results and limits
 

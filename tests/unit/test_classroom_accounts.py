@@ -60,3 +60,12 @@ async def test_classroom_sessions_enforce_ownership_and_revoke_on_logout(monkeyp
         assert (
             await client.get(session, headers={"Cookie": f"{classroom.COOKIE}={old_token}"})
         ).status_code == 401
+
+
+    now = 0.0
+    monkeypatch.setattr(classroom, "monotonic", lambda: now)
+    async with httpx.AsyncClient(transport=transport, base_url="http://test") as client:
+        await client.post(session, json={"username": "an", "password": "demo"})
+        assert (await client.get(session)).status_code == 200
+        now = float(classroom.SESSION_SECONDS)
+        assert (await client.get(session)).status_code == 401

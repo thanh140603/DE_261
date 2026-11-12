@@ -90,6 +90,7 @@ def run() -> None:
         get_settings(),
         {
             "spark.sql.shuffle.partitions": "2",
+            "spark.databricks.delta.snapshotPartitions": "2",
             "spark.sql.streaming.stateStore.providerClass": (
                 "org.apache.spark.sql.execution.streaming.state.RocksDBStateStoreProvider"
             ),

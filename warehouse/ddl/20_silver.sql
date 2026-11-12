@@ -259,6 +259,7 @@ CREATE TABLE IF NOT EXISTS silver.risk_scores (
   learner_pseudonym  STRING NOT NULL,
   course_id          STRING NOT NULL,
   risk_score         DOUBLE NOT NULL,
+  policy_version     INT,
   computed_at        TIMESTAMP NOT NULL,
   score_date         DATE NOT NULL,
   _ingest_date       DATE NOT NULL,
@@ -266,7 +267,7 @@ CREATE TABLE IF NOT EXISTS silver.risk_scores (
 ) USING DELTA
 PARTITIONED BY (score_date)
 LOCATION '${lakehouse_root}/silver/risk_scores'
-COMMENT 'Every score emitted by the Flink sliding-window job (risk.learner_score.v1).'
+COMMENT 'Committed dropout-risk observations (risk.learner_score.v1).'
 TBLPROPERTIES ('delta.enableChangeDataFeed' = 'true', 'edu.pii' = 'pseudonymised', 'edu.owner' = 'risk',
                'edu.zorder' = 'learner_pseudonym,course_id');
 

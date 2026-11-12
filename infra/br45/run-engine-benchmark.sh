@@ -15,6 +15,7 @@ fi
 export EDU_BR45_KAFKA="${BR45_BENCH_KAFKA:-localhost:9092}"
 connect_url="${BR45_BENCH_CONNECT_URL:-http://127.0.0.1:8083}"
 export BR45_BENCH_API=http://127.0.0.1:18001
+export BR45_BENCH_REVISION="$(git rev-parse HEAD)"
 mkdir -p "$work"
 exec 9>"$work/benchmark.lock"
 flock -n 9 || { echo "Another engine benchmark is running" >&2; exit 1; }
@@ -80,7 +81,7 @@ if [[ "$engine" == br4 ]]; then
   "$python" -m edu_platform.br45.engine_benchmark postgres --run-id "$run" \
     --output "$work/runs/$run-br4-postgres.json" "$@"
   "${compose[@]}" run --rm --no-deps --pull never --entrypoint spark-submit \
-    -e BR45_BENCH_API=http://br45-bench-api:8000 br45-bench-spark \
+    -e BR45_BENCH_REVISION -e BR45_BENCH_API=http://br45-bench-api:8000 br45-bench-spark \
     --master 'local[2]' --driver-memory 1g --jars /work/flink/postgresql.jar \
     /app/src/edu_platform/br45/engine_benchmark.py spark --run-id "$run" \
     --output "/work/runs/$run-br4-spark.json" "$@"
