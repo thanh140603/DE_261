@@ -16,12 +16,18 @@ Source: 100,000 rows, indexed `updated_at`, 100 UPDATE + 10 hard DELETE.
 | Latency p50 | 28.9 ms | 446.6 ms |
 | Latency p95 | 512 ms | 447.6 ms |
 | Polling query p50 | — | 14.3 ms |
-| PostgreSQL tuples returned | 0 SQL | 4,337 |
+| Query source table (SELECT/scan) | 0 | 16 |
+| PostgreSQL tuples returned by table queries | 0 | 4,337 |
 
 Raw result: [results/cdc_100k_indexed.json](results/cdc_100k_indexed.json).
 
 The key failure is correctness: polling cannot see a hard-deleted row. Debezium
 also keeps offsets/LSN and transaction ordering; polling only has a watermark.
+
+The `0` query count is measured **after the initial snapshot**; Debezium did read
+100,000 rows during snapshot. It means no table SELECT/scan in the measured window,
+not "zero SQL" at all. The `tup_returned` value counts index/heap tuples touched by
+polling queries, not logical events.
 
 ## Run
 

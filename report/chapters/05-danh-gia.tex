@@ -265,9 +265,9 @@ UPDATE & 100 & 100 \\
 DELETE cứng & \textbf{10} & \textbf{0} \\
 Latency p50 & 28,9 ms & 446,6 ms \\
 Latency p95 & 512 ms & 447,6 ms \\
-Query nguồn & 0 SQL & 16 query \\
+Query bảng nguồn (SELECT/scan) & 0 & 16 \\
 Query p50 & -- & 14,3 ms \\
-Tuple PostgreSQL trả về & 0 & 4.337 \\
+Tuple trả về do query bảng & 0 & 4.337 \\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -275,6 +275,12 @@ Tuple PostgreSQL trả về & 0 & 4.337 \\
 Polling có index nên không full scan; đây là so sánh công bằng, không phải
 polling “dở”. Nhưng nó vẫn thiếu 10 DELETE, vì hard delete không còn dòng để
 \code{SELECT}. Debezium nhận đủ 100 UPDATE và 10 DELETE.
+
+Lưu ý: Debezium có snapshot ban đầu đọc 100.000 dòng, nhưng snapshot nằm ngoài
+cửa sổ đo. “0” trong bảng là **0 query bảng trong cửa sổ đo**, không phải 0 SQL
+tuyệt đối; Debezium vẫn dùng replication protocol và metadata. Tương tự,
+\code{tup_returned} của polling là số tuple index/heap mà PostgreSQL trả về,
+không phải số event.
 
 \subsection{Ý nghĩa với Big Data}
 
