@@ -1,0 +1,32 @@
+{
+  "status": "PASS",
+  "evidence_source": "Rehearsal result captured in the execution transcript",
+  "source_quarantined": true,
+  "staging": {
+    "replacement_database": "br45_rebuild_validation",
+    "verified_source_row_counts": {
+      "courses": 12,
+      "assignments": 1,
+      "questions": 1,
+      "test_cases": 3,
+      "enrollments": 29,
+      "submissions": 24,
+      "evaluations": 72,
+      "activity_events": 49,
+      "clocks": 1,
+      "course_policies": 0,
+      "risk_history": 38,
+      "dropout_alerts": 4,
+      "intervention_notes": 0
+    }
+  },
+  "verified_windows": [
+    {"end": "2026-11-05T16:00:00+00:00", "actual": 4, "expected": 4},
+    {"end": "2026-11-12T16:00:00+00:00", "actual": 4, "expected": 4}
+  ],
+  "cutover_write": {
+    "event_id": "br45-backfill-cutover-write",
+    "status": "persisted_in_oltp"
+  },
+  "write_landed_in_rebuild_only": true
+}

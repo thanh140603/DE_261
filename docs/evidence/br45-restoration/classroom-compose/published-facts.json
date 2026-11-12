@@ -1,0 +1,28 @@
+{
+  "status": "PASS",
+  "measured_at": "2026-11-12T23:54:18.894016+00:00",
+  "feedback_id": "de23c546-f4a4-40e1-8de1-8e9bda520a4f",
+  "source_id": "de23c546-f4a4-40e1-8de1-8e9bda520a4f",
+  "submission_id_in_published_facts": "de23c546-f4a4-40e1-8de1-8e9bda520a4f",
+  "evaluation_test_cases_in_published_facts": [
+    "a-py-fizz-t1_small",
+    "a-py-fizz-t2_fizzbuzz",
+    "a-py-fizz-t3_empty",
+    "a-py-fizz-t4_fizz",
+    "a-py-fizz-t5_buzz"
+  ],
+  "source_delta_version": 2,
+  "publication_id": "8f1bfd60c4bd5987bd068000860a3d9a147d1cc656519b57bb3d0d0ceb29b636",
+  "learner_id": "l-003",
+  "risk_score": 0,
+  "activity_7d": {
+    "expected": 3,
+    "actual": 3
+  },
+  "activity_previous_7d": {
+    "expected": 4,
+    "actual": 4
+  },
+  "risk_score_before_two_python_lesson_events": 15,
+  "verification_image_revision": "3cfd70d51ffced9850c705297bf7707ba43d3d04"
+}

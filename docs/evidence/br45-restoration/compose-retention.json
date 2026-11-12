@@ -1,0 +1,39 @@
+{
+  "status": "PASS",
+  "default": {
+    "status": "PREVIEW",
+    "eligible": 1,
+    "watermark": "2026-11-12T16:00:00Z"
+  },
+  "checkpoint_behind": {
+    "status": "BLOCKED",
+    "deleted": 0,
+    "pending": {
+      "pending": false,
+      "domain_pending": false,
+      "jobs_pending": false
+    },
+    "watermark": "2026-11-12T16:00:00Z"
+  },
+  "outbox_pending": {
+    "status": "BLOCKED",
+    "deleted": 0,
+    "pending": {
+      "pending": true,
+      "domain_pending": false,
+      "jobs_pending": false
+    },
+    "watermark": "2026-11-12T16:00:00Z"
+  },
+  "job_pending": {
+    "status": "BLOCKED",
+    "deleted": 0,
+    "pending": {
+      "pending": false,
+      "domain_pending": false,
+      "jobs_pending": true
+    },
+    "watermark": "2026-11-12T16:00:00Z"
+  },
+  "fixture_retained": true
+}
