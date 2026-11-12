@@ -15,6 +15,7 @@ async def test_classroom_sessions_enforce_ownership_and_revoke_on_logout(monkeyp
         return object()
 
     app.dependency_overrides[learner.platform] = platform_stub
+    app.dependency_overrides[learner.simulator] = platform_stub
     app.include_router(classroom.router, prefix="/api")
     app.include_router(learner.router, prefix="/api")
 
@@ -55,6 +56,15 @@ async def test_classroom_sessions_enforce_ownership_and_revoke_on_logout(monkeyp
         assert (await client.get("/api/submissions/owned")).json() == {"id": "owned"}
         assert (await client.get("/api/submissions/other")).status_code == 404
         assert (await client.get("/api/learners/l-003/submissions")).status_code == 403
+        enrollment = await client.post(
+            "/api/learners/l-003/enroll", json={"course_id": "c-py-201"}
+        )
+        assert enrollment.status_code == 403
+        submission = await client.post(
+            "/api/submissions",
+            json={"learner_id": "l-003", "assignment_id": "a-py-fizz", "code": "pass"},
+        )
+        assert submission.status_code == 403
         old_token = client.cookies[classroom.COOKIE]
         assert (await client.delete(session)).status_code == 204
         assert (

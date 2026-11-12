@@ -636,5 +636,38 @@ def test_retention_dry_run_blocks_while_job_or_outbox_pending(conn):
     preview = activity_deliveries(conn, cfg, 60)
     assert preview["status"] == "PREVIEW" and preview["eligible"] == 1
     assert conn.execute("SELECT count(*) n FROM analytics.outbox").fetchone()["n"] == 1
-    jobs.request(conn, "c", T - timedelta(days=30), T)
+    job = jobs.request(conn, "c", T - timedelta(days=30), T)
     assert activity_deliveries(conn, cfg, 60, apply=True)["status"] == "BLOCKED"
+    conn.execute(
+        "UPDATE analytics.assessment_jobs SET status='SUCCEEDED' WHERE id=%s", (job["id"],)
+    )
+    conn.execute("INSERT INTO analytics.outbox(event_id,payload) VALUES ('pending','{}')")
+    blocked = activity_deliveries(conn, cfg, 60, apply=True)
+    assert blocked["status"] == "BLOCKED" and blocked["pending"]["pending"]
+    assert conn.execute("SELECT count(*) n FROM analytics.outbox").fetchone()["n"] == 2
+
+
+def test_postgres_worker_publishes_after_its_previous_lease_expires(conn, monkeypatch):
+    from contextlib import nullcontext
+
+    from edu_platform.br45 import jobs
+
+    source(conn)
+    cfg = AnalyticsSettings(assessment_engine="postgres")
+    job = jobs.request(conn, "c", T - timedelta(days=30), T, cfg)
+    abandoned = jobs.pending(conn, "postgres")
+    assert abandoned and abandoned["id"] == job["id"]
+    conn.execute(
+        "UPDATE analytics.assessment_jobs SET started_at=now()-interval '31 minutes' WHERE id=%s",
+        (job["id"],),
+    )
+    monkeypatch.setattr(jobs, "connect", lambda: nullcontext(conn))
+    jobs.process_postgres(cfg)
+    final = conn.execute("SELECT * FROM analytics.assessment_jobs").fetchone()
+    assert final["status"] == "SUCCEEDED"
+    assert final["published_engine"] == "postgres"
+    assert final["published_revision"] == job["requested_revision"]
+    assert final["lease_generation"] > abandoned["lease_generation"]
+    assert final["source_delta_version"] is None
+    metric = conn.execute("SELECT data FROM analytics.mart_question_pass_statistics").fetchone()
+    assert metric["data"]["passed_evaluations"] == 2
