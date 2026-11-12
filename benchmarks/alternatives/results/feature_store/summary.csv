@@ -1,3 +1,0 @@
-rows,redis_load_s,postgres_load_s,redis_p50_ms,postgres_p50_ms,redis_hit_rate,postgres_hit_rate,redis_evicted
-1000000,24.433,20.265,161.817,548.535,1.0,1.0,0
-5000000,131.382,99.429,147.886,657.883,0.2168,1.0,3926686

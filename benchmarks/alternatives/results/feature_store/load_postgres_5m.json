@@ -1,5 +1,0 @@
-{
-  "engine": "postgres",
-  "file": "benchmarks/alternatives/data/features-5m.jsonl",
-  "seconds": 99.429
-}

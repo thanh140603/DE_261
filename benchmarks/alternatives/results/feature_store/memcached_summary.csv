@@ -1,3 +1,0 @@
-rows,redis_load_s,memcached_load_s,redis_p50_ms,memcached_p50_ms,hit_rate
-1000000,23.10,14.717,6.933,6.663,1.0
-5000000,121.79,73.843,8.127,6.681,1.0

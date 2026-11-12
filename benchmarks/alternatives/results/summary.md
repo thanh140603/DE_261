@@ -1,7 +1,7 @@
 # Alternative-stack benchmark — results
 
 Environment: [environment.json](environment.json)
-Host: AMD Ryzen 7 8745H, 16 vCPU, 7.4 GiB RAM, Ubuntu 26.04 WSL2, Docker 29.9.2.
+Host: AMD Ryzen 7 8745H, 16 vCPU, 7.4–11 GiB WSL2 allocation, Ubuntu 26.04, Docker 29.9.2.
 All runs use the same generated 5 GiB datasets; subsets are deterministic prefixes.
 
 ## Pair B — PostgreSQL vs ClickHouse (OLAP)
@@ -24,32 +24,7 @@ marts, but its row-store aggregation degrades quickly with scale. ClickHouse
 (MPP/columnar) is clearly better from 1M rows onward. StarRocks was not installed
 on this host; ClickHouse is the documented fallback, not a StarRocks measurement.
 
-## Pair C — Redis vs Memcached (feature serving)
-
-Same in-memory KV class: same 1M/5M keys, same JSON payload, same 10 batches of
-1,000 lookups, 3 measured runs after 1 warm-up. Both use 4 GB and hold 100% of
-the data without eviction.
-
-| Keys | Redis load | Memcached load | Redis p50/batch | Memcached p50/batch | Hit rate |
-|---:|---:|---:|---:|---:|---:|
-| 1,000,000 | 23.10 s | 14.72 s | 6.93 ms | 6.66 ms | 100% |
-| 5,000,000 | 121.79 s | 73.84 s | 8.13 ms | 6.68 ms | 100% |
-
-At 5M, Redis uses 2.38 GB and Memcached 2.36 GB. Memcached is ~4% faster at
-1M and ~18% faster at 5M; load is substantially faster.
-
-PostgreSQL is a disk/transactional reference, not a speed competitor: 5M load
-99.43 s and p50 66.54 ms/batch for the same 1,000-key batches.
-
-**Memory-pressure side experiment:** with Redis capped at 512 MB, 5M keys do not
-fit. Redis evicts 3.93M keys, serves only 21.68% of lookups and its p50 of
-147.9 ms is therefore not comparable with a full-data store.
-
-**Conclusion.** Memcached wins pure KV lookup and load. Redis remains preferable
-when TTL, data structures, pub/sub or persistence are needed. PostgreSQL remains
-the transactional source of truth.
-
-## Pair D — Data layout: partition vs Z-order/liquid clustering
+## Pair C — Data layout: partition vs Z-order/liquid clustering
 
 Same 10M fact rows, same four filters, Spark local. p50 includes plan/launch
 overhead, so compare relative values only.
@@ -83,6 +58,6 @@ experiment and is not represented by these numbers.
 ## Notes
 
 - Full 5 GiB files are in `benchmarks/alternatives/data/` (gitignored).
-- Raw per-run metrics: `olap/query_latency_*.json`, `feature_store/lookup_*.json`.
+- Raw per-run metrics: `olap/query_latency_*.json`, `layout/layout_*.json`, `streaming/summary.json`.
 - Load timings: `*/load_*.json`; summary CSVs next to this file.
 - These are local single-node observations, not production capacity claims.
