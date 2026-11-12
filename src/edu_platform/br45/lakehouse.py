@@ -277,8 +277,7 @@ def bootstrap() -> int:
         at = state(conn, "evaluation_clock")
         if at:
             from .contracts import timestamp
-            from .db import clean
-
-            for course in clean(conn, "courses"):
-                jobs.request(conn, course["id"], timestamp(at) - timedelta(days=30), timestamp(at))
+            end = timestamp(at)
+            for course_id in jobs.active_courses(conn):
+                jobs.request(conn, course_id, end - timedelta(days=30), end)
         return count

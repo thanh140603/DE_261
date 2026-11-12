@@ -246,7 +246,7 @@ def publish_outbox(conn: Db, producer: Producer, cfg: AnalyticsSettings) -> int:
 
 
 def run() -> None:
-    from .jobs import process_postgres, request
+    from .jobs import active_courses, process_postgres, request
 
     cfg = settings()
     consumer = Consumer(
@@ -306,8 +306,8 @@ def run() -> None:
                 assessment_changed = at != previous_clock or revision != previous_revision
                 if at and assessment_changed and not cfg.engine_benchmark:
                     end = timestamp(at)
-                    for course in clean(conn, "courses"):
-                        request(conn, course["id"], end - timedelta(days=30), end, cfg)
+                    for course_id in active_courses(conn):
+                        request(conn, course_id, end - timedelta(days=30), end, cfg)
                     if revision != previous_revision:
                         conn.execute(
                             "UPDATE analytics.assessment_jobs SET requested_revision=%s,"

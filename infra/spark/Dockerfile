@@ -32,13 +32,13 @@ ENV PATH="${SPARK_HOME}/bin:${PATH}"
 RUN pip install "pyspark==${SPARK_VERSION}" "delta-spark==${DELTA_VERSION}"
 
 # Bake the JVM dependencies in instead of `--packages`, so jobs start without Ivy downloads.
-ADD https://repo1.maven.org/maven2/io/delta/delta-spark_2.12/${DELTA_VERSION}/delta-spark_2.12-${DELTA_VERSION}.jar \
+ADD --chmod=0644 https://repo1.maven.org/maven2/io/delta/delta-spark_2.12/${DELTA_VERSION}/delta-spark_2.12-${DELTA_VERSION}.jar \
     https://repo1.maven.org/maven2/io/delta/delta-storage/${DELTA_VERSION}/delta-storage-${DELTA_VERSION}.jar \
     https://repo1.maven.org/maven2/org/apache/hadoop/hadoop-aws/${HADOOP_AWS_VERSION}/hadoop-aws-${HADOOP_AWS_VERSION}.jar \
     https://repo1.maven.org/maven2/com/amazonaws/aws-java-sdk-bundle/${AWS_SDK_BUNDLE_VERSION}/aws-java-sdk-bundle-${AWS_SDK_BUNDLE_VERSION}.jar \
     ${SPARK_HOME}/jars/
 # Kafka source for the Structured Streaming landing job (Kafka -> bronze).
-ADD https://repo1.maven.org/maven2/org/apache/spark/spark-sql-kafka-0-10_2.12/${SPARK_VERSION}/spark-sql-kafka-0-10_2.12-${SPARK_VERSION}.jar \
+ADD --chmod=0644 https://repo1.maven.org/maven2/org/apache/spark/spark-sql-kafka-0-10_2.12/${SPARK_VERSION}/spark-sql-kafka-0-10_2.12-${SPARK_VERSION}.jar \
     https://repo1.maven.org/maven2/org/apache/spark/spark-token-provider-kafka-0-10_2.12/${SPARK_VERSION}/spark-token-provider-kafka-0-10_2.12-${SPARK_VERSION}.jar \
     https://repo1.maven.org/maven2/org/apache/kafka/kafka-clients/3.4.1/kafka-clients-3.4.1.jar \
     https://repo1.maven.org/maven2/org/apache/commons/commons-pool2/2.11.1/commons-pool2-2.11.1.jar \
@@ -47,9 +47,9 @@ ADD https://repo1.maven.org/maven2/org/apache/spark/spark-sql-kafka-0-10_2.12/${
 WORKDIR /app
 # Dependencies first so source edits do not invalidate the layer above.
 COPY pyproject.toml README.md ./
+RUN python -c "import tomllib,subprocess; p=tomllib.load(open('pyproject.toml','rb'))['project']; subprocess.check_call(['pip','install','hatchling','editables',*p['dependencies'],*p['optional-dependencies']['content']])"
 COPY src ./src
-RUN pip install -e ".[spark,content]"
-RUN chmod a+r "${SPARK_HOME}"/jars/*.jar
+RUN pip install --no-deps --no-build-isolation -e .
 COPY warehouse ./warehouse
 COPY infra/postgres/br45*.sql ./infra/postgres/
 COPY schemas ./schemas

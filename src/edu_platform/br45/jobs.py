@@ -10,6 +10,16 @@ from .contracts import identity
 from .db import Db, connect, state
 
 
+def active_courses(conn: Db) -> list[str]:
+    """Courses with graded source inputs eligible for automatic refresh."""
+    return [
+        row["course_id"] for row in conn.execute(
+            "SELECT DISTINCT data->>'course_id' AS course_id FROM analytics.clean_rows "
+            "WHERE table_name='submissions' AND NOT deleted ORDER BY 1"
+        )
+    ]
+
+
 def request(
     conn: Db, course: str, start: datetime, end: datetime, cfg: AnalyticsSettings | None = None
 ) -> dict[str, Any]:

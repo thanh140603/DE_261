@@ -47,15 +47,26 @@ def score_committed_batch(conn: Db, progress: dict[str, Any], cfg: AnalyticsSett
     if mark and timestamp(mark).year > 1970:
         state(conn, "stream_watermark", mark)
     published = state(conn, "published_offsets") or {}
-    end_offsets = (progress.get("sources") or [{}])[0].get("endOffset") or {}
+    source = (progress.get("sources") or [{}])[0]
+    start_offsets, end_offsets = source.get("startOffset") or {}, source.get("endOffset") or {}
+    if isinstance(start_offsets, str):
+        start_offsets = json.loads(start_offsets) or {}
     if isinstance(end_offsets, str):
         end_offsets = json.loads(end_offsets) or {}
     consumed = {str(k): v for k, v in end_offsets.get(cfg.activity_topic, {}).items()}
     sink = state(conn, "stream") or {}
+    committed_batch, reported_batch = sink.get("batch_id", -1), progress.get("batchId", 0)
+    # Spark reports the next batch ID during idle triggers without calling foreachBatch.
+    # Its unchanged offsets still refer to the preceding committed sink batch.
+    idle = (
+        progress.get("numInputRows") == 0
+        and start_offsets == end_offsets
+        and committed_batch == reported_batch - 1
+    )
     caught_up = (
         bool(published)
         and sink.get("checkpoint") == cfg.checkpoint
-        and sink.get("batch_id", -1) >= progress.get("batchId", 0)
+        and (committed_batch >= reported_batch or idle)
         and all(consumed.get(k, 0) >= v for k, v in published.items())
     )
     pending = conn.execute(

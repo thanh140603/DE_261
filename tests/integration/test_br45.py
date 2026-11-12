@@ -582,6 +582,17 @@ def test_risk_refresh_waits_for_matching_committed_sink(conn, monkeypatch):
     streaming.score_committed_batch(conn, progress, cfg)
     assert len(calls) == 1
 
+    offsets = {cfg.activity_topic: {"0": 8}}
+    idle = {
+        "batchId": 4, "numInputRows": 0,
+        "sources": [{"startOffset": offsets, "endOffset": offsets}],
+    }
+    streaming.score_committed_batch(conn, idle, cfg)
+    assert len(calls) == 2
+    state(conn, "published_offsets", {"0": 9})
+    streaming.score_committed_batch(conn, idle, cfg)
+    assert len(calls) == 2
+
 
 def test_failed_generation_leaves_the_last_assessment_publication(conn):
     from edu_platform.br45 import jobs
