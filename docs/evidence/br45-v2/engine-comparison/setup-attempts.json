@@ -1,0 +1,22 @@
+[
+  {
+    "engine": "flink",
+    "run_id": "20261109a-flink",
+    "phase": "startup",
+    "status": "FAIL",
+    "reason": "The local MiniCluster had one task slot while the job required two. The tasks could not start or checkpoint.",
+    "oom_killed": false,
+    "resolution": "Set taskmanager.numberOfTaskSlots=2 and retry with a fresh topic and checkpoint.",
+    "included_in_latency_statistics": false
+  },
+  {
+    "engine": "flink",
+    "run_id": "20261109b-flink",
+    "phase": "correctness",
+    "status": "FAIL",
+    "reason": "The prototype Java parser rejected the normalized Kafka timestamp with a +00:00 offset.",
+    "oom_killed": false,
+    "resolution": "Parse timestamps with OffsetDateTime and retry with a fresh topic and checkpoint.",
+    "included_in_latency_statistics": false
+  }
+]

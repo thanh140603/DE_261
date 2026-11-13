@@ -6,6 +6,7 @@ from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException
 
+from edu_platform.br45.auth import Admin, organisation_scope
 from edu_platform.contexts.analytics.application.build_org_progress_report import (
     CourseFact,
     EnrollmentFact,
@@ -33,7 +34,8 @@ def _mastery_by_pseudonym(p: DemoPlatform) -> dict[str, float]:
 
 
 @router.get("/organisations/{org_id}/progress")
-async def progress(org_id: str, p: DemoPlatform = Depends(platform)) -> dict[str, Any]:
+async def progress(org_id: str, user: Admin, p: DemoPlatform = Depends(platform)) -> dict[str, Any]:
+    organisation_scope(user, org_id)
     if org_id not in {o.id for o in seed.ORGANISATIONS}:
         raise HTTPException(404, f"unknown organisation {org_id}")
     enrollments = [

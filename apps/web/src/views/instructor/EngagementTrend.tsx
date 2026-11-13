@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { analyticsApi } from "../../analytics";
+import { type AnalyticsClient } from "../../analytics";
 import { AnalyticsAccess, localDateTime, useAnalyticsPolling } from "../../components/AnalyticsAccess";
 import { LineChart, MiniLine, TipRow } from "../../components/charts";
 import { Badge, Btn, Card, DataTable, PageHead, Status, Tile } from "../../components/ui";
@@ -14,16 +14,16 @@ export function EngagementTrend() {
       <PageHead br="BR8" title="Engagement trend">
         Weekly engagement per learner compared with the course average. Learners appear by pseudonym, never by name.
       </PageHead>
-      <AnalyticsAccess role="instructor" source="lakehouse">{(token, session) => <Trend token={token} courses={session.courses} />}</AnalyticsAccess>
+      <AnalyticsAccess role="instructor" source="lakehouse">{(client, session) => <Trend client={client} courses={session.courses} />}</AnalyticsAccess>
     </>
   );
 }
 
-function Trend({ token, courses }: { token: string; courses: { id: string; title: string }[] }) {
+function Trend({ client, courses }: { client: AnalyticsClient; courses: { id: string; title: string }[] }) {
   const [course, setCourse] = useInstructorCourse(courses);
   const [asOf, setAsOf] = useState("");
   const [showAll, setShowAll] = useState(false);
-  const q = useFetch(course ? () => analyticsApi(token).engagementTrend(course, { as_of: asOf }) : null, [token, course, asOf]);
+  const q = useFetch(course ? () => client.engagementTrend(course, { as_of: asOf }) : null, [client, course, asOf]);
   useAnalyticsPolling(q.reload);
   const d = q.data;
   const live = d?.live ?? null;

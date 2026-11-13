@@ -1,0 +1,30 @@
+\subsection{Hạn chế và hướng phát triển}
+\label{chap:limits}
+
+\subsubsection{Hạn chế hiện tại}
+
+\begin{enumerate}
+  \item \textbf{BR1--BR3 vẫn chạy trong runtime demo.} BR1 và BR3 có dịch vụ Kafka riêng. Giao diện thông báo còn đọc dữ liệu demo. Code Lab Classroom dùng bộ chấm demo và lưu kết quả vào PostgreSQL để cấp cho CDC và BR4. Đường từ giao diện qua worker Kafka riêng cần nghiệm thu thêm.
+  \item \textbf{BR2 chưa có nhánh đặc trưng phiên và mô hình học máy.} Đề bài yêu cầu kết hợp đặc trưng lô và đặc trưng phiên qua feature store. Hiện mới có bảng đặc trưng lô trong lakehouse; việc đẩy bảng này lên Redis và nhánh streaming chưa được hiện thực.
+  \item \textbf{Độ trễ streaming ở mức giây.} Độ trễ quan sát gồm chu kỳ publish và polling. So sánh Spark/Flink phản ánh cấu hình thí nghiệm ở Mục~\ref{chap:eval}.
+  \item \textbf{Embedding mang tính từ vựng.} Bộ nhúng băm không hiểu ngữ nghĩa (``join'' không khớp ``merge''). Đã có cổng \code{Embedder} và đường reindex để thay bằng mô hình thật.
+  \item \textbf{Lớp phủ không mang phiên bản nội dung.} Vào ngày một video được quay lại, lớp phủ trộn hai phiên bản; vì vậy nó chỉ được hiển thị cho phiên bản mới nhất.
+  \item \textbf{Vận hành lịch sử BR5.} Điểm và chuyển trạng thái được phát qua outbox. Phép thử merge xác nhận hai lượt cùng điểm nhưng khác policy vẫn được lưu riêng. Cần theo dõi độ trễ đường đồng bộ kho khi vận hành dài hạn.
+  \item \textbf{Hiệu năng BR4.} Mỗi revision làm mới cửa sổ bị ảnh hưởng. Đường Spark ghi thêm facts và dimensions bất biến, nên chi phí công bố khác phép đo tổng hợp đọc JDBC.
+  \item \textbf{Vận hành đơn nút, bảo mật cục bộ.} Trino, OpenSearch, Kafka chạy một nút; plugin bảo mật của OpenSearch tắt; phiên staff sống trong một tiến trình API, hết hạn sau tám giờ hoặc khi khởi động lại. Đã có chẩn đoán offsets và độ tươi, chưa có SLA vận hành nhiều nút.
+  \item \textbf{Độ khái quát.} Bài đo hiệu năng dùng fixture tổng hợp. OULAD cho phép đánh giá dự đoán rút học ngoại tuyến từ tổng hợp theo ngày. Tập 2014 là hồi cứu và chưa có thử nghiệm tác động của can thiệp.
+  \item \textbf{Chỉ số BR7.} Mart đếm thao tác \en{seek} theo giây và phiên bản. Cần tách tua lùi khỏi tua tới để đáp ứng đầy đủ chỉ số \en{rewind} trong đề tài.
+  \item \textbf{Lệch dữ liệu mẫu.} Seed của lakehouse khai báo khoảng 18 khoá học và video không có trong cơ sở dữ liệu LMS mẫu, nên job reindex báo các mục này là lỗi.
+\end{enumerate}
+
+\subsubsection{Hướng phát triển}
+
+\begin{itemize}
+  \item Tích hợp API và giao diện với các dịch vụ Kafka hiện có của BR1 và BR3, rồi kiểm chứng đầu cuối.
+  \item Bổ sung nhánh đặc trưng phiên cho BR2 (cửa sổ phiên 30 phút), đẩy \code{features.learner_longterm} lên Redis, và thử một mô hình gợi ý học từ dữ liệu, so sánh với luật hiện tại.
+  \item Đo thêm dưới tải đồng thời và ngân sách tài nguyên khác trước khi chọn cấu hình hoặc engine cho môi trường lớn.
+  \item Thay bộ nhúng băm bằng mô hình sentence-embedding, chạy một lần reindex bắt buộc.
+  \item Chuyển các bảng snapshot (\code{fct_enrollment}, \code{fct_lesson_progress}) sang MERGE dựa trên Change Data Feed khi khối lượng đủ lớn; với dashboard dưới giây ở quy mô lớn, gắn StarRocks vào cùng Hive Metastore.
+  \item Triển khai lên Kubernetes với nhiều nút, TLS và xác thực tập trung; giám sát bằng Prometheus cùng Grafana; bổ sung quy trình xoay khoá bút danh.
+  \item Thu thập nhãn kết quả thật để hiệu chỉnh và đánh giá điểm rủi ro BR5.
+\end{itemize}

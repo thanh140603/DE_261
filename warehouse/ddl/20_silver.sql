@@ -259,6 +259,7 @@ CREATE TABLE IF NOT EXISTS silver.risk_scores (
   learner_pseudonym  STRING NOT NULL,
   course_id          STRING NOT NULL,
   risk_score         DOUBLE NOT NULL,
+  policy_version     INT,
   computed_at        TIMESTAMP NOT NULL,
   score_date         DATE NOT NULL,
   _ingest_date       DATE NOT NULL,
@@ -266,7 +267,7 @@ CREATE TABLE IF NOT EXISTS silver.risk_scores (
 ) USING DELTA
 PARTITIONED BY (score_date)
 LOCATION '${lakehouse_root}/silver/risk_scores'
-COMMENT 'Every score emitted by the Flink sliding-window job (risk.learner_score.v1).'
+COMMENT 'Committed dropout-risk observations (risk.learner_score.v1).'
 TBLPROPERTIES ('delta.enableChangeDataFeed' = 'true', 'edu.pii' = 'pseudonymised', 'edu.owner' = 'risk',
                'edu.zorder' = 'learner_pseudonym,course_id');
 
@@ -334,3 +335,18 @@ CREATE TABLE IF NOT EXISTS silver.content_chunks (
 LOCATION '${lakehouse_root}/silver/content_chunks'
 COMMENT 'Semantic chunks per content version (content_chunking_embedding_job).'
 TBLPROPERTIES ('delta.enableChangeDataFeed' = 'true', 'edu.pii' = 'none', 'edu.owner' = 'content');
+
+-- BR5 alert history. The existing alert fact retains one row per alert opening.
+CREATE TABLE IF NOT EXISTS silver.dropout_alert_transitions (
+  transition_id      STRING NOT NULL,
+  alert_id           STRING NOT NULL,
+  learner_pseudonym  STRING NOT NULL,
+  course_id          STRING NOT NULL,
+  status             STRING NOT NULL,
+  policy_version     INT NOT NULL,
+  occurred_at        TIMESTAMP NOT NULL,
+  _ingest_date       DATE NOT NULL,
+  _processed_at      TIMESTAMP NOT NULL
+) USING DELTA
+LOCATION '${lakehouse_root}/silver/dropout_alert_transitions'
+TBLPROPERTIES ('delta.enableChangeDataFeed' = 'true', 'edu.pii' = 'pseudonymised', 'edu.owner' = 'risk');

@@ -1,0 +1,140 @@
+{
+  "additionalProperties": true,
+  "properties": {
+    "id": {
+      "title": "Id",
+      "type": "string"
+    },
+    "course_id": {
+      "title": "Course Id",
+      "type": "string"
+    },
+    "window_start": {
+      "format": "date-time",
+      "title": "Window Start",
+      "type": "string"
+    },
+    "window_end": {
+      "format": "date-time",
+      "title": "Window End",
+      "type": "string"
+    },
+    "status": {
+      "enum": [
+        "PENDING",
+        "RUNNING",
+        "SUCCEEDED",
+        "FAILED"
+      ],
+      "title": "Status",
+      "type": "string"
+    },
+    "requested_revision": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Requested Revision"
+    },
+    "published_revision": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Published Revision"
+    },
+    "publication_id": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Publication Id"
+    },
+    "source_delta_version": {
+      "anyOf": [
+        {
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Source Delta Version"
+    },
+    "engine": {
+      "enum": [
+        "postgres",
+        "spark"
+      ],
+      "title": "Engine",
+      "type": "string"
+    },
+    "published_engine": {
+      "anyOf": [
+        {
+          "enum": [
+            "postgres",
+            "spark"
+          ],
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Published Engine"
+    },
+    "completed_at": {
+      "anyOf": [
+        {
+          "format": "date-time",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Completed At"
+    },
+    "error": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Error"
+    }
+  },
+  "required": [
+    "id",
+    "course_id",
+    "window_start",
+    "window_end",
+    "status",
+    "requested_revision",
+    "published_revision",
+    "publication_id",
+    "source_delta_version",
+    "engine",
+    "published_engine",
+    "completed_at",
+    "error"
+  ],
+  "title": "JobStatus",
+  "type": "object"
+}

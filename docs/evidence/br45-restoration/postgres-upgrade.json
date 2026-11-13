@@ -1,0 +1,23 @@
+{
+  "replacement_database": "br45_rebuild_check",
+  "verified_source_row_counts": {
+    "courses": 12,
+    "assignments": 1,
+    "questions": 1,
+    "test_cases": 3,
+    "enrollments": 28,
+    "submissions": 24,
+    "evaluations": 72,
+    "activity_events": 36,
+    "clocks": 1,
+    "course_policies": 0
+  },
+  "next_step": "Run the isolated connector, topics, and checkpoints before cutover.",
+  "migrations": [
+    1,
+    2,
+    3
+  ],
+  "second_migration": "PASS",
+  "status": "PASS"
+}

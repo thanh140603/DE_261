@@ -25,6 +25,9 @@ def main() -> None:
             "stream",
             "register",
             "benchmark",
+            "backfill",
+            "retention",
+            "diagnostics",
         ],
     )
     parser.add_argument(
@@ -33,10 +36,40 @@ def main() -> None:
     parser.add_argument("--students", type=int, default=24)
     parser.add_argument("--connect-url", default="http://localhost:8083")
     parser.add_argument("--output", default="docs/evidence/br45")
+    parser.add_argument("--target-dsn", help="Empty br45_rebuild_<run> database for backfill")
+    parser.add_argument("--days", type=int, default=60)
+    parser.add_argument("--apply", action="store_true", help="Apply a retention preview")
     args = parser.parse_args()
+    if args.command == "retention":
+        from .retention import activity_deliveries
+
+        with connect() as conn:
+            print(json.dumps(activity_deliveries(conn, settings(), args.days, apply=args.apply)))
+        return
+    if args.command == "diagnostics":
+        cfg = settings()
+        name = "br45-postgres-cdc"
+        if cfg.cdc_identity:
+            name = "br45-" + cfg.cdc_identity.replace("_", "-")
+        if cfg.classroom:
+            name = "br45-classroom-cdc"
+        if cfg.engine_benchmark:
+            name = "br45-engine-benchmark"
+        with urllib.request.urlopen(
+            f"{args.connect_url}/connectors/{name}/status", timeout=10
+        ) as response:
+            print(json.dumps(json.load(response), indent=2))
+        return
+    if args.command == "backfill":
+        from .backfill import stage
+
+        if not args.target_dsn:
+            parser.error("backfill requires --target-dsn")
+        print(json.dumps(stage(settings().dsn, args.target_dsn), indent=2))
+        return
     if args.command == "migrate":
         migrate()
-        print("Applied additive BR4/BR5 migration 1")
+        print("Applied BR4/BR5 migrations")
         return
     if args.command == "register":
         from confluent_kafka import KafkaError, KafkaException
@@ -46,7 +79,15 @@ def main() -> None:
 
         cfg = settings()
         admin = AdminClient({"bootstrap.servers": cfg.kafka})
-        names = [cfg.topic_prefix + t for t in CONTRACTS] + [cfg.activity_topic]
+        names = [cfg.topic_prefix + t for t in CONTRACTS] + [
+            cfg.activity_topic,
+            cfg.clean_topic,
+            cfg.domain_topic,
+        ]
+        if not (cfg.classroom or cfg.engine_benchmark):
+            names.extend(
+                ("risk.learner_score.v1", "risk.dropout_alert.v1", "risk.alert_transition.v1")
+            )
         for future in admin.create_topics(
             [NewTopic(t, num_partitions=1, replication_factor=1) for t in names]
         ).values():
@@ -67,6 +108,37 @@ def main() -> None:
                 "database.dbname": dsn.path.lstrip("/"),
             }
         )
+        spec["config"]["topic.prefix"] = cfg.topic_prefix.removesuffix(".br45.")
+        if cfg.cdc_identity:
+            spec["name"] = "br45-" + cfg.cdc_identity.replace("_", "-")
+            spec["config"].update({
+                "database.hostname": dsn.hostname,
+                "database.port": str(dsn.port or 5432),
+                "slot.name": "br45_" + cfg.cdc_identity + "_slot",
+                "publication.name": "br45_" + cfg.cdc_identity + "_pub",
+            })
+        if cfg.classroom:
+            spec["name"] = "br45-classroom-cdc"
+            spec["config"].update(
+                {
+                    "slot.name": "br45_classroom_slot",
+                    "publication.name": "br45_classroom_pub",
+                    "topic.prefix": cfg.topic_prefix.removesuffix(".br45."),
+                }
+            )
+        if cfg.engine_benchmark:
+            if dsn.path != "/br45_bench" or dsn.hostname != "br45-bench-postgres":
+                parser.error("Benchmark CDC registration requires the isolated br45_bench service")
+            spec["name"] = "br45-engine-benchmark"
+            spec["config"].update(
+                {
+                    "database.hostname": dsn.hostname,
+                    "database.port": str(dsn.port or 5432),
+                    "slot.name": "br45_engine_bench_slot",
+                    "publication.name": "br45_engine_bench_pub",
+                    "topic.prefix": cfg.topic_prefix.removesuffix(".br45."),
+                }
+            )
         request = urllib.request.Request(
             args.connect_url + "/connectors/" + spec["name"] + "/config",
             data=json.dumps(spec["config"]).encode(),
@@ -79,6 +151,10 @@ def main() -> None:
     if args.command in {"cdc", "stream"}:
         if args.command == "cdc":
             from .cdc import run
+            from .lakehouse import bootstrap
+
+            if settings().assessment_engine == "spark":
+                bootstrap()
         else:
             from .streaming import run
         run()

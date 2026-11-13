@@ -1,0 +1,65 @@
+\section{Hướng dẫn chạy và tái lập kết quả}
+\label{app:run}
+
+\subsection{Yêu cầu}
+
+Docker (khuyến nghị 8 GB RAM cho VM), Python 3.11 trở lên, Node.js 20 trở lên. Postgres của dự án mặc định ở cổng 5433 để tránh xung đột với các dự án khác.
+
+\subsection{Khởi động}
+
+\begin{lstlisting}[language=bash]
+# BR4/BR5: CDC thật + Spark Structured Streaming
+docker compose --profile br45 up -d --build demo br45-init br45-cdc br45-stream
+docker compose exec -T br45-cdc python -m edu_platform.br45.cli seed
+
+# BR6/BR7/BR8: kho dữ liệu, đồng bộ nội dung, lớp phủ trực tiếp
+docker compose --profile br678 up -d --build     # lần đầu khoảng 4-5 phút
+docker compose exec demo edu telemetry simulate --sessions 50
+
+# Kho dữ liệu với dữ liệu tổng hợp
+docker compose run --rm spark-jobs edu warehouse bootstrap
+docker compose run --rm spark-jobs edu warehouse seed-bronze --end-date 2026-10-17 --days 35
+docker compose run --rm spark-jobs edu warehouse run --run-date 2026-10-17 --start-date 2026-08-01
+docker exec -it de261-trino trino --user analyst --catalog lakehouse
+\end{lstlisting}
+
+Mở ứng dụng tại \code{http://localhost:8000}. Tạo tài khoản Instructor, Advisor và Admin bằng lệnh \code{python -m edu_platform.br45.auth}, rồi truyền JSON qua \code{EDU_STAFF_ACCOUNTS}. Hướng dẫn đầy đủ nằm ở \code{docs/STAFF_AUTH.md}. Dùng \code{docker-compose.br45-classroom.yml} cho Student có phiên riêng và \code{docker-compose.br45-replay.yml} cho kịch bản mô phỏng. Mỗi chế độ cần ghi rõ khi chụp minh chứng.
+
+\subsection{Kiểm thử}
+
+\begin{lstlisting}[language=bash]
+.venv/bin/ruff check src tests && .venv/bin/mypy
+.venv/bin/python -m pytest tests/unit
+.venv/bin/python -m pytest -m spark tests/integration       # cần JDK
+# Set BR45_VERIFY_INSTRUCTOR_TOKEN and BR45_VERIFY_ADVISOR_TOKEN.
+EDU_BR45_E2E=1 .venv/bin/python -m pytest tests/e2e/test_br45.py
+cd apps/web && npm ci && npm run build && npx playwright install chromium
+# Configure the staff test credentials per docs/STAFF_AUTH.md.
+BR45_BASE_URL=http://localhost:8000 npx playwright test
+\end{lstlisting}
+
+\subsection{Đo hiệu năng}
+
+\begin{lstlisting}[language=bash]
+bash infra/br45/run-engine-benchmark.sh prepare
+bash infra/br45/run-engine-benchmark.sh br4 report-run
+bash infra/br45/run-engine-benchmark.sh spark report-run
+bash infra/br45/run-engine-benchmark.sh flink report-run
+\end{lstlisting}
+
+Chạy từng engine trên hạ tầng đối chiếu cô lập. Nhật ký tháng 11, kết quả oracle và bảng OULAD nằm trong \code{data/br45-restoration/}. CSV tháng 10 và số liệu BR6--BR8 nằm trong \code{data/}. Để đo worker triển khai, dùng hai project Compose và đặt \code{EDU_BR45_ASSESSMENT_ENGINE} lần lượt là \code{postgres} và \code{spark}. Cố định giờ UTC, nạp fixture 24 học viên, đo qua API đã cấp token. Script \code{data/measure_deployed_br4.py} ghi từng lượt, gồm mốc commit, số đếm, revision và định danh bản công bố.
+
+Đánh giá OULAD chạy từ gốc repo. Tệp ZIP tải từ UCI~\cite{ucioulad} phải có SHA-256 ghi trong \code{oulad_evaluation.json}.
+
+\begin{lstlisting}[language=bash]
+python -m edu_platform.br45.effectiveness \
+  --archive "$OULAD_ARCHIVE" --output "$OULAD_RESULTS"
+\end{lstlisting}
+
+\subsection{Biên dịch báo cáo}
+
+\begin{lstlisting}[language=bash]
+cd "DE_Latex_Report/New Project"
+tectonic --reruns 4 main.tex # hoặc: latexmk -xelatex main.tex
+\end{lstlisting}
+Trên Overleaf, chọn trình biên dịch XeLaTeX.

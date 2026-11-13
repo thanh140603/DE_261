@@ -37,8 +37,9 @@ def trino_query(settings: TrinoSettings) -> Query:
     def query(sql: str, params: list[Any]) -> list[Row]:
         import trino
 
+        connect: Callable[..., Any] = trino.dbapi.connect
         try:
-            conn = trino.dbapi.connect(
+            conn = connect(
                 host=settings.host,
                 port=settings.port,
                 user=settings.user,

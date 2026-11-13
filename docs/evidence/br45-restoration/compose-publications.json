@@ -1,0 +1,19 @@
+{
+  "status": "PASS",
+  "latest": {
+    "engine": "spark",
+    "job_id": "b3f8e65f6b68c8a5b7c9cc9e1ddaf108e2a6b8f1e6066c67914c45292574d2a8",
+    "facts_path": "s3a://lakehouse/br45-v2/publications/87c6ec04cff3291510021559f3c1f2c7edab510456125ff78f158e59f3369e56/facts",
+    "publication_id": "87c6ec04cff3291510021559f3c1f2c7edab510456125ff78f158e59f3369e56",
+    "dimensions_path": "s3a://lakehouse/br45-v2/publications/87c6ec04cff3291510021559f3c1f2c7edab510456125ff78f158e59f3369e56/dimensions",
+    "fact_partitions": 1,
+    "last_success_at": "2026-11-12T16:26:03.423921+00:00",
+    "source_revision": "9075afb959a7b80a9e555b398bd9cb8993c5dae9f9e7a4ca759f4eaefb12efd9",
+    "source_delta_version": 4
+  },
+  "publication_prefixes": [
+    "7cfefeffcccbec87e499242cfe39772f265d6db742e24fdcf005a2f7f21c4bf9/",
+    "87c6ec04cff3291510021559f3c1f2c7edab510456125ff78f158e59f3369e56/",
+    "9a4a7d2de7ce9cf0e39aea3d22fe58a59ed84ae3eacb9c3b2c39b9766cabc634/"
+  ]
+}

@@ -1,6 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { api } from "./api";
-import type { Overview, SseMessage, Stats } from "./types";
+import { api, ApiError } from "./api";
+import type { ClassroomStudent, Overview, SseMessage, Stats } from "./types";
 
 interface Store {
   stats: Stats | null;
@@ -10,8 +10,12 @@ interface Store {
   overview: Overview | null;
   overviewError: string | null;
   lastEventAt: number; // monotonic tick used by views to refetch after live changes
-  learnerId: string; // learner the Learner workspace is showing (demo has no learner sign-in)
+  learnerId: string;
   setLearnerId: (id: string) => void;
+  student: ClassroomStudent | null;
+  setStudent: (student: ClassroomStudent | null) => void;
+  studentLoading: boolean;
+  studentError: string | null;
 }
 
 const StoreContext = createContext<Store | null>(null);
@@ -25,6 +29,9 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const [overview, setOverview] = useState<Overview | null>(null);
   const [overviewError, setOverviewError] = useState<string | null>(null);
   const [lastEventAt, setLastEventAt] = useState(0);
+  const [student, setStudent] = useState<ClassroomStudent | null>(null);
+  const [studentLoading, setStudentLoading] = useState(true);
+  const [studentError, setStudentError] = useState<string | null>(null);
   const retryRef = useRef(1000);
   const [learnerId, setLearnerIdState] = useState(() => {
     try { return sessionStorage.getItem("learner-id") ?? ""; } catch { return ""; }
@@ -37,6 +44,22 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     const learners = overview?.learners ?? [];
     if (learners.length && !learners.some((l) => l.id === learnerId)) setLearnerId(learners[0].id);
   }, [overview, learnerId, setLearnerId]);
+
+  const classroom = overview?.classroom;
+  useEffect(() => {
+    if (!classroom) return;
+    let mounted = true;
+    api.classroom.current().then((account) => {
+      if (mounted) setStudent(account);
+    }).catch((error: unknown) => {
+      if (mounted && !(error instanceof ApiError && error.status === 401)) {
+        setStudentError(error instanceof Error ? error.message : "Could not check the classroom session");
+      }
+    }).finally(() => {
+      if (mounted) setStudentLoading(false);
+    });
+    return () => { mounted = false; };
+  }, [classroom]);
 
   const refreshStats = useCallback(async () => {
     try {
@@ -94,8 +117,13 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const value = useMemo<Store>(
-    () => ({ stats, refreshStats, connected, events, overview, overviewError, lastEventAt, learnerId, setLearnerId }),
-    [stats, refreshStats, connected, events, overview, overviewError, lastEventAt, learnerId, setLearnerId],
+    () => ({
+      stats, refreshStats, connected, events, overview, overviewError, lastEventAt,
+      learnerId: classroom ? student?.id ?? "" : learnerId, setLearnerId,
+      student, setStudent, studentLoading, studentError,
+    }),
+    [stats, refreshStats, connected, events, overview, overviewError, lastEventAt, classroom,
+      learnerId, setLearnerId, student, studentLoading, studentError],
   );
   return <StoreContext.Provider value={value}>{children}</StoreContext.Provider>;
 }

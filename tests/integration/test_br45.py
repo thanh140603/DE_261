@@ -23,7 +23,9 @@ from edu_platform.br45.assessment import (
 )
 from edu_platform.br45.cdc import ingest
 from edu_platform.br45.config import AnalyticsSettings, settings
-from edu_platform.br45.db import migrate
+from edu_platform.br45.db import migrate, state
+from edu_platform.br45.demo_dataset import apply as apply_demo_stage
+from edu_platform.br45.demo_dataset import build as build_demo_dataset
 from edu_platform.br45.risk import persist
 from tests.unit.test_br45 import risk
 
@@ -46,7 +48,12 @@ def conn():
             "pipeline_state",
             "risk_state",
             "risk_history",
+            "intervention_notes",
             "dropout_alerts",
+            "course_policies",
+            "assessment_jobs",
+            "domain_outbox",
+            "risk_dirty",
             "activity_windows",
             "mart_question_pass_statistics",
             "mart_test_case_pass_statistics",
@@ -299,6 +306,10 @@ def test_scoped_api_alert_lifecycle_and_idempotent_history(conn, monkeypatch):
 
     source(conn)
     result = risk()
+    # V2 GET reads a published generation; it must not run an aggregation itself.
+    from edu_platform.br45.db import state
+    state(conn, "evaluation_clock", T.isoformat())
+    results(conn)
     for _ in range(3):
         persist(conn, result)
     assert conn.execute("SELECT count(*) n FROM analytics.dropout_alerts").fetchone()["n"] == 1
@@ -419,3 +430,244 @@ def test_same_question_test_version_manifest(conn):
         ("t2", 1),
         ("t3", 1),
     }
+
+
+def test_demo_stage_retries_preserve_regrade_and_respect_watermark(conn):
+    dataset = build_demo_dataset("integration-test", T)
+    course = dataset["course_id"]
+    state(conn, "stream_watermark", (T - timedelta(days=10)).isoformat())
+    with pytest.raises(ValueError, match="Spark watermark"):
+        apply_demo_stage(conn, dataset, "baseline")
+    assert not conn.execute("SELECT 1 FROM br45.courses WHERE id=%s", (course,)).fetchone()
+
+    state(conn, "stream_watermark", (T - timedelta(days=21)).isoformat())
+    assert apply_demo_stage(conn, dataset, "baseline")
+    with pytest.raises(ValueError, match="Evaluation clock"):
+        apply_demo_stage(conn, dataset, "regrade")
+    state(conn, "evaluation_clock", T.isoformat())
+    assert apply_demo_stage(conn, dataset, "regrade")
+    assert not apply_demo_stage(conn, dataset, "regrade")
+    assert not apply_demo_stage(conn, dataset, "baseline")
+
+    case = f"{course}-case-empty-input"
+    counts = {
+        row["status"]: row["n"]
+        for row in conn.execute(
+            "SELECT status, count(*) n FROM br45.evaluations WHERE test_case_id=%s GROUP BY status",
+            (case,),
+        )
+    }
+    assert counts == {"passed": 22, "failed": 2}
+
+
+def test_job_lease_fences_expired_worker_and_requeues_new_revision(conn):
+    from edu_platform.br45 import jobs
+
+    start = T - timedelta(days=30)
+    cfg = AnalyticsSettings(assessment_engine="spark")
+    state(conn, "assessment_source_revision", "first")
+    state(conn, "assessment_sequence", 12)
+    job = jobs.request(conn, "c", start, T, cfg)
+    assert jobs.pending(conn, "spark", 11) is None
+    old = jobs.pending(conn, "spark", 12)
+    assert old and jobs.owns_lease(conn, old)
+    conn.execute(
+        "UPDATE analytics.assessment_jobs SET started_at=now()-interval '31 minutes' WHERE id=%s",
+        (job["id"],),
+    )
+    new = jobs.pending(conn, "spark", 12)
+    assert new and new["lease_generation"] > old["lease_generation"]
+    assert not jobs.owns_lease(conn, old)
+    jobs.fail(conn, old, RuntimeError("stale worker"))
+    assert jobs.owns_lease(conn, new)
+
+    state(conn, "assessment_source_revision", "second")
+    state(conn, "assessment_sequence", 20)
+    jobs.request(conn, "c", start, T, cfg)
+    jobs.complete(conn, new, "first", "publication-1", 7)
+    pending = jobs.request(conn, "c", start, T, cfg)
+    assert pending["status"] == "PENDING"
+    assert pending["published_revision"] == "first"
+    assert pending["requested_revision"] == "second"
+    assert pending["source_delta_version"] == 7
+    assert jobs.pending(conn, "spark", 19) is None
+
+
+def test_policy_version_and_note_idempotency(conn, monkeypatch):
+    from edu_platform.br45.risk import refresh as refresh_risk
+
+    monkeypatch.setenv("EDU_BR45_AUTH", json.dumps({
+        "advisor": {"id": "advisor", "role": "advisor", "courses": ["c"]},
+        "other": {"id": "other", "role": "advisor", "courses": ["different"]},
+    }))
+    settings.cache_clear()
+    try:
+        source(conn, 1)
+        load(conn, "enrollments", {
+            "id": "enrolled", "student_id": "s0", "course_id": "c", "status": "active",
+            "enrolled_at": (T - timedelta(days=35)).isoformat(),
+        })
+        state(conn, "evaluation_clock", T.isoformat())
+        persist(conn, risk())
+        alert_id = conn.execute("SELECT id FROM analytics.dropout_alerts").fetchone()["id"]
+        app = FastAPI()
+        app.include_router(router, prefix="/api")
+        app.dependency_overrides[database] = lambda: conn
+        headers = {"Authorization": "Bearer advisor"}
+        outside = {"Authorization": "Bearer other"}
+        policy_path = "/api/advisor/courses/c/policy"
+        note_path = f"/api/advisor/alerts/{alert_id}/notes"
+        with TestClient(app) as client:
+            assert client.get(policy_path, headers=outside).status_code == 403
+            default = client.get(policy_path, headers=headers).json()
+            assert default["version"] == 1
+            update = {"expected_version": 1, "parameters": {
+                **default["parameters"], "alert_threshold": 80,
+            }}
+            assert client.put(policy_path, headers=headers, json=update).json()["version"] == 2
+            assert client.put(policy_path, headers=headers, json=update).status_code == 409
+            assert client.get(note_path, headers=outside).status_code == 403
+            body = {"idempotency_key": "one", "note": "Called to discuss the assignment"}
+            first = client.post(note_path, headers=headers, json=body)
+            second = client.post(note_path, headers=headers, json=body)
+            assert first.status_code == second.status_code == 201
+            assert first.json() == second.json()
+            assert first.json()["actor"] == "advisor"
+            assert client.post(
+                note_path, headers=headers, json=body | {"note": "Different note"}
+            ).status_code == 409
+            assert len(client.get(note_path, headers=headers).json()) == 1
+
+        for boundary, version in ((T, 1), (T + timedelta(hours=1), 2)):
+            refresh_risk(conn, boundary)
+            row = conn.execute(
+                "SELECT data FROM analytics.risk_state WHERE student_id='s0'"
+            ).fetchone()
+            assert row["data"]["policy_version"] == version
+    finally:
+        settings.cache_clear()
+
+
+def test_risk_history_outbox_distinguishes_equal_score_observations(conn):
+    result = risk()
+    corrected = {
+        **result,
+        "reasons": [{**result["reasons"][0], "reason": "Corrected contributing activity"}],
+    }
+    for observation in (result, corrected, corrected):
+        persist(conn, observation)
+    rows = list(conn.execute(
+        "SELECT event_id,payload FROM analytics.domain_outbox WHERE topic='risk.learner_score.v1'"
+    ))
+    assert len(rows) == 2
+    assert rows[0]["event_id"] != rows[1]["event_id"]
+    assert rows[0]["payload"]["score"] == rows[1]["payload"]["score"]
+
+
+def test_risk_refresh_waits_for_matching_committed_sink(conn, monkeypatch):
+    from edu_platform.br45 import streaming
+
+    calls = []
+    monkeypatch.setattr(streaming, "refresh", lambda *args, **kwargs: calls.append(args))
+    cfg = AnalyticsSettings(checkpoint="/test/checkpoint")
+    progress = {"batchId": 3, "sources": [{"endOffset": {cfg.activity_topic: {"0": 8}}}]}
+    state(conn, "published_offsets", {"0": 8})
+    state(conn, "evaluation_clock", T.isoformat())
+    state(conn, "stream", {"checkpoint": cfg.checkpoint, "batch_id": 2})
+    streaming.score_committed_batch(conn, progress, cfg)
+    assert not calls
+    state(conn, "stream", {"checkpoint": cfg.checkpoint, "batch_id": 3})
+    streaming.score_committed_batch(conn, {"sources": [{"endOffset": None}]}, cfg)
+    assert not calls
+    streaming.score_committed_batch(conn, progress, cfg)
+    assert len(calls) == 1
+
+    offsets = {cfg.activity_topic: {"0": 8}}
+    idle = {
+        "batchId": 4, "numInputRows": 0,
+        "sources": [{"startOffset": offsets, "endOffset": offsets}],
+    }
+    streaming.score_committed_batch(conn, idle, cfg)
+    assert len(calls) == 2
+    state(conn, "published_offsets", {"0": 9})
+    streaming.score_committed_batch(conn, idle, cfg)
+    assert len(calls) == 2
+
+
+def test_failed_generation_leaves_the_last_assessment_publication(conn):
+    from edu_platform.br45 import jobs
+
+    source(conn)
+    before, _ = results(conn)
+    start = T - timedelta(days=30)
+    cfg = AnalyticsSettings(assessment_engine="postgres")
+    job = jobs.request(conn, "c", start, T, cfg)
+    claimed = jobs.pending(conn, "postgres")
+    assert claimed and claimed["id"] == job["id"]
+    with pytest.raises(RuntimeError, match="lease was lost"), conn.transaction():
+        conn.execute("DELETE FROM analytics.mart_question_pass_statistics WHERE course_id='c'")
+        jobs.complete(
+            conn, claimed | {"lease_generation": claimed["lease_generation"] - 1},
+            "stale", "stale-publication",
+        )
+    jobs.fail(conn, claimed, RuntimeError("injected publication failure"))
+    after = conn.execute(
+        "SELECT data FROM analytics.mart_question_pass_statistics WHERE course_id='c'"
+    ).fetchone()
+    assert after["data"] == before[0]
+    status = conn.execute("SELECT status FROM analytics.assessment_jobs").fetchone()["status"]
+    assert status == "FAILED"
+
+
+def test_retention_dry_run_blocks_while_job_or_outbox_pending(conn):
+    from edu_platform.br45 import jobs
+    from edu_platform.br45.retention import activity_deliveries
+
+    cfg = AnalyticsSettings()
+    published = {"0": 8}
+    state(conn, "published_offsets", published)
+    state(conn, "feature_freshness", {"caught_up": True, "published_offsets": published})
+    state(conn, "stream_watermark", T.isoformat())
+    conn.execute(
+        "INSERT INTO analytics.outbox(event_id,payload,published_at) "
+        "VALUES ('old',jsonb_build_object('event_time',%s::text),now()-interval '90 days')",
+        (T.isoformat(),),
+    )
+    preview = activity_deliveries(conn, cfg, 60)
+    assert preview["status"] == "PREVIEW" and preview["eligible"] == 1
+    assert conn.execute("SELECT count(*) n FROM analytics.outbox").fetchone()["n"] == 1
+    job = jobs.request(conn, "c", T - timedelta(days=30), T)
+    assert activity_deliveries(conn, cfg, 60, apply=True)["status"] == "BLOCKED"
+    conn.execute(
+        "UPDATE analytics.assessment_jobs SET status='SUCCEEDED' WHERE id=%s", (job["id"],)
+    )
+    conn.execute("INSERT INTO analytics.outbox(event_id,payload) VALUES ('pending','{}')")
+    blocked = activity_deliveries(conn, cfg, 60, apply=True)
+    assert blocked["status"] == "BLOCKED" and blocked["pending"]["pending"]
+    assert conn.execute("SELECT count(*) n FROM analytics.outbox").fetchone()["n"] == 2
+
+
+def test_postgres_worker_publishes_after_its_previous_lease_expires(conn, monkeypatch):
+    from contextlib import nullcontext
+
+    from edu_platform.br45 import jobs
+
+    source(conn)
+    cfg = AnalyticsSettings(assessment_engine="postgres")
+    job = jobs.request(conn, "c", T - timedelta(days=30), T, cfg)
+    abandoned = jobs.pending(conn, "postgres")
+    assert abandoned and abandoned["id"] == job["id"]
+    conn.execute(
+        "UPDATE analytics.assessment_jobs SET started_at=now()-interval '31 minutes' WHERE id=%s",
+        (job["id"],),
+    )
+    monkeypatch.setattr(jobs, "connect", lambda: nullcontext(conn))
+    jobs.process_postgres(cfg)
+    final = conn.execute("SELECT * FROM analytics.assessment_jobs").fetchone()
+    assert final["status"] == "SUCCEEDED"
+    assert final["published_engine"] == "postgres"
+    assert final["published_revision"] == job["requested_revision"]
+    assert final["lease_generation"] > abandoned["lease_generation"]
+    assert final["source_delta_version"] is None
+    metric = conn.execute("SELECT data FROM analytics.mart_question_pass_statistics").fetchone()
+    assert metric["data"]["passed_evaluations"] == 2

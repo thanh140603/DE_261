@@ -107,6 +107,11 @@ class WarehouseRunner:
                 self._spark.sql(statement)
             applied.append(path.name)
             log.info("ddl applied", file=path.name)
+        if (
+            self._spark.catalog.tableExists("silver.risk_scores")
+            and "policy_version" not in self._spark.table("silver.risk_scores").columns
+        ):
+            self._spark.sql("ALTER TABLE silver.risk_scores ADD COLUMNS (policy_version INT)")
         return applied
 
     # --- batch ------------------------------------------------------------------------

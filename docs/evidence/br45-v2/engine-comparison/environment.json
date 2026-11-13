@@ -1,0 +1,51 @@
+{
+  "date_utc": "2026-11-09",
+  "hardware": {
+    "cpu": "AMD Ryzen 5 4500U",
+    "logical_cpus": 6,
+    "memory_gib_approx": 18,
+    "swap_gib": 8,
+    "architecture": "x86_64"
+  },
+  "engine_container": {
+    "cpu_limit": 2,
+    "memory_limit_gib": 2,
+    "spark_master": "local[2]",
+    "spark_driver_heap_gib": 1,
+    "flink_parallelism": 2,
+    "flink_task_slots": 2
+  },
+  "workload": {
+    "scales": [1000, 10000, 100000],
+    "warmups_per_scale": 1,
+    "measured_trials_per_scale": 3,
+    "e2e_trials_per_scenario": 5,
+    "poll_seconds": 0.25,
+    "stream_window_days": 7,
+    "stream_slide_hours": 1,
+    "stream_out_of_order_days": 21,
+    "spark_microbatch_seconds": 5,
+    "spark_max_offsets_per_trigger": 50000,
+    "flink_window_update_seconds": 5,
+    "flink_jdbc_flush_seconds": 1,
+    "flink_checkpoint_seconds": 10,
+    "kafka_partitions_per_workload_topic": 1
+  },
+  "image_ids": {
+    "postgres:16": "sha256:65b16a8b326e0cfbdf33fa7e783f2a0cb352a61448616ccccfd616ef42aa0f65",
+    "de261/demo:local": "sha256:336f7b453333915f2b6109333b7e98f7ca09157754c7d42fd52dc7e194e2ded2",
+    "de261/br45-spark:local": "sha256:0786d77939270d48ef46a10408b65bb448617091e092cb7c0c42838c47630b40",
+    "flink:1.19-scala_2.12-java11": "sha256:1bf0a2e91e8640900914dfd54ed605776778b1d978257e72438547004e49c6a9",
+    "confluentinc/cp-kafka:7.6.1": "sha256:620734d9fc0bb1f9886932e5baf33806074469f40e3fe246a3fdbb59309535fa",
+    "debezium/connect:2.6": "sha256:baa0dbbc404eb4da82e07c31482d6c63d8dc4e64c76260dd1933110235ee0809"
+  },
+  "isolation": {
+    "database": "br45_bench",
+    "cdc_connector": "br45-engine-benchmark",
+    "cdc_consumer_group": "br45-engine-benchmark",
+    "cdc_topic_prefix": "br45.engbench.cdc.br45.",
+    "benchmark_api_port": 18001,
+    "shared_services": ["Kafka broker", "Kafka Connect"],
+    "ambient_load": "The classroom and existing stack continued running while engine trials ran sequentially."
+  }
+}

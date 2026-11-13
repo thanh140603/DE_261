@@ -1,18 +1,18 @@
 import { expect, test, type APIRequestContext } from "@playwright/test";
 import { execFileSync } from "node:child_process";
+import { bearerFor, signInStaff } from "./staff-credentials";
 
 // Needs the lakehouse marts (README "Run the lakehouse warehouse": bootstrap, seed-bronze
 // --end-date 2026-10-17 --days 35, run --start-date 2026-08-01) and Trino; skipped otherwise.
 async function lakehouseReady(request: APIRequestContext) {
-  const response = await request.get("/api/lakehouse/session", { headers: { Authorization: "Bearer admin-demo" } });
+  const response = await request.get("/api/lakehouse/session", { headers: bearerFor("admin") });
   return response.ok();
 }
 
 test("Admin reads the k-anonymous organisation report from the lakehouse", async ({ page, request }) => {
   test.skip(!(await lakehouseReady(request)), "lakehouse marts / Trino not available");
   await page.goto("/admin");
-  await page.getByLabel("admin access token").fill("admin-demo");
-  await page.getByRole("button", { name: "Connect", exact: true }).click();
+  await signInStaff(page, "admin");
   const sql = page.getByRole("row").filter({ has: page.getByRole("cell", { name: "SQL Foundations" }) });
   await expect(sql).toContainText("%");
   await expect(page.getByText("Hidden: fewer than")).toHaveCount(0);
@@ -21,17 +21,16 @@ test("Admin reads the k-anonymous organisation report from the lakehouse", async
   await expect(page.getByRole("row").filter({ hasText: "Hidden" }).first()).not.toContainText("%");
 
   // a single-organisation admin cannot reach another organisation, in the UI or the API
-  const scoped = await request.get("/api/admin/organisations/org-globex/skill-progress", { headers: { Authorization: "Bearer acme-admin-demo" } });
+  const scoped = await request.get("/api/admin/organisations/org-globex/skill-progress", { headers: bearerFor("acme-admin") });
   expect(scoped.status()).toBe(403);
-  const forbidden = await request.get("/api/admin/organisations/org-acme/skill-progress", { headers: { Authorization: "Bearer instructor-demo" } });
+  const forbidden = await request.get("/api/admin/organisations/org-acme/skill-progress", { headers: bearerFor("instructor") });
   expect(forbidden.status()).toBe(403);
 });
 
 test("Instructor reads per-version video heatmaps and the engagement trend", async ({ page, request }) => {
   test.skip(!(await lakehouseReady(request)), "lakehouse marts / Trino not available");
   await page.goto("/instructor/videos");
-  await page.getByLabel("instructor access token").fill("instructor-demo");
-  await page.getByRole("button", { name: "Connect", exact: true }).click();
+  await signInStaff(page, "instructor");
 
   await page.getByLabel("Course").selectOption("c-sql-101");
   await page.getByLabel("Lesson video").selectOption("v-sql-joins");
@@ -41,7 +40,7 @@ test("Instructor reads per-version video heatmaps and the engagement trend", asy
   await expect(page.locator(".heat .col")).not.toHaveCount(0);
 
   await page.goto("/instructor/engagement");
-  await expect(page.getByLabel("instructor access token")).toHaveCount(0); // one token for every instructor page
+  await expect(page.getByLabel("Username", { exact: true })).toHaveCount(0); // one session for every instructor page
   await expect(page.getByText(/weekly windows from/)).toBeVisible();
   await expect(page.getByText("Declining", { exact: true }).first()).toBeVisible();
 
@@ -50,11 +49,10 @@ test("Instructor reads per-version video heatmaps and the engagement trend", asy
 });
 
 test("Instructor publishes a transcript version and sees cache, vectors and search follow it", async ({ page, request }) => {
-  const ready = await request.get("/api/instructor/courses/c-sql-101/content", { headers: { Authorization: "Bearer instructor-demo" } });
+  const ready = await request.get("/api/instructor/courses/c-sql-101/content", { headers: bearerFor("instructor") });
   test.skip(!ready.ok(), "content services (profile br678) not available");
   await page.goto("/instructor/content");
-  await page.getByLabel("instructor access token").fill("instructor-demo");
-  await page.getByRole("button", { name: "Connect", exact: true }).click();
+  await signInStaff(page, "instructor");
   await page.getByLabel("Course").selectOption("c-sql-101");
 
   const row = page.getByRole("row").filter({ has: page.getByRole("button", { name: /^Joins/ }) });
@@ -80,15 +78,14 @@ test("Instructor publishes a transcript version and sees cache, vectors and sear
 
 test("Instructor sees today's streamed interactions on top of the daily marts", async ({ page, request }) => {
   test.skip(!(await lakehouseReady(request)), "lakehouse marts / Trino not available");
-  const heatmap = async () => (await (await request.get("/api/instructor/videos/v-sql-group/interaction-heatmap", { headers: { Authorization: "Bearer instructor-demo" } })).json());
+  const heatmap = async () => (await (await request.get("/api/instructor/videos/v-sql-group/interaction-heatmap", { headers: bearerFor("instructor") })).json());
   test.skip(!("live" in (await heatmap())), "server without live overlays");
   // live telemetry -> Kafka -> telemetry-live (Spark) -> Redis; requires the br678 profile
   execFileSync("docker", ["compose", "exec", "-T", "demo", "edu", "telemetry", "simulate", "--sessions", "40"], { cwd: "../..", timeout: 60000 });
   await expect.poll(async () => (await heatmap()).live?.seconds.length ?? 0, { timeout: 60000 }).toBeGreaterThan(0);
 
   await page.goto("/instructor/videos");
-  await page.getByLabel("instructor access token").fill("instructor-demo");
-  await page.getByRole("button", { name: "Connect", exact: true }).click();
+  await signInStaff(page, "instructor");
   await page.getByLabel("Course").selectOption("c-sql-101");
   await page.getByLabel("Lesson video").selectOption("v-sql-group");
   await expect(page.getByText(/streamed interactions? from/)).toBeVisible();

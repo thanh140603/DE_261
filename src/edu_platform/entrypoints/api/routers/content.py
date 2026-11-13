@@ -17,7 +17,7 @@ from typing import Annotated, Any, Literal, TypeVar
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
 
-from edu_platform.br45.api import Principal, instructor
+from edu_platform.br45.auth import Instructor, Principal
 from edu_platform.contexts.content.application.ports import CatalogEntry, ContentCatalog
 from edu_platform.contexts.content.application.submit_content_version import SubmitContentVersion
 from edu_platform.contexts.content.infrastructure.opensearch_index import OpenSearchContentIndex
@@ -59,7 +59,6 @@ def content_services() -> ContentServices:
 
 
 Services = Annotated[ContentServices, Depends(content_services)]
-Instructor = Annotated[Principal, Depends(instructor)]
 
 
 @contextmanager

@@ -1,0 +1,12 @@
+{
+  "status": "PASS",
+  "initial_full_check": "TIMED_OUT_AWAITING_INHERITED_LEASE",
+  "published_correction_after_lease_expiry": 3,
+  "published_next_correction": 2,
+  "duplicate_alert_count": 0,
+  "previous_window": 4,
+  "recent_window": 4,
+  "score": 50,
+  "replayed_activity_id": "0280cca2bfbe97e735eb585b933fb3759340369a57c48e8c0345b831cc1fc8d5",
+  "new_activity_count": 4
+}

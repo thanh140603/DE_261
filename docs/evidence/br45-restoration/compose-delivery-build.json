@@ -1,0 +1,8 @@
+{
+  "status": "PASS",
+  "revision": "1ac28e1cd6543cb5ebb2f99a178cc1ee7412ffc6",
+  "images": {
+    "de261/verify-demo:delivery": "sha256:024744a2127aa312a8aed43b2b92853daa8be8aad9b96d5d288d41530c9445de",
+    "de261/verify-spark:delivery": "sha256:e00246945d06bcb8026fd83215c5dac6bf084a95e48ee4cf2b983eacaf54f435"
+  }
+}

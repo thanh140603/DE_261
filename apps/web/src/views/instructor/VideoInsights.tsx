@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState, type MouseEvent } from "react";
 import { Link } from "react-router-dom";
-import { analyticsApi, type VideoHeatmap } from "../../analytics";
+import { type AnalyticsClient, type VideoHeatmap } from "../../analytics";
 import { AnalyticsAccess, localDateTime, useAnalyticsPolling } from "../../components/AnalyticsAccess";
 import { TipRow, useTip, useWidth } from "../../components/charts";
 import { Icon } from "../../components/Icon";
@@ -18,20 +18,19 @@ export function VideoInsights() {
       <PageHead br="BR7" title="Video insights">
         Where learners play, pause and seek in each lesson video. Built per video version in the lakehouse from pseudonymised viewing events; today's activity streams in live.
       </PageHead>
-      <AnalyticsAccess role="instructor" source="lakehouse">{(token, session) => <Insights token={token} courses={session.courses} />}</AnalyticsAccess>
+      <AnalyticsAccess role="instructor" source="lakehouse">{(client, session) => <Insights client={client} courses={session.courses} />}</AnalyticsAccess>
     </>
   );
 }
 
-function Insights({ token, courses }: { token: string; courses: { id: string; title: string }[] }) {
+function Insights({ client, courses }: { client: AnalyticsClient; courses: { id: string; title: string }[] }) {
   const [course, setCourse] = useInstructorCourse(courses);
-  const client = analyticsApi(token);
-  const videos = useFetch(course ? () => client.courseVideos(course) : null, [token, course]);
+  const videos = useFetch(course ? () => client.courseVideos(course) : null, [client, course]);
   const [contentId, setContentId] = useState("");
   const [version, setVersion] = useState("");
   const [withLive, setWithLive] = useState(true);
   useEffect(() => { setContentId(videos.data?.videos[0]?.content_id ?? ""); setVersion(""); }, [videos.data]);
-  const q = useFetch(contentId ? () => client.heatmap(contentId, { version, live: String(withLive) }) : null, [token, contentId, version, withLive]);
+  const q = useFetch(contentId ? () => client.heatmap(contentId, { version, live: String(withLive) }) : null, [client, contentId, version, withLive]);
   useAnalyticsPolling(q.reload);
   const selected = videos.data?.videos.find((v) => v.content_id === contentId);
 

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { api } from "../../api";
+import { ClassroomLessons } from "../../components/ClassroomStudent";
 import { Icon } from "../../components/Icon";
 import { Badge, Btn, Callout, Card, Chip, PageHead, Seg, SelectField, Status, useToast, type Tone } from "../../components/ui";
 import { relTime, useAction, useFetch, type Fetched } from "../../hooks";
@@ -35,7 +36,7 @@ export function deepLinkTarget(link: string | null): string | null {
 }
 
 export function LearnerHome() {
-  const { overview, learnerId, lastEventAt } = useStore();
+  const { overview, learnerId, lastEventAt, student } = useStore();
   const learner = overview?.learners.find((l) => l.id === learnerId);
   const courseById = useMemo(() => new Map((overview?.courses ?? []).map((c) => [c.id, c])), [overview]);
   const recs = useFetch(learnerId ? () => api.learner.recommendations(learnerId) : null, [learnerId]);
@@ -47,8 +48,14 @@ export function LearnerHome() {
     <>
       <PageHead title="Dashboard" br="BR1 · BR2" />
       <div className="dash">
+      <div className="grid-2-1">
         <div className="stack">
           <MyCourses learnerId={learnerId} recs={recs} courseById={courseById} />
+          {student && <ClassroomLessons courses={(overview?.courses ?? []).filter(
+            (course) => enrolledOf(recs.data, learner?.course_ids ?? [], courseById).some(
+              (item) => item.course_id === course.id && !item.completed,
+            ),
+          )} />}
           <Recommended learnerId={learnerId} recs={recs} courseById={courseById} />
         </div>
         <aside className="stack" aria-label={`Sidebar for ${learner?.name ?? "learner"}`}>
@@ -56,6 +63,7 @@ export function LearnerHome() {
           <RecentFeedback subs={subs} />
           <SimulateEvents />
         </aside>
+      </div>
       </div>
     </>
   );

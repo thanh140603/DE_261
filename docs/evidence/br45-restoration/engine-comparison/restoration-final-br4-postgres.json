@@ -1,0 +1,145 @@
+{
+  "suite": "BR4",
+  "engine": "postgres",
+  "run_id": "restoration-final",
+  "measured_at": "2026-11-12T16:28:06.001166+00:00",
+  "python": "3.12.3",
+  "platform": "Linux-7.0.0-43-generic-x86_64-with-glibc2.39",
+  "poll_seconds": 0.25,
+  "source_revision": "3cfd70d51ffced9850c705297bf7707ba43d3d04",
+  "engine_version": "16.15 (Debian 16.15-1.pgdg13+2)",
+  "cpu_limit": 2,
+  "memory_limit_gib": 2,
+  "runtime": "compose",
+  "trials": [
+    {
+      "phase": "warmup",
+      "records": 1000,
+      "repeat": 0,
+      "status": "PASS",
+      "elapsed_ms": 123.8578980010061
+    },
+    {
+      "phase": "processing",
+      "records": 1000,
+      "repeat": 1,
+      "status": "PASS",
+      "elapsed_ms": 87.40290400237427
+    },
+    {
+      "phase": "processing",
+      "records": 1000,
+      "repeat": 2,
+      "status": "PASS",
+      "elapsed_ms": 127.07674600096652
+    },
+    {
+      "phase": "processing",
+      "records": 1000,
+      "repeat": 3,
+      "status": "PASS",
+      "elapsed_ms": 78.25797400073498
+    },
+    {
+      "phase": "warmup",
+      "records": 10000,
+      "repeat": 0,
+      "status": "PASS",
+      "elapsed_ms": 510.5562300013844
+    },
+    {
+      "phase": "processing",
+      "records": 10000,
+      "repeat": 1,
+      "status": "PASS",
+      "elapsed_ms": 479.25303200099734
+    },
+    {
+      "phase": "processing",
+      "records": 10000,
+      "repeat": 2,
+      "status": "PASS",
+      "elapsed_ms": 535.1651550008683
+    },
+    {
+      "phase": "processing",
+      "records": 10000,
+      "repeat": 3,
+      "status": "PASS",
+      "elapsed_ms": 556.5103029985039
+    },
+    {
+      "phase": "warmup",
+      "records": 100000,
+      "repeat": 0,
+      "status": "PASS",
+      "elapsed_ms": 4386.921254001209
+    },
+    {
+      "phase": "processing",
+      "records": 100000,
+      "repeat": 1,
+      "status": "PASS",
+      "elapsed_ms": 8547.565829001542
+    },
+    {
+      "phase": "processing",
+      "records": 100000,
+      "repeat": 2,
+      "status": "PASS",
+      "elapsed_ms": 8976.892611000949
+    },
+    {
+      "phase": "processing",
+      "records": 100000,
+      "repeat": 3,
+      "status": "PASS",
+      "elapsed_ms": 13123.39989999964
+    },
+    {
+      "phase": "e2e_correction",
+      "records": 106,
+      "repeat": 1,
+      "status": "PASS",
+      "elapsed_ms": 2128.1394720026583,
+      "passed_before": 2,
+      "passed_after": 3
+    },
+    {
+      "phase": "e2e_correction",
+      "records": 106,
+      "repeat": 2,
+      "status": "PASS",
+      "elapsed_ms": 1945.8967680002388,
+      "passed_before": 2,
+      "passed_after": 3
+    },
+    {
+      "phase": "e2e_correction",
+      "records": 106,
+      "repeat": 3,
+      "status": "PASS",
+      "elapsed_ms": 1138.4901589990477,
+      "passed_before": 2,
+      "passed_after": 3
+    },
+    {
+      "phase": "e2e_correction",
+      "records": 106,
+      "repeat": 4,
+      "status": "PASS",
+      "elapsed_ms": 880.8424979979463,
+      "passed_before": 2,
+      "passed_after": 3
+    },
+    {
+      "phase": "e2e_correction",
+      "records": 106,
+      "repeat": 5,
+      "status": "PASS",
+      "elapsed_ms": 856.3463000027696,
+      "passed_before": 2,
+      "passed_after": 3
+    }
+  ]
+}

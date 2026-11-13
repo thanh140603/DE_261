@@ -1,0 +1,20 @@
+\section*{Tóm tắt}
+\addcontentsline{toc}{section}{Tóm tắt}
+
+Báo cáo trình bày việc thiết kế và hiện thực \textbf{DE\_261}, một nền tảng kỹ thuật dữ liệu cho hệ thống giáo dục trực tuyến quy mô lớn. Nền tảng nhận bốn nguồn dữ liệu rời rạc: luồng clickstream telemetry từ web và mobile, nhật ký thay đổi giao dịch (CDC) từ PostgreSQL, kho tài liệu học tập phi cấu trúc và nhật ký thực thi bài nộp từ sandbox. Từ đó, nền tảng biến chúng thành các kho dữ liệu phục vụ tám yêu cầu nghiệp vụ (BR1--BR8) của bốn nhóm người dùng: người học, giảng viên, cố vấn học tập và quản trị viên tổ chức.
+
+Kiến trúc dùng Apache Kafka và Debezium làm tầng tiếp nhận và event bus. Apache Spark (batch và Structured Streaming) là engine xử lý chính. Delta Lake trên object storage (MinIO) tổ chức theo mô hình medallion bronze--silver--gold, với lớp gold là một kho dữ liệu dạng lược đồ hình sao Kimball. Kho được Hive Metastore lập danh mục và Trino phục vụ truy vấn SQL. Redis là tầng phục vụ độ trễ thấp, OpenSearch phục vụ tìm kiếm lai (keyword và vector). Mọi pipeline được tổ chức thành bảy \en{bounded context} theo Domain-Driven Design với kiến trúc lục giác (hexagonal), nên cùng một use case chạy được trên nhiều engine và kiểm thử được mà không cần engine. Mười bốn quyết định kiến trúc được ghi lại bằng ADR, bao gồm các điểm nhóm chủ động điều chỉnh so với kiến trúc gợi ý của đề bài.
+
+Về kết quả đo trên máy cá nhân với dữ liệu tổng hợp:
+\begin{itemize}
+  \item \textbf{BR4}: sửa một kết quả chấm qua CDC đổi tỷ lệ đạt từ $2/24$ thành $3/24$. Spark SQL/Delta công bố bản mới theo phiên bản nguồn. PostgreSQL SQL là phương án đối chiếu.
+  \item \textbf{BR5}: luồng CDC đến cảnh báo mất 20{,}97 giây trong một lượt nghiệm thu. Sau khi khởi động lại Spark, hoạt động mới giảm điểm từ 100 xuống 50 mà không sinh cảnh báo trùng. Phép đo đối chiếu Spark/Flink và đánh giá OULAD được trình bày ở Mục~\ref{chap:eval}.
+  \item \textbf{BR8}: nội dung khoá học đã xuất bản trở nên tìm kiếm được sau trung vị 535 ms.
+  \item \textbf{BR7, BR8}: lớp phủ thời gian thực hiển thị sau khoảng 7 giây, ổn định khi tải tăng 15 lần.
+  \item \textbf{BR6--BR8}: các data mart được đọc thẳng qua Trino với trung vị 42--92 ms, và qua API có cache với trung vị 1{,}4--2{,}5 ms.
+  \item \textbf{Kho dữ liệu}: toàn bộ kho (43 model) được xây trong khoảng 2--2{,}5 phút và vượt qua mọi cổng kiểm tra chất lượng.
+\end{itemize}
+Đợt hồi quy sau cập nhật xác thực có 379 bài kiểm thử Python/PostgreSQL đạt. Giao diện cung cấp phiên đăng nhập riêng cho giảng viên, cố vấn và quản trị viên. Báo cáo phân biệt các lượt đo trên hệ thống chạy thật, các kịch bản mô phỏng và đánh giá ngoại tuyến.
+
+\vspace{6pt}
+\textbf{Từ khoá:} kỹ thuật dữ liệu, lakehouse, Delta Lake, Kafka, Debezium, CDC, Spark Structured Streaming, kho dữ liệu Kimball, learning analytics, cảnh báo bỏ học.

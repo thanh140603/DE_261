@@ -1,0 +1,59 @@
+% !TEX program = xelatex
+% =====================================================================
+%  Báo cáo bài tập lớn DE_261 — Nền tảng kỹ thuật dữ liệu cho giáo dục trực tuyến
+%  Biên dịch:  tectonic main.tex      hoặc   latexmk -xelatex main.tex
+% =====================================================================
+\documentclass[a4paper,12pt]{article}
+
+\input{config/info}
+\input{config/preamble}
+
+\begin{document}
+\hypersetup{pageanchor=false}
+\input{config/cover}
+\pagenumbering{arabic}
+\hypersetup{pageanchor=true}
+
+\tableofcontents
+\clearpage
+\listoffigures
+\listoftables
+\clearpage
+
+\input{chapters/00-tom-tat}
+\input{chapters/00-thuat-ngu}
+
+\clearpage
+\input{chapters/01-gioi-thieu}
+\input{chapters/02-phan-tich-yeu-cau}
+
+\section{Kiến trúc, công nghệ và kho dữ liệu}
+\label{sec:solution}
+\input{chapters/03-kien-truc}
+\input{chapters/04-lakehouse}
+
+\section{Hiện thực và giao diện ứng dụng}
+\label{sec:application}
+\input{chapters/05-hien-thuc}
+\input{chapters/06-giao-dien}
+
+\clearpage
+\input{chapters/07-danh-gia}
+
+\section{Hạn chế, hướng phát triển và kết luận}
+\label{sec:closing}
+\input{chapters/08-han-che}
+\input{chapters/09-ket-luan}
+
+\clearpage
+\phantomsection
+\addcontentsline{toc}{section}{\refname}
+\bibliographystyle{unsrt}
+\bibliography{references}
+
+\clearpage
+\appendix
+\input{appendices/A-huong-dan-chay}
+\input{appendices/B-api}
+
+\end{document}

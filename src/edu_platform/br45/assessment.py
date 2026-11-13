@@ -226,6 +226,14 @@ def classify(
                 f"{median(comparable) - value:.1%}"
                 " below the median of other required tests"
             )
+            if (
+                row.get("cohort_students", 0) >= cfg.min_students
+                and row.get("cohort_pass_rate") == 0
+            ):
+                reasons.append(
+                    "All observed attempts by the prior high-performing cohort failed; "
+                    "inspect the test specification and expected result"
+                )
         if (
             previous
             and previous["unique_students"] >= cfg.min_students
@@ -300,6 +308,30 @@ def refresh(
     previous = enrich(list(conn.execute(QUESTION_SQL, prev_params))) + enrich(
         list(conn.execute(CASES_SQL, prev_params))
     )
+    return publish(conn, qs, ts, previous, start, end, course_id, cfg, revision)
+
+
+def publish(
+    conn: Db,
+    qs: list[dict[str, Any]],
+    ts: list[dict[str, Any]],
+    previous: list[dict[str, Any]],
+    start: datetime,
+    end: datetime,
+    course_id: str | None,
+    cfg: AnalyticsSettings,
+    revision: str | None = None,
+) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+    """Publish a fully validated generation in the caller's transaction."""
+    materialization_id = identity(course_id, start.isoformat(), end.isoformat())
+    conn.execute("SELECT pg_advisory_xact_lock(hashtext(%s))", (materialization_id,))
+    for row in qs + ts:
+        if (
+            row["passed_evaluations"] + row["failed_evaluations"] != row["total_valid_evaluations"]
+            or row["unique_students"] > row["total_valid_evaluations"]
+            or (row["pass_rate"] is not None and not 0 <= row["pass_rate"] <= 1)
+        ):
+            raise ValueError("Assessment quality gate failed")
 
     def key(r: Any) -> Any:
         return (
@@ -384,6 +416,6 @@ def refresh(
                 "VALUES(%s,%s) ON CONFLICT(id) DO UPDATE SET "
                 "source_revision=excluded.source_revision,computed_at=now()"
             ),
-            (materialization_id, revision),
+            (identity(course_id, start.isoformat(), end.isoformat()), revision),
         )
     return qs, ts

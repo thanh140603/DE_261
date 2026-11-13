@@ -1,0 +1,296 @@
+{
+  "config": {
+    "argv": [
+      "/usr/bin/node",
+      "/tmp/de261-clean.rQnKi1/checkout/apps/web/node_modules/.bin/playwright",
+      "test",
+      "tests/br45.spec.ts",
+      "--output",
+      "/tmp/de261-compose-pw"
+    ],
+    "configFile": "/tmp/de261-clean.rQnKi1/checkout/apps/web/playwright.config.ts",
+    "rootDir": "/tmp/de261-clean.rQnKi1/checkout/apps/web/tests",
+    "failOnFlakyTests": false,
+    "forbidOnly": false,
+    "fullyParallel": false,
+    "globalSetup": null,
+    "globalTeardown": null,
+    "globalTimeout": 0,
+    "grep": {},
+    "grepInvert": null,
+    "maxFailures": 0,
+    "metadata": {
+      "actualWorkers": 1
+    },
+    "preserveOutput": "always",
+    "projects": [
+      {
+        "outputDir": "/tmp/de261-compose-pw",
+        "repeatEach": 1,
+        "retries": 0,
+        "metadata": {
+          "actualWorkers": 1
+        },
+        "id": "",
+        "name": "",
+        "testDir": "/tmp/de261-clean.rQnKi1/checkout/apps/web/tests",
+        "testIgnore": [],
+        "testMatch": [
+          "**/*.@(spec|test).?(c|m)[jt]s?(x)"
+        ],
+        "timeout": 60000
+      }
+    ],
+    "filteredProjects": [
+      {
+        "grep": {},
+        "grepInvert": null,
+        "outputDir": "/tmp/de261-compose-pw",
+        "repeatEach": 1,
+        "retries": 0,
+        "metadata": {
+          "actualWorkers": 1
+        },
+        "name": "",
+        "testDir": "/tmp/de261-clean.rQnKi1/checkout/apps/web/tests",
+        "snapshotDir": "/tmp/de261-clean.rQnKi1/checkout/apps/web/tests",
+        "testIgnore": [],
+        "testMatch": "**/*.@(spec|test).?(c|m)[jt]s?(x)",
+        "timeout": 60000,
+        "use": {
+          "baseURL": "http://127.0.0.1:18080",
+          "viewport": {
+            "width": 1440,
+            "height": 1050
+          },
+          "screenshot": "only-on-failure"
+        },
+        "dependencies": [],
+        "ignoreSnapshots": false,
+        "__projectId": ""
+      }
+    ],
+    "quiet": false,
+    "reporter": [
+      [
+        "list",
+        null
+      ],
+      [
+        "json",
+        {
+          "outputFile": "../../docs/evidence/br45-restoration/compose-browser/browser-results.json"
+        }
+      ]
+    ],
+    "reportSlowTests": {
+      "max": 5,
+      "threshold": 300000
+    },
+    "shard": null,
+    "tags": [],
+    "updateSnapshots": "default",
+    "updateSourceMethod": "patch",
+    "version": "1.64.1",
+    "workers": 1,
+    "webServer": null
+  },
+  "suites": [
+    {
+      "title": "br45.spec.ts",
+      "file": "br45.spec.ts",
+      "column": 0,
+      "line": 0,
+      "specs": [
+        {
+          "title": "Instructor reads actual metrics, drills down and refreshes after a PostgreSQL correction",
+          "ok": false,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 60000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "",
+              "projectName": "",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "failed",
+                  "duration": 34664,
+                  "error": {
+                    "message": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoContainText\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m)\u001b[22m failed\n\nLocator: getByRole('row').filter({ has: getByRole('button', { name: /SYNTHETIC: Sum even numbers/ }) })\nExpected substring: \u001b[32m\"13%\"\u001b[39m\nReceived string:    \u001b[31m\"SYNTHETIC: Sum even numbers · v1SYNTHETIC: Review sum of even numbers248%–Low pass rate\"\u001b[39m\nTimeout: 25000ms\n\nCall log:\n\u001b[2m  - Expect \"toContainText\" getByRole('row').filter({ has: getByRole('button', { name: /SYNTHETIC: Sum even numbers/ }) }) with timeout 25000ms\u001b[22m\n\u001b[2m  - waiting for getByRole('row').filter({ has: getByRole('button', { name: /SYNTHETIC: Sum even numbers/ }) })\u001b[22m\n\u001b[2m    51 × locator resolved to <tr class=\"selectable\" aria-selected=\"true\">…</tr>\u001b[22m\n\u001b[2m       - unexpected value \"SYNTHETIC: Sum even numbers · v1SYNTHETIC: Review sum of even numbers248%–Low pass rate\"\u001b[22m\n",
+                    "stack": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoContainText\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m)\u001b[22m failed\n\nLocator: getByRole('row').filter({ has: getByRole('button', { name: /SYNTHETIC: Sum even numbers/ }) })\nExpected substring: \u001b[32m\"13%\"\u001b[39m\nReceived string:    \u001b[31m\"SYNTHETIC: Sum even numbers · v1SYNTHETIC: Review sum of even numbers248%–Low pass rate\"\u001b[39m\nTimeout: 25000ms\n\nCall log:\n\u001b[2m  - Expect \"toContainText\" getByRole('row').filter({ has: getByRole('button', { name: /SYNTHETIC: Sum even numbers/ }) }) with timeout 25000ms\u001b[22m\n\u001b[2m  - waiting for getByRole('row').filter({ has: getByRole('button', { name: /SYNTHETIC: Sum even numbers/ }) })\u001b[22m\n\u001b[2m    51 × locator resolved to <tr class=\"selectable\" aria-selected=\"true\">…</tr>\u001b[22m\n\u001b[2m       - unexpected value \"SYNTHETIC: Sum even numbers · v1SYNTHETIC: Review sum of even numbers248%–Low pass rate\"\u001b[22m\n\n    at /tmp/de261-clean.rQnKi1/checkout/apps/web/tests/br45.spec.ts:17:28",
+                    "location": {
+                      "file": "/tmp/de261-clean.rQnKi1/checkout/apps/web/tests/br45.spec.ts",
+                      "column": 28,
+                      "line": 17
+                    },
+                    "snippet": "  15 |   try {\n  16 |     correct(\"passed\");\n> 17 |     await expect(question).toContainText(\"13%\");\n     |                            ^\n  18 |     const response = await request.get(\"/api/instructor/courses/c-py-201/questions/statistics\", { headers: { Authorization: \"Bearer instructor-demo\" } });\n  19 |     const data = await response.json();\n  20 |     expect(data.items.find((r: { question_id: string }) => r.question_id === \"br45-demo-question\").passed_evaluations).toBe(3);"
+                  },
+                  "errors": [
+                    {
+                      "location": {
+                        "file": "/tmp/de261-clean.rQnKi1/checkout/apps/web/tests/br45.spec.ts",
+                        "column": 28,
+                        "line": 17
+                      },
+                      "message": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoContainText\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m)\u001b[22m failed\n\nLocator: getByRole('row').filter({ has: getByRole('button', { name: /SYNTHETIC: Sum even numbers/ }) })\nExpected substring: \u001b[32m\"13%\"\u001b[39m\nReceived string:    \u001b[31m\"SYNTHETIC: Sum even numbers · v1SYNTHETIC: Review sum of even numbers248%–Low pass rate\"\u001b[39m\nTimeout: 25000ms\n\nCall log:\n\u001b[2m  - Expect \"toContainText\" getByRole('row').filter({ has: getByRole('button', { name: /SYNTHETIC: Sum even numbers/ }) }) with timeout 25000ms\u001b[22m\n\u001b[2m  - waiting for getByRole('row').filter({ has: getByRole('button', { name: /SYNTHETIC: Sum even numbers/ }) })\u001b[22m\n\u001b[2m    51 × locator resolved to <tr class=\"selectable\" aria-selected=\"true\">…</tr>\u001b[22m\n\u001b[2m       - unexpected value \"SYNTHETIC: Sum even numbers · v1SYNTHETIC: Review sum of even numbers248%–Low pass rate\"\u001b[22m\n\n\n  15 |   try {\n  16 |     correct(\"passed\");\n> 17 |     await expect(question).toContainText(\"13%\");\n     |                            ^\n  18 |     const response = await request.get(\"/api/instructor/courses/c-py-201/questions/statistics\", { headers: { Authorization: \"Bearer instructor-demo\" } });\n  19 |     const data = await response.json();\n  20 |     expect(data.items.find((r: { question_id: string }) => r.question_id === \"br45-demo-question\").passed_evaluations).toBe(3);\n    at /tmp/de261-clean.rQnKi1/checkout/apps/web/tests/br45.spec.ts:17:28"
+                    }
+                  ],
+                  "stdout": [],
+                  "stderr": [
+                    {
+                      "buffer": ""
+                    },
+                    {
+                      "buffer": ""
+                    }
+                  ],
+                  "retry": 0,
+                  "startTime": "2026-11-12T16:26:53.265Z",
+                  "annotations": [],
+                  "attachments": [
+                    {
+                      "name": "screenshot",
+                      "contentType": "image/png",
+                      "path": "/tmp/de261-compose-pw/br45-Instructor-reads-actu-723e6-ter-a-PostgreSQL-correction/test-failed-1.png"
+                    },
+                    {
+                      "name": "error-context",
+                      "contentType": "text/markdown",
+                      "path": "/tmp/de261-compose-pw/br45-Instructor-reads-actu-723e6-ter-a-PostgreSQL-correction/error-context.md"
+                    }
+                  ],
+                  "errorLocation": {
+                    "file": "/tmp/de261-clean.rQnKi1/checkout/apps/web/tests/br45.spec.ts",
+                    "column": 28,
+                    "line": 17
+                  }
+                }
+              ],
+              "status": "unexpected"
+            }
+          ],
+          "id": "2ea73a4f798cd95b1e14-717077b887bfb0b12273",
+          "file": "br45.spec.ts",
+          "line": 4,
+          "column": 1
+        },
+        {
+          "title": "Advisor manages an actual alert and sees CDC recovery without refreshing the page",
+          "ok": false,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 60000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "",
+              "projectName": "",
+              "results": [
+                {
+                  "workerIndex": 1,
+                  "parallelIndex": 0,
+                  "status": "failed",
+                  "duration": 30319,
+                  "error": {
+                    "message": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoContainText\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m)\u001b[22m failed\n\nLocator: getByRole('button', { name: 'br45-demo-at-risk', exact: true })\nExpected substring: \u001b[32m\"50\"\u001b[39m\nReceived string:    \u001b[31m\"BRbr45-demo-at-riskAcknowledgedNo activityMissed deadlinesLow submission rateActivity decline100 / 100Critical\"\u001b[39m\nTimeout: 25000ms\n\nCall log:\n\u001b[2m  - Expect \"toContainText\" getByRole('button', { name: 'br45-demo-at-risk', exact: true }) with timeout 25000ms\u001b[22m\n\u001b[2m  - waiting for getByRole('button', { name: 'br45-demo-at-risk', exact: true })\u001b[22m\n\u001b[2m    51 × locator resolved to <button class=\"queue-row\" aria-pressed=\"true\" aria-label=\"br45-demo-at-risk\">…</button>\u001b[22m\n\u001b[2m       - unexpected value \"BRbr45-demo-at-riskAcknowledgedNo activityMissed deadlinesLow submission rateActivity decline100 / 100Critical\"\u001b[22m\n",
+                    "stack": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoContainText\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m)\u001b[22m failed\n\nLocator: getByRole('button', { name: 'br45-demo-at-risk', exact: true })\nExpected substring: \u001b[32m\"50\"\u001b[39m\nReceived string:    \u001b[31m\"BRbr45-demo-at-riskAcknowledgedNo activityMissed deadlinesLow submission rateActivity decline100 / 100Critical\"\u001b[39m\nTimeout: 25000ms\n\nCall log:\n\u001b[2m  - Expect \"toContainText\" getByRole('button', { name: 'br45-demo-at-risk', exact: true }) with timeout 25000ms\u001b[22m\n\u001b[2m  - waiting for getByRole('button', { name: 'br45-demo-at-risk', exact: true })\u001b[22m\n\u001b[2m    51 × locator resolved to <button class=\"queue-row\" aria-pressed=\"true\" aria-label=\"br45-demo-at-risk\">…</button>\u001b[22m\n\u001b[2m       - unexpected value \"BRbr45-demo-at-riskAcknowledgedNo activityMissed deadlinesLow submission rateActivity decline100 / 100Critical\"\u001b[22m\n\n    at /tmp/de261-clean.rQnKi1/checkout/apps/web/tests/br45.spec.ts:49:25",
+                    "location": {
+                      "file": "/tmp/de261-clean.rQnKi1/checkout/apps/web/tests/br45.spec.ts",
+                      "column": 25,
+                      "line": 49
+                    },
+                    "snippet": "  47 |     expect(written.status()).toBe(202);\n  48 |   }\n> 49 |   await expect(riskRow).toContainText(\"50\");\n     |                         ^\n  50 |   await expect(riskRow).toContainText(\"Medium\");\n  51 |   await expect(detail).toContainText(\"Resolved\");\n  52 |   await riskRow.click();"
+                  },
+                  "errors": [
+                    {
+                      "location": {
+                        "file": "/tmp/de261-clean.rQnKi1/checkout/apps/web/tests/br45.spec.ts",
+                        "column": 25,
+                        "line": 49
+                      },
+                      "message": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoContainText\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m)\u001b[22m failed\n\nLocator: getByRole('button', { name: 'br45-demo-at-risk', exact: true })\nExpected substring: \u001b[32m\"50\"\u001b[39m\nReceived string:    \u001b[31m\"BRbr45-demo-at-riskAcknowledgedNo activityMissed deadlinesLow submission rateActivity decline100 / 100Critical\"\u001b[39m\nTimeout: 25000ms\n\nCall log:\n\u001b[2m  - Expect \"toContainText\" getByRole('button', { name: 'br45-demo-at-risk', exact: true }) with timeout 25000ms\u001b[22m\n\u001b[2m  - waiting for getByRole('button', { name: 'br45-demo-at-risk', exact: true })\u001b[22m\n\u001b[2m    51 × locator resolved to <button class=\"queue-row\" aria-pressed=\"true\" aria-label=\"br45-demo-at-risk\">…</button>\u001b[22m\n\u001b[2m       - unexpected value \"BRbr45-demo-at-riskAcknowledgedNo activityMissed deadlinesLow submission rateActivity decline100 / 100Critical\"\u001b[22m\n\n\n  47 |     expect(written.status()).toBe(202);\n  48 |   }\n> 49 |   await expect(riskRow).toContainText(\"50\");\n     |                         ^\n  50 |   await expect(riskRow).toContainText(\"Medium\");\n  51 |   await expect(detail).toContainText(\"Resolved\");\n  52 |   await riskRow.click();\n    at /tmp/de261-clean.rQnKi1/checkout/apps/web/tests/br45.spec.ts:49:25"
+                    }
+                  ],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-12T16:27:28.746Z",
+                  "annotations": [],
+                  "attachments": [
+                    {
+                      "name": "screenshot",
+                      "contentType": "image/png",
+                      "path": "/tmp/de261-compose-pw/br45-Advisor-manages-an-ac-2dfb5-without-refreshing-the-page/test-failed-1.png"
+                    },
+                    {
+                      "name": "error-context",
+                      "contentType": "text/markdown",
+                      "path": "/tmp/de261-compose-pw/br45-Advisor-manages-an-ac-2dfb5-without-refreshing-the-page/error-context.md"
+                    }
+                  ],
+                  "errorLocation": {
+                    "file": "/tmp/de261-clean.rQnKi1/checkout/apps/web/tests/br45.spec.ts",
+                    "column": 25,
+                    "line": 49
+                  }
+                }
+              ],
+              "status": "unexpected"
+            }
+          ],
+          "id": "2ea73a4f798cd95b1e14-7017be265bc961b648fc",
+          "file": "br45.spec.ts",
+          "line": 28,
+          "column": 1
+        },
+        {
+          "title": "Invalid credentials display an access error and do not expose learner records",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 60000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "",
+              "projectName": "",
+              "results": [
+                {
+                  "workerIndex": 2,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 4657,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-12T16:27:59.778Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "2ea73a4f798cd95b1e14-bd9b15afdbaf1a1cff30",
+          "file": "br45.spec.ts",
+          "line": 60,
+          "column": 1
+        }
+      ]
+    }
+  ],
+  "errors": [],
+  "stats": {
+    "startTime": "2026-11-12T16:26:52.648Z",
+    "duration": 72045.106,
+    "expected": 1,
+    "skipped": 0,
+    "unexpected": 2,
+    "flaky": 0
+  }
+}

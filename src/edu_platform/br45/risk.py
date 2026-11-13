@@ -10,6 +10,7 @@ from psycopg.types.json import Jsonb
 from .config import AnalyticsSettings, settings
 from .contracts import identity, timestamp
 from .db import Db, clean, state
+from .events import alert_transition, enqueue
 
 
 def score(
@@ -58,7 +59,7 @@ def score(
     telemetry = bool(course["telemetry_enabled"])
     # A provisioned telemetry path alone is not evidence the learner ever used it.
     inactivity_days = (evaluated_at - last).total_seconds() / 86400 if last else None
-    decline = 1 - recent / previous if previous >= 3 else None
+    decline = 1 - recent / previous if previous >= cfg.minimum_reference_events else None
     reasons: list[dict[str, Any]] = []
     if eligible:
         if telemetry and last and inactivity_days is not None and inactivity_days >= 7:
@@ -134,12 +135,14 @@ def score(
             "activity_decline": decline,
             "telemetry_available": telemetry,
         },
+        "policy_version": cfg.policy_version,
         "policy": {
+            "version": cfg.policy_version,
             "alert_threshold": cfg.alert_threshold,
             "window_days": 7,
             "slide_seconds": cfg.slide_seconds,
             "allowed_lateness_days": cfg.lateness_days,
-            "minimum_reference_events": 3,
+            "minimum_reference_events": cfg.minimum_reference_events,
         },
     }
 
@@ -166,14 +169,42 @@ def persist(conn: Db, result: dict[str, Any], cfg: AnalyticsSettings | None = No
         ),
         (sid, cid, result["score"], result["level"], result["eligible"], evaluated, Jsonb(result)),
     )
-    conn.execute(
+    history_id = identity(result)
+    inserted_history = conn.execute(
         (
             "INSERT INTO "
             "analytics.risk_history(id,student_id,course_id,evaluated_at,score,data) "
             "VALUES(%s,%s,%s,%s,%s,%s) ON CONFLICT DO NOTHING"
         ),
-        (identity(result), sid, cid, evaluated, result["score"], Jsonb(result)),
+        (history_id, sid, cid, evaluated, result["score"], Jsonb(result)),
     )
+    if inserted_history.rowcount:
+        enqueue(
+            conn,
+            cfg.domain_topic,
+            sid + ":" + cid,
+            {
+                "kind": "risk_score",
+                "student_id": sid,
+                "course_id": cid,
+                "score_points": result["score"],
+                "evaluated_at": result["evaluated_at"],
+                "policy_version": cfg.policy_version,
+                "result": result,
+            },
+        )
+        if cfg.mode == "persistent" and not cfg.engine_benchmark:
+            enqueue(
+                conn, "risk.learner_score.v1", sid + ":" + cid,
+                {
+                    "event_id": identity("risk.learner_score.v1", history_id),
+                    "learner_id": sid,
+                    "course_id": cid,
+                    "score": result["score"] / 100,
+                    "computed_at": result["evaluated_at"],
+                    "policy_version": cfg.policy_version,
+                },
+            )
     alert = conn.execute(
         (
             "SELECT * FROM analytics.dropout_alerts WHERE student_id=%s AND course_id=%s "
@@ -184,22 +215,20 @@ def persist(conn: Db, result: dict[str, Any], cfg: AnalyticsSettings | None = No
     qualifies = result["eligible"] and result["score"] >= cfg.alert_threshold
     if not qualifies:
         if alert:
-            conn.execute(
-                (
-                    "UPDATE analytics.dropout_alerts SET "
-                    "status='RESOLVED',resolved_at=now(),resolved_by='system:risk-recovery' WHERE"
-                    " id=%s"
-                ),
-                (alert["id"],),
-            )
+            recovered = conn.execute(
+                "UPDATE analytics.dropout_alerts SET status='RESOLVED',resolved_at=now(),"
+                "resolved_by='system:risk-recovery',policy_version=%s WHERE id=%s RETURNING *",
+                (cfg.policy_version, alert["id"]),
+            ).fetchone()
+            assert recovered is not None
+            alert_transition(conn, cfg, recovered, "system:risk-recovery")
         return
     if alert:
         conn.execute(
-            (
-                "UPDATE analytics.dropout_alerts SET "
-                "score=%s,level=%s,reasons=%s,evaluated_at=%s WHERE id=%s"
-            ),
-            (result["score"], result["level"], Jsonb(result["reasons"]), evaluated, alert["id"]),
+            "UPDATE analytics.dropout_alerts SET score=%s,level=%s,reasons=%s,"
+            "evaluated_at=%s,policy_version=%s WHERE id=%s",
+            (result["score"], result["level"], Jsonb(result["reasons"]), evaluated,
+             cfg.policy_version, alert["id"]),
         )
         return
     previous = conn.execute(
@@ -209,38 +238,64 @@ def persist(conn: Db, result: dict[str, Any], cfg: AnalyticsSettings | None = No
         ),
         (sid, cid),
     ).fetchone()
-    crossing = not old or not old["eligible"] or old["score"] < cfg.alert_threshold
+    previous_threshold = (
+        old["data"].get("policy", {}).get("alert_threshold", cfg.alert_threshold)
+        if old else cfg.alert_threshold
+    )
+    crossing = not old or not old["eligible"] or old["score"] < previous_threshold
     worsening = old and result["score"] - old["score"] >= 20
     cooled = not previous or evaluated - previous["evaluated_at"] >= timedelta(
         hours=cfg.cooldown_hours
     )
     if (crossing or worsening) and cooled:
-        conn.execute(
-            (
-                "INSERT INTO analytics.dropout_alerts(id,student_id,course_id,score,level,rea"
-                "sons,status,evaluated_at) VALUES(%s,%s,%s,%s,%s,%s,'NEW',%s) ON CONFLICT DO "
-                "NOTHING"
-            ),
-            (
-                identity(sid, cid, result["evaluated_at"], "alert"),
-                sid,
-                cid,
-                result["score"],
-                result["level"],
-                Jsonb(result["reasons"]),
-                evaluated,
-            ),
-        )
+        created = conn.execute(
+            "INSERT INTO analytics.dropout_alerts(id,student_id,course_id,score,level,reasons,"
+            "status,evaluated_at,policy_version) VALUES(%s,%s,%s,%s,%s,%s,'NEW',%s,%s) "
+            "ON CONFLICT DO NOTHING RETURNING *",
+            (identity(sid, cid, result["evaluated_at"], "alert"), sid, cid, result["score"],
+             result["level"], Jsonb(result["reasons"]), evaluated, cfg.policy_version),
+        ).fetchone()
+        if created:
+            alert_transition(conn, cfg, created, "system:risk-policy")
 
 
-def refresh(conn: Db, evaluated: datetime, cfg: AnalyticsSettings | None = None) -> int:
+def refresh(
+    conn: Db, evaluated: datetime, cfg: AnalyticsSettings | None = None, *, only_dirty: bool = False
+) -> int:
     cfg = cfg or settings()
+    from collections import defaultdict
+
+    dirty = {
+        (r["student_id"], r["course_id"])
+        for r in conn.execute("SELECT * FROM analytics.risk_dirty FOR UPDATE")
+    }
+    last = state(conn, "risk_refresh")
+    selective = only_dirty and last and timestamp(last["evaluated_at"]) == evaluated
+    if selective and not dirty:
+        return 0
     courses = {c["id"]: c for c in clean(conn, "courses")}
     assignments, submissions, activities = (
         clean(conn, t) for t in ("assignments", "submissions", "activity_events")
     )
     count = 0
     enrollments = clean(conn, "enrollments")
+    indexed_assignments: dict[str, list[dict[str, Any]]] = defaultdict(list)
+    indexed_submissions: dict[tuple[str, str], list[dict[str, Any]]] = defaultdict(list)
+    indexed_activities: dict[tuple[str, str], list[dict[str, Any]]] = defaultdict(list)
+    for item in assignments:
+        indexed_assignments[item["course_id"]].append(item)
+    for item in submissions:
+        indexed_submissions[(item["student_id"], item["course_id"])].append(item)
+    for item in activities:
+        indexed_activities[(item["student_id"], item["course_id"])].append(item)
+    policies = {
+        r["course_id"]: r
+        for r in conn.execute(
+            "SELECT DISTINCT ON(course_id) * FROM analytics.course_policies "
+            "WHERE effective_after IS NULL OR effective_after < %s ORDER BY course_id,version DESC",
+            (evaluated,),
+        )
+    }
     live = {(e["student_id"], e["course_id"]) for e in enrollments if e["course_id"] in courses}
     for old in conn.execute("SELECT data FROM analytics.risk_state"):
         data = old["data"]
@@ -254,8 +309,12 @@ def refresh(conn: Db, evaluated: datetime, cfg: AnalyticsSettings | None = None)
                 "evaluated_at": evaluated.isoformat(),
                 "reasons": [],
             }
-            persist(conn, retired, cfg)
+            retired_cfg = cfg.model_copy(update={"policy_version": data.get("policy_version", 1)})
+            persist(conn, retired, retired_cfg)
     for en in enrollments:
+        key = (en["student_id"], en["course_id"])
+        if selective and key not in dirty:
+            continue
         if en["course_id"] not in courses or timestamp(en["enrolled_at"]) > evaluated:
             continue
         counts = {}
@@ -268,19 +327,26 @@ def refresh(conn: Db, evaluated: datetime, cfg: AnalyticsSettings | None = None)
                 (en["student_id"], en["course_id"], at),
             ).fetchone()
             counts[at] = row["activity_count"] if row else 0
+        course_cfg = cfg
+        if en["course_id"] in policies:
+            p = policies[en["course_id"]]
+            course_cfg = AnalyticsSettings.model_validate(
+                {**cfg.model_dump(), **p["parameters"], "policy_version": p["version"]}
+            )
         result = score(
             en,
             courses[en["course_id"]],
-            assignments,
-            submissions,
-            activities,
+            indexed_assignments[en["course_id"]],
+            indexed_submissions[key],
+            indexed_activities[key],
             evaluated,
             counts[evaluated],
             counts[evaluated - timedelta(days=7)],
-            cfg,
+            course_cfg,
         )
-        persist(conn, result, cfg)
+        persist(conn, result, course_cfg)
         count += 1
+    conn.execute("DELETE FROM analytics.risk_dirty")
     state(
         conn,
         "risk_refresh",

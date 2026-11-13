@@ -27,11 +27,13 @@ RUN pip install --no-deps --no-build-isolation -e ".[demo]"
 # Runtime assets the server reads from the repo layout (rules, contracts, docs).
 COPY infra/notification ./infra/notification
 COPY infra/kafka ./infra/kafka
-COPY infra/postgres/br45.sql ./infra/postgres/br45.sql
+COPY infra/postgres/br45*.sql ./infra/postgres/
 COPY infra/debezium/br45-connector.json ./infra/debezium/br45-connector.json
 COPY infra/debezium/postgres-connector.json ./infra/debezium/postgres-connector.json
 COPY schemas ./schemas
 COPY docs/api.md ./docs/api.md
+COPY docs/evidence/br45/*.csv docs/evidence/br45/final_e2e_result.json \
+    docs/evidence/br45/engine_comparison.json ./docs/evidence/br45/
 COPY --from=web /web/dist ./apps/web/dist
 
 # Run as a non-root user; the demo sandbox spawns python subprocesses as this user.

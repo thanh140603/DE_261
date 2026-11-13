@@ -1,0 +1,99 @@
+{
+  "suite": "BR4",
+  "engine": "postgres",
+  "run_id": "restoration-native",
+  "measured_at": "2026-11-12T04:25:32.248028+00:00",
+  "python": "3.12.3",
+  "platform": "Linux-7.0.0-43-generic-x86_64-with-glibc2.39",
+  "poll_seconds": 0.25,
+  "engine_version": "16.15 (Ubuntu 16.15-0ubuntu0.24.04.1)",
+  "cpu_limit": null,
+  "memory_limit_gib": null,
+  "runtime": "native",
+  "trials": [
+    {
+      "phase": "warmup",
+      "records": 1000,
+      "repeat": 0,
+      "status": "PASS",
+      "elapsed_ms": 46.58998299964878
+    },
+    {
+      "phase": "processing",
+      "records": 1000,
+      "repeat": 1,
+      "status": "PASS",
+      "elapsed_ms": 47.160094999526336
+    },
+    {
+      "phase": "processing",
+      "records": 1000,
+      "repeat": 2,
+      "status": "PASS",
+      "elapsed_ms": 46.50407900044229
+    },
+    {
+      "phase": "processing",
+      "records": 1000,
+      "repeat": 3,
+      "status": "PASS",
+      "elapsed_ms": 43.247460999737086
+    },
+    {
+      "phase": "warmup",
+      "records": 10000,
+      "repeat": 0,
+      "status": "PASS",
+      "elapsed_ms": 321.1905940006545
+    },
+    {
+      "phase": "processing",
+      "records": 10000,
+      "repeat": 1,
+      "status": "PASS",
+      "elapsed_ms": 323.1441879997874
+    },
+    {
+      "phase": "processing",
+      "records": 10000,
+      "repeat": 2,
+      "status": "PASS",
+      "elapsed_ms": 342.6915159998316
+    },
+    {
+      "phase": "processing",
+      "records": 10000,
+      "repeat": 3,
+      "status": "PASS",
+      "elapsed_ms": 330.49762199971155
+    },
+    {
+      "phase": "warmup",
+      "records": 100000,
+      "repeat": 0,
+      "status": "PASS",
+      "elapsed_ms": 3032.3231379998106
+    },
+    {
+      "phase": "processing",
+      "records": 100000,
+      "repeat": 1,
+      "status": "PASS",
+      "elapsed_ms": 3048.806820000209
+    },
+    {
+      "phase": "processing",
+      "records": 100000,
+      "repeat": 2,
+      "status": "PASS",
+      "elapsed_ms": 3036.546919000102
+    },
+    {
+      "phase": "processing",
+      "records": 100000,
+      "repeat": 3,
+      "status": "PASS",
+      "elapsed_ms": 3028.6003969995363
+    }
+  ]
+}

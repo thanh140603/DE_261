@@ -15,3 +15,8 @@ infra/k8s
 infra/terraform
 docs/*.pdf
 .env
+
+.aws
+.agents
+.codex
+data

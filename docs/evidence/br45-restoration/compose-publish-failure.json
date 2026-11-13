@@ -1,0 +1,18 @@
+{
+  "status": "PASS",
+  "measured_at": "2026-11-12T23:52:57.168024+00:00",
+  "revision": "3cfd70d51ffced9850c705297bf7707ba43d3d04",
+  "fault": "PostgreSQL rejects the publication pointer write after mart replacement and job completion",
+  "failed_job_status": "FAILED",
+  "failed_job_error": "BR45 rehearsal failure after mart and job metadata writes",
+  "stale_result_served": true,
+  "original_mart_pass_count_preserved": true,
+  "original_publication_id": "a98a6afa5d37998cc93ad6de23c9a3bd6e9f48368b80e326bac9e928d4b734ff",
+  "failed_request_publication_id": "a98a6afa5d37998cc93ad6de23c9a3bd6e9f48368b80e326bac9e928d4b734ff",
+  "retried_publication_id": "a68bea38499e51ddcdb3a20e07b3b03f4392e8214283d45a935f0cdc88a5048c",
+  "original_delta_version": 1,
+  "retried_delta_version": 3,
+  "retried_lease_generation": 3,
+  "question_passes_before": 2,
+  "question_passes_after": 3
+}

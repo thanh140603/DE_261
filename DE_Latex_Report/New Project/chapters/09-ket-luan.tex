@@ -1,0 +1,11 @@
+\subsection{Kết luận}
+\label{chap:conclusion}
+
+Báo cáo đã trình bày DE\_261, một nền tảng kỹ thuật dữ liệu biến bốn nguồn dữ liệu rời rạc của một hệ thống giáo dục trực tuyến thành các kho dữ liệu phục vụ tám yêu cầu nghiệp vụ.
+
+Về kiến trúc, nền tảng bám sát kiến trúc tham chiếu của đề bài: Kafka và Debezium cho tiếp nhận, Spark cho xử lý, Delta Lake cho lakehouse, Redis cho phục vụ độ trễ thấp. Lớp gold được mô hình hoá thành kho dữ liệu Kimball và phục vụ qua Trino. Các điểm điều chỉnh, quan trọng nhất là dùng Spark Structured Streaming thay Flink cho BR5 và các lớp phủ, đều được ghi lại bằng ADR kèm lý do và hệ quả. Tổ chức mã theo DDD và kiến trúc lục giác cho phép cùng một logic nghiệp vụ chạy trên nhiều engine và được kiểm thử độc lập.
+
+BR4 kiểm chứng việc sửa điểm qua CDC và công bố có phiên bản. BR5 kiểm chứng cửa sổ có trạng thái, cảnh báo và phục hồi sau phát lại checkpoint. BR6--BR8 có minh chứng phục vụ kho, heatmap và đồng bộ học liệu. BR1--BR3 còn các bước tích hợp được liệt kê ở Mục~\ref{chap:limits}. Giao diện mới đưa dữ liệu đến từng vai trò qua phiên đăng nhập có phạm vi.
+
+Các phép đo tách thời gian tổng hợp, thời gian từ nguồn đến API và hiệu quả sử dụng. PostgreSQL nhanh hơn Spark trong phép đo tổng hợp BR4 đã lưu, trong khi đường Spark/Delta lưu được snapshot, facts và dimensions theo từng lần công bố. Ở cấu hình BR5 đã đo, cả Spark và Flink giữ đúng trạng thái khi khởi động lại. Đánh giá OULAD cho thấy policy nhiều tín hiệu đạt F1 cao hơn baseline không hoạt động bảy ngày trên tập xác thực, với precision tuyệt đối còn thấp. Nhóm giữ policy v1 và dùng lời giải thích điểm để hỗ trợ cố vấn kiểm tra từng trường hợp.
+

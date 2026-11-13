@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { analyticsApi, type SkillProgress } from "../analytics";
+import { type AnalyticsClient, type SkillProgress } from "../analytics";
 import { AnalyticsAccess, localDateTime } from "../components/AnalyticsAccess";
 import { HBars } from "../components/charts";
 import { Icon } from "../components/Icon";
@@ -12,8 +12,8 @@ export function AdminView() {
       <PageHead br="BR6" title="Organisation progress">
         Skill progress and course completion for your organisation's learners. Built daily in the lakehouse from pseudonymised data.
       </PageHead>
-      <AnalyticsAccess role="admin" source="lakehouse">
-        {(token, session) => <Progress token={token} organisations={session.organisations} />}
+      <AnalyticsAccess role="admin" source="identity">
+        {(client, session) => <Progress client={client} organisations={session.organisations} />}
       </AnalyticsAccess>
     </>
   );
@@ -32,10 +32,10 @@ function exportCsv(d: SkillProgress) {
   URL.revokeObjectURL(url);
 }
 
-function Progress({ token, organisations }: { token: string; organisations: { id: string; name: string }[] }) {
+function Progress({ client, organisations }: { client: AnalyticsClient; organisations: { id: string; name: string }[] }) {
   const [orgId, setOrgId] = useState(organisations[0]?.id ?? "");
   const [asOf, setAsOf] = useState("");
-  const q = useFetch(orgId ? () => analyticsApi(token).skillProgress(orgId, { as_of: asOf }) : null, [token, orgId, asOf]);
+  const q = useFetch(orgId ? () => client.skillProgress(orgId, { as_of: asOf }) : null, [client, orgId, asOf]);
   const d = q.data;
   const shown = d?.rows.filter((r) => !r.suppressed) ?? [];
   const weighted = (k: "completion_rate" | "avg_mastery") => {

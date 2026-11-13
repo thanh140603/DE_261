@@ -1,0 +1,347 @@
+{
+  "schema_version": 1,
+  "br4": {
+    "processing": [
+      {
+        "engine": "postgres",
+        "phase": "processing",
+        "records": 1000,
+        "planned": 3,
+        "statuses": {
+          "PASS": 3
+        },
+        "median_ms": 83.06703099879087,
+        "min_ms": 74.49351499963086,
+        "max_ms": 96.67395599899464,
+        "median_events_per_second": null
+      },
+      {
+        "engine": "spark",
+        "phase": "processing",
+        "records": 1000,
+        "planned": 3,
+        "statuses": {
+          "PASS": 3
+        },
+        "median_ms": 11710.282920997997,
+        "min_ms": 5404.552807998698,
+        "max_ms": 15554.580027001066,
+        "median_events_per_second": null
+      },
+      {
+        "engine": "postgres",
+        "phase": "processing",
+        "records": 10000,
+        "planned": 3,
+        "statuses": {
+          "PASS": 3
+        },
+        "median_ms": 844.1903739985719,
+        "min_ms": 604.126535999967,
+        "max_ms": 4690.597916000115,
+        "median_events_per_second": null
+      },
+      {
+        "engine": "spark",
+        "phase": "processing",
+        "records": 10000,
+        "planned": 3,
+        "statuses": {
+          "PASS": 3
+        },
+        "median_ms": 6245.002904001012,
+        "min_ms": 5093.102946000727,
+        "max_ms": 20178.116839000722,
+        "median_events_per_second": null
+      },
+      {
+        "engine": "postgres",
+        "phase": "processing",
+        "records": 100000,
+        "planned": 3,
+        "statuses": {
+          "PASS": 3
+        },
+        "median_ms": 14648.865205999755,
+        "min_ms": 4317.965671998536,
+        "max_ms": 14810.089577000326,
+        "median_events_per_second": null
+      },
+      {
+        "engine": "spark",
+        "phase": "processing",
+        "records": 100000,
+        "planned": 3,
+        "statuses": {
+          "PASS": 3
+        },
+        "median_ms": 21788.002807999874,
+        "min_ms": 17648.772813001415,
+        "max_ms": 42133.87112499913,
+        "median_events_per_second": null
+      }
+    ],
+    "end_to_end": [
+      {
+        "engine": "postgres",
+        "phase": "e2e_correction",
+        "records": 106,
+        "planned": 5,
+        "statuses": {
+          "PASS": 5
+        },
+        "median_ms": 1044.949009999982,
+        "min_ms": 944.9094109986618,
+        "max_ms": 4365.302162997978,
+        "median_events_per_second": null
+      },
+      {
+        "engine": "spark",
+        "phase": "e2e_correction",
+        "records": 106,
+        "planned": 5,
+        "statuses": {
+          "PASS": 5
+        },
+        "median_ms": 10951.344991997757,
+        "min_ms": 4282.7007609994325,
+        "max_ms": 16392.677391999314,
+        "median_events_per_second": null
+      }
+    ],
+    "metadata": [
+      {
+        "engine": "postgres",
+        "run_id": "engine-comparison",
+        "engine_version": "16.15 (Debian 16.15-1.pgdg13+2)",
+        "measured_at": "2026-11-09T15:30:34.530823+00:00",
+        "poll_seconds": 0.25,
+        "cpu_limit": 2,
+        "memory_limit_gib": 2,
+        "publish_interval_seconds": null,
+        "flink_checkpoint_seconds": null,
+        "checks": []
+      },
+      {
+        "engine": "spark",
+        "run_id": "engine-comparison",
+        "engine_version": "3.5.1",
+        "measured_at": "2026-11-09T15:32:42.396993+00:00",
+        "poll_seconds": 0.25,
+        "cpu_limit": 2,
+        "memory_limit_gib": 2,
+        "publish_interval_seconds": null,
+        "flink_checkpoint_seconds": null,
+        "checks": []
+      }
+    ]
+  },
+  "br5": {
+    "processing": [
+      {
+        "engine": "spark",
+        "phase": "processing",
+        "records": 1000,
+        "planned": 3,
+        "statuses": {
+          "PASS": 3
+        },
+        "median_ms": 10302.263884997956,
+        "min_ms": 8933.419996003067,
+        "max_ms": 10697.371893998934,
+        "median_events_per_second": 97.06604404262922
+      },
+      {
+        "engine": "flink",
+        "phase": "processing",
+        "records": 1000,
+        "planned": 3,
+        "statuses": {
+          "PASS": 3
+        },
+        "median_ms": 10498.899842001265,
+        "min_ms": 10125.058458997955,
+        "max_ms": 11651.382678999653,
+        "median_events_per_second": 95.24807504110672
+      },
+      {
+        "engine": "spark",
+        "phase": "processing",
+        "records": 10000,
+        "planned": 3,
+        "statuses": {
+          "PASS": 3
+        },
+        "median_ms": 5041.092815998127,
+        "min_ms": 4821.954265000386,
+        "max_ms": 13275.4727620013,
+        "median_events_per_second": 1983.6968619709928
+      },
+      {
+        "engine": "flink",
+        "phase": "processing",
+        "records": 10000,
+        "planned": 3,
+        "statuses": {
+          "PASS": 3
+        },
+        "median_ms": 10701.707759999408,
+        "min_ms": 10391.00327000051,
+        "max_ms": 13434.783856002468,
+        "median_events_per_second": 934.4303006832017
+      },
+      {
+        "engine": "spark",
+        "phase": "processing",
+        "records": 100000,
+        "planned": 3,
+        "statuses": {
+          "PASS": 3
+        },
+        "median_ms": 34590.69864900084,
+        "min_ms": 17604.591924002307,
+        "max_ms": 41521.38588899834,
+        "median_events_per_second": 2890.9505706930413
+      },
+      {
+        "engine": "flink",
+        "phase": "processing",
+        "records": 100000,
+        "planned": 3,
+        "statuses": {
+          "PASS": 3
+        },
+        "median_ms": 13502.225952001027,
+        "min_ms": 12713.961100002052,
+        "max_ms": 29637.716830999125,
+        "median_events_per_second": 7406.186235920606
+      }
+    ],
+    "end_to_end": [
+      {
+        "engine": "spark",
+        "phase": "e2e_alert",
+        "records": 4,
+        "planned": 5,
+        "statuses": {
+          "PASS": 5
+        },
+        "median_ms": 13295.876652002335,
+        "min_ms": 8194.142499996815,
+        "max_ms": 14552.823067002464,
+        "median_events_per_second": null
+      },
+      {
+        "engine": "flink",
+        "phase": "e2e_alert",
+        "records": 4,
+        "planned": 5,
+        "statuses": {
+          "PASS": 5
+        },
+        "median_ms": 11316.792694000469,
+        "min_ms": 10977.230923002935,
+        "max_ms": 11873.694419999083,
+        "median_events_per_second": null
+      },
+      {
+        "engine": "spark",
+        "phase": "e2e_recovery",
+        "records": 4,
+        "planned": 5,
+        "statuses": {
+          "PASS": 5
+        },
+        "median_ms": 7919.271154998569,
+        "min_ms": 4893.494039999496,
+        "max_ms": 12613.652269999875,
+        "median_events_per_second": null
+      },
+      {
+        "engine": "flink",
+        "phase": "e2e_recovery",
+        "records": 4,
+        "planned": 5,
+        "statuses": {
+          "PASS": 5
+        },
+        "median_ms": 11948.142815999745,
+        "min_ms": 11448.15927899981,
+        "max_ms": 12600.080929998512,
+        "median_events_per_second": null
+      }
+    ],
+    "metadata": [
+      {
+        "engine": "spark",
+        "run_id": "20261109a-spark",
+        "engine_version": "3.5.1",
+        "measured_at": "2026-11-09T15:39:40.681467+00:00",
+        "poll_seconds": 0.25,
+        "cpu_limit": 2,
+        "memory_limit_gib": 2,
+        "publish_interval_seconds": 5,
+        "flink_checkpoint_seconds": null,
+        "checks": [
+          {
+            "phase": "correctness",
+            "records": 0,
+            "repeat": 1,
+            "status": "PASS",
+            "checks": [
+              "duplicate",
+              "out_of_order",
+              "half_open_window",
+              "signed_retraction"
+            ]
+          },
+          {
+            "phase": "restart",
+            "records": 0,
+            "repeat": 1,
+            "status": "PASS",
+            "checks": [
+              "checkpoint_window_state",
+              "checkpoint_event_identity"
+            ]
+          }
+        ]
+      },
+      {
+        "engine": "flink",
+        "run_id": "20261109c-flink",
+        "engine_version": "1.19.3",
+        "measured_at": "2026-11-09T15:50:50.825150+00:00",
+        "poll_seconds": 0.25,
+        "cpu_limit": 2,
+        "memory_limit_gib": 2,
+        "publish_interval_seconds": 5,
+        "flink_checkpoint_seconds": 10,
+        "checks": [
+          {
+            "phase": "correctness",
+            "records": 0,
+            "repeat": 1,
+            "status": "PASS",
+            "checks": [
+              "duplicate",
+              "out_of_order",
+              "half_open_window",
+              "signed_retraction"
+            ]
+          },
+          {
+            "phase": "restart",
+            "records": 0,
+            "repeat": 1,
+            "status": "PASS",
+            "checks": [
+              "checkpoint_window_state",
+              "checkpoint_event_identity"
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}

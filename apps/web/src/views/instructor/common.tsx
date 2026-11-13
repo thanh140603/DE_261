@@ -2,7 +2,7 @@ import { useEffect } from "react";
 import { usePersisted } from "../../hooks";
 import { SelectField } from "../../components/ui";
 
-/** One course choice shared by every instructor page (falls back to the first course the token allows). */
+/** One course choice shared by every instructor page, scoped to the account. */
 export function useInstructorCourse(courses: { id: string; title: string }[]): [string, (id: string) => void] {
   const [course, setCourse] = usePersisted("instructor-course", "c-py-201");
   const valid = courses.some((c) => c.id === course);

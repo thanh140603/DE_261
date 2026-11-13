@@ -113,6 +113,10 @@ The legacy `api.ts` client targets those demo endpoints.
 ## Admin (BR6)
 - `GET /api/admin/organisations/{org_id}/progress` -> `{organisation_id, as_of, min_cohort:5, rows:[{course_id, course_title, skill, cohort_size, completion_rate|null, avg_mastery|null, suppressed:bool}]}` (older synthetic demo contract)
 
+## Staff authentication
+
+`POST /api/auth/staff/{role}/session` accepts `{username,password}` and sets a role-specific cookie. `GET` returns `{id,name,role,courses,organisations}` from that session. `DELETE` revokes the session and returns 204. Roles are `instructor`, `advisor` and `admin`. For staff data requests, send `X-Staff-Role` with the session cookie. Cookie-authenticated writes and staff session writes require the app's origin. Scripts can send a configured Bearer token. [Account setup](STAFF_AUTH.md)
+
 ## Lakehouse analytics (BR6, BR7, BR8)
 
 Read from the warehouse marts (`mart.org_progress`, `mart.video_heatmap`,

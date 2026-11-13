@@ -1,0 +1,60 @@
+% Trang bìa theo mẫu HCMUT, dùng thông tin trong config/info.tex.
+\newcommand{\member}[3]{#1 & #2 & #3 \\}
+
+\begin{titlepage}
+\thispagestyle{empty}
+\begin{minipage}[t][0.97\textheight][t]{\textwidth}
+\centering
+\setstretch{1.1}
+\vspace*{0.15cm}
+
+{\large \university\par}
+{\large\bfseries \school\par}
+{\large\bfseries \faculty\par}
+
+\vspace{0.55cm}
+\includegraphics[width=2.6cm]{\hcmutlogo}\par
+\vspace{0.55cm}
+
+{\large\bfseries \reporttype\par}
+\vspace{3pt}
+{\large\bfseries \coursename{} (\coursecode)\par}
+{\small \coursenameEn\par}
+
+\vspace{0.55cm}
+\begin{minipage}{0.94\textwidth}
+  \centering
+  \rule{\linewidth}{0.5pt}\par
+  \vspace{0.45cm}
+  {\large\bfseries Đề tài \projectcode\par}
+  \vspace{0.2cm}
+  {\Large\bfseries \reporttitle\par}
+  \vspace{0.2cm}
+  {\normalsize\itshape \reportsubtitle\par}
+  \vspace{0.35cm}
+  \rule{\linewidth}{0.5pt}
+\end{minipage}\par
+
+\vspace{0.45cm}
+\begin{tabular}{@{}ll@{}}
+  \textbf{Giảng viên hướng dẫn} & \lecturer \\
+  \textbf{Lớp / Nhóm} & \classname{} / \groupname \\
+  \textbf{Học kỳ} & \semester \\
+\end{tabular}\par
+
+\vspace{0.38cm}
+{\normalsize\bfseries Học viên thực hiện\par}
+\vspace{0.15cm}
+{\small\renewcommand{\arraystretch}{1.15}
+\begin{tabularx}{0.94\textwidth}{@{}Y l Y@{}}
+  \toprule
+  \textbf{Họ và tên} & \textbf{MSHV} & \textbf{Phần việc chính} \\
+  \midrule
+  \memberlist
+  \bottomrule
+\end{tabularx}\par}
+
+\vfill
+{\small \placeanddate\par}
+\end{minipage}
+\end{titlepage}

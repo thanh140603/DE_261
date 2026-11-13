@@ -1,0 +1,15 @@
+{
+  "status": "PASS",
+  "source_project": "de261-br45-final",
+  "restored_project": "de261-br45-restore-check",
+  "matched_mart_md5": {
+    "assessment": "b27cce864ed85aaaa546a3c1d2898932",
+    "risk": "6ccba2dec1f3c6ce739a2e637a67d069"
+  },
+  "restored_volumes": [
+    "postgres-data",
+    "kafka-data",
+    "minio-data",
+    "br45-checkpoints"
+  ]
+}

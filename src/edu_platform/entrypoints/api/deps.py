@@ -11,7 +11,7 @@ from edu_platform.contexts.recommendation.infrastructure.postgres_enrollment imp
 from edu_platform.demo.container import DemoPlatform
 from edu_platform.demo.simulator import Simulator
 from edu_platform.entrypoints.api.grading_client import GradingClient
-from edu_platform.platform.config import Settings
+from edu_platform.platform.config import Settings, get_settings
 
 
 def platform(request: Request) -> DemoPlatform:
@@ -23,16 +23,18 @@ def simulator(request: Request) -> Simulator:
 
 
 def settings(request: Request) -> Settings:
-    return request.app.state.settings  # type: ignore[no-any-return]
+    """Settings bound at startup; an app mounted without the lifespan uses the process settings."""
+    bound: Settings | None = getattr(request.app.state, "settings", None)
+    return bound if bound is not None else get_settings()
 
 
 def notification_repo(request: Request) -> NotificationRepository | None:
     """The API's notification read model; None means the in-process demo store."""
-    return request.app.state.notification_repo  # type: ignore[no-any-return]
+    return getattr(request.app.state, "notification_repo", None)
 
 
 def enrollment_repo(request: Request) -> PostgresEnrollmentRepository | None:
-    return request.app.state.enrollment_repo  # type: ignore[no-any-return]
+    return getattr(request.app.state, "enrollment_repo", None)
 
 
 def grading_client(request: Request) -> GradingClient:

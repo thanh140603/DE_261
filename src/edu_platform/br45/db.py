@@ -23,9 +23,18 @@ def connect(dsn: str | None = None) -> Iterator[Db]:
         yield conn
 
 
-def migrate(dsn: str | None = None) -> None:
+def apply_migrations(conn: Db, *, classroom: bool) -> None:
+    migrations = ["br45.sql", "br45_v2.sql", "br45_v3.sql"]
+    if classroom:
+        migrations.append("br45_classroom.sql")
+    conn.execute("SELECT pg_advisory_xact_lock(hashtext('br45-migrations'))")
+    for migration in migrations:
+        conn.execute((ROOT / "infra/postgres" / migration).read_text())
+
+
+def migrate(dsn: str | None = None, *, classroom: bool | None = None) -> None:
     with connect(dsn) as conn:
-        conn.execute((ROOT / "infra/postgres/br45.sql").read_text())
+        apply_migrations(conn, classroom=settings().classroom if classroom is None else classroom)
 
 
 def state(conn: Db, key: str, value: Any = None) -> Any:
