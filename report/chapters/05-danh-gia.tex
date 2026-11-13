@@ -5,7 +5,7 @@ Chương này đánh giá tính đúng đắn và hiệu năng của hệ thốn
 
 \section{Chiến lược kiểm thử}
 
-Chiến lược kiểm thử chia thành nhiều tầng, từ domain thuần đến dịch vụ thật và trình duyệt; Bảng~\ref{tab:tests} tóm tắt số lượng và phạm vi từng tầng.
+Chiến lược kiểm thử chia thành nhiều tầng, từ domain thuần đến dịch vụ thật và trình duyệt; Bảng~\ref{tab:tests} tóm tắt số lượng và phạm vi từng tầng. Số lượng được đếm trên mã đã gộp nhánh BR4/BR5; trên mã này, đợt cập nhật báo cáo chỉ chạy lại tầng đơn vị, nên con số của các tầng còn lại là số test hiện có chứ không phải kết quả chạy.
 
 Mã Python được kiểm tra bằng \code{ruff} và \code{mypy}; kho dữ liệu chạy đủ 10 cổng chất lượng sau mỗi lần build.
 
@@ -18,13 +18,13 @@ Kiểm thử đơn vị tập trung vào policy và use case; kiểm thử tích
 \toprule
 \textbf{Tầng} & \textbf{Số lượng} & \textbf{Phạm vi} \\
 \midrule
-Đơn vị & 353 & Policy và use case của domain, phân quyền API với adapter giả, phân tích bản ghi Debezium, S3 (moto), Redis (fakeredis), OpenSearch adapter, lớp phủ, cache; test kiến trúc kiểm tra ranh giới các lớp \\
-Spark & 9 & SQL của bộ đọc mart trên bảng Delta dựng từ DDL; job reindex trên Delta với S3 giả lập; tính tương đương của lớp phủ streaming trên Kafka và Redis thật \\
-Tích hợp BR4/BR5 & 13 & PostgreSQL và API: SQL khớp Python, lần làm đầu/cuối, kết quả thiếu hoặc không hợp lệ, lỗi hạ tầng và lỗi mã, đổi phiên bản, LSN cũ, cách ly sự kiện trễ, phân quyền, vòng đời cảnh báo \\
+Đơn vị & 379 & Policy và use case của domain, phân quyền API với adapter giả, phiên đăng nhập nhân sự, phân tích bản ghi Debezium, S3 (moto), Redis (fakeredis), OpenSearch adapter, lớp phủ, cache; test kiến trúc kiểm tra ranh giới các lớp \\
+Spark & 11 & SQL của bộ đọc mart trên bảng Delta dựng từ DDL; job reindex trên Delta với S3 giả lập; tính tương đương của lớp phủ streaming trên Kafka và Redis thật; BR4: sửa điểm trên Delta giữ ảnh chụp cũ và khớp phép tính đối chiếu; BR5: checkpoint cửa sổ khử trùng lặp sau khi khởi động lại \\
+Tích hợp BR4/BR5 & 21 & PostgreSQL và API: SQL khớp Python, lần làm đầu/cuối, kết quả thiếu hoặc không hợp lệ, lỗi hạ tầng và lỗi mã, đổi phiên bản, LSN cũ, cách ly sự kiện trễ, phân quyền, vòng đời cảnh báo, lease của job tổng hợp, phiên bản chính sách, ghi chú can thiệp, retention \\
 Tích hợp BR1/BR3 & 1 & HTTP end-to-end: enroll, nộp bài, chờ \code{graded}, kiểm tra thông báo từ \code{grading.submission_graded.v1} \\
 Dịch vụ thật & -- & OpenSearch 2.17 (analyzer, HNSW, lọc kNN, chỉ phiên bản hiện hành); danh mục PostgreSQL (5 người xuất bản đồng thời, rollback); tính tương đương lớp phủ kể cả gửi lại và phát lại toàn bộ \\
 End-to-end & 1 + 6 & Luồng PostgreSQL $\rightarrow$ WAL $\rightarrow$ Debezium $\rightarrow$ Kafka $\rightarrow$ Spark $\rightarrow$ API với 6 kiểm tra chấp nhận, gồm sửa điểm, phát lại Kafka, UPDATE/DELETE hoạt động và khởi động lại checkpoint \\
-Trình duyệt & 9 & Playwright: 2 test BR1--BR3, 3 test BR4/BR5 và 4 test BR6--BR8; drill-down của giảng viên và cập nhật khi sửa điểm, xác nhận cảnh báo và hồi phục rủi ro, lỗi đăng nhập, k-anonymity, heatmap theo phiên bản, xuất bản đến khi tìm kiếm được, lớp phủ trực tiếp \\
+Trình duyệt & 12 & Playwright: 2 test BR1--BR3, 3 test BR4/BR5, 4 test BR6--BR8, 2 test cho chế độ classroom và replay của BR4/BR5 và 1 test phiên đăng nhập nhân sự; drill-down của giảng viên và cập nhật khi sửa điểm, xác nhận cảnh báo và hồi phục rủi ro, lỗi đăng nhập, k-anonymity, heatmap theo phiên bản, xuất bản đến khi tìm kiếm được, lớp phủ trực tiếp \\
 \bottomrule
 \end{tabularx}
 \end{table}
@@ -58,7 +58,7 @@ Mỗi BR có ít nhất một kịch bản kiểm tra quy tắc nghiệp vụ v�
 \bottomrule
 \end{longtable}}
 
-Ba kịch bản BR1--BR3 chạy trên stack thật với Kafka, Redis, PostgreSQL và Spark: integration test đạt, Playwright 2/2 đạt, 353 unit test đạt và 3 test bị bỏ qua do thiếu thư viện tùy chọn.
+Ba kịch bản BR1--BR3 chạy trên stack thật với Kafka, Redis, PostgreSQL và Spark: integration test đạt và Playwright 2/2 đạt. Trên mã đã gộp nhánh BR4/BR5, cả 379 unit test đạt, không có test nào bị bỏ qua.
 
 \section{Môi trường đo}
 \label{sec:env}
@@ -128,7 +128,7 @@ BR1 đạt trung vị khoảng 12 ms, phù hợp với yêu cầu thông báo g�
 
 \subsection{BR4: tổng hợp SQL so với Python}
 
-Hai cách dùng cùng tập dữ kiện hợp lệ và cùng ngữ nghĩa chỉ số; kết quả khớp ở mọi kích thước và lần lặp. Hình~\ref{fig:br4} cho thấy thời gian tăng gần tuyến tính theo số lượt chấm. Python nhanh hơn khoảng hai lần (1,8--2,2 lần theo trung bình) nhờ dùng lại dữ kiện đã nối cho cả hai phép tổng hợp, còn SQL lặp lại một số phép nối JSONB. Ở 100.000 lượt chấm, một trong ba lần lặp của Python chậm hẳn (1,79 giây so với 1,38 và 1,42 giây), nên trung bình 1,53 giây cao hơn trung vị 1,42 giây; tính theo trung vị thì tỉ lệ ở kích thước này là 2,0 lần. Nhóm giữ SQL cho đường phục vụ vì tính giao dịch và ngữ nghĩa rõ ràng; truy vấn mart đã tổng hợp mất khoảng 0,7--0,8 ms.
+Hai cách dùng cùng tập dữ kiện hợp lệ và cùng ngữ nghĩa chỉ số; kết quả khớp ở mọi kích thước và lần lặp. Hình~\ref{fig:br4} cho thấy thời gian tăng gần tuyến tính theo số lượt chấm. Python nhanh hơn khoảng hai lần (1,8--2,2 lần theo trung bình) nhờ dùng lại dữ kiện đã nối cho cả hai phép tổng hợp, còn SQL lặp lại một số phép nối JSONB. Ở 100.000 lượt chấm, một trong ba lần lặp của Python chậm hẳn (1,79 giây so với 1,38 và 1,42 giây), nên trung bình 1,53 giây cao hơn trung vị 1,42 giây; tính theo trung vị thì tỉ lệ ở kích thước này là 2,0 lần. Phép tổng hợp Python chỉ là đối chứng: trên đường sản phẩm, nhóm vẫn tổng hợp bằng SQL và công bố mart trong một giao dịch PostgreSQL vì ngữ nghĩa rõ ràng; truy vấn mart đã tổng hợp mất khoảng 0,7--0,8 ms.
 
 Phép đo này chạy lại trên mã sau khi gộp (commit \code{05bb5af}, 23/30 container, Bảng~\ref{tab:env-services}) và chỉ đo đường PostgreSQL: ``tổng hợp SQL'' là hai truy vấn SQL của PostgreSQL trên \code{analytics.clean_rows} (JSONB), còn ``làm mới mart'' là hàm \code{refresh} của PostgreSQL, nay kết thúc bằng bước công bố có khoá advisory và cổng chất lượng trên từng dòng. Trên mã đã gộp, engine tổng hợp mặc định của BR4 là Spark trên Delta (\code{EDU_BR45_ASSESSMENT_ENGINE=spark}), còn đường PostgreSQL là engine đối chứng; benchmark này không đo engine Spark.
 
@@ -333,6 +333,6 @@ Riêng BR1--BR3, phép đo chạy trên cùng một máy đang gánh phần lớ
 \begin{itemize}
   \item \textbf{Đáp ứng yêu cầu độ trễ.} Cảnh báo BR5 khoảng 10 giây (kịch bản chấp nhận, không đo lại) và tìm kiếm BR8 khoảng nửa giây đều đủ cho nghiệp vụ (cố vấn can thiệp, người học tìm nội dung mới). Lớp phủ khoảng 6 giây phù hợp dashboard trên mart theo ngày; muốn dưới một giây sẽ cần Flink (ADR 0014). Riêng ngưỡng 10 ms của BR2 đạt ở trung vị và p90, nhưng 2/150 request vượt ngưỡng.
   \item \textbf{Tách tính toán khỏi phục vụ.} Mart tổng hợp sẵn và cache giúp độ trễ phục vụ vài mili-giây dù truy vấn gốc qua Trino mất khoảng 80--170 mili-giây; tra cứu theo khoá vẫn ở Redis.
-  \item \textbf{Đúng đắn quan trọng hơn tốc độ.} Ở BR4, nhóm giữ SQL dù Python nhanh hơn và ghi rõ kết quả benchmark thay vì tuyên bố SQL thắng; hướng tối ưu (bảng sự kiện có kiểu, dùng chung kết quả trung gian) được ghi vào hạn chế.
+  \item \textbf{Đúng đắn quan trọng hơn tốc độ.} Ở BR4, nhóm giữ SQL dù Python nhanh hơn trên đường PostgreSQL và ghi rõ kết quả benchmark thay vì tuyên bố SQL thắng; hướng tối ưu (bảng có kiểu, dùng chung kết quả trung gian) đã được hiện thực trong engine mặc định Spark SQL trên Delta, nhưng engine này chưa có trong các phép đo của chương.
   \item \textbf{Lỗi phát hiện nhờ kiểm chứng.} Quá trình đo và kiểm thử đã phát hiện, sửa nhiều lỗi thật, ví dụ: bộ chia đoạn bỏ mất khoảng 2/3 transcript; đồng hồ thiết bị chạy nhanh làm rơi sự kiện đúng hạn của người khác; cache tài liệu bị đọc trước khi kiểm tra phạm vi; Trino hết bộ nhớ khi dashboard thăm dò liên tục.
 \end{itemize}

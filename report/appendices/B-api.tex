@@ -1,7 +1,7 @@
 \chapter{Tóm tắt API}
 \label{app:api}
 
-Mọi endpoint có tiền tố \code{/api}; tài liệu OpenAPI ở \code{http://localhost:8000/docs} mô tả hợp đồng chi tiết. Endpoint phân tích yêu cầu token Bearer: thiếu hoặc sai token trả 401, sai vai trò hoặc ngoài phạm vi trả 403, không có dữ liệu trả 404, truy vấn sai trả 422, kho chưa sẵn sàng trả 503.
+Mọi endpoint có tiền tố \code{/api}; tài liệu OpenAPI ở \code{http://localhost:8000/docs} mô tả hợp đồng chi tiết. Endpoint phân tích yêu cầu xác thực: trình duyệt đăng nhập bằng tài khoản nhân sự qua \code{/auth/staff/{role}/session} rồi gửi cookie phiên kèm header \code{X-Staff-Role}, còn script gửi token Bearer đã khai báo trong \code{EDU_BR45_AUTH}. Thiếu hoặc sai thông tin xác thực trả 401, sai vai trò hoặc ngoài phạm vi trả 403, không có dữ liệu trả 404, truy vấn sai trả 422, kho chưa sẵn sàng trả 503.
 
 {\small
 \begin{longtable}{@{}L{1.0cm}L{1.6cm}L{7.6cm}L{4.4cm}@{}}
@@ -30,6 +30,7 @@ Mọi endpoint có tiền tố \code{/api}; tài liệu OpenAPI ở \code{http:/
 8 & GET & \code{/instructor/courses/{course}/engagement-trend} & Xu hướng tương tác \\
 8 & POST & \code{/instructor/content/{id}/versions} & Xuất bản phiên bản (202) \\
 8 & GET & \code{/instructor/courses/{course}/search} & Tìm kiếm lai hoặc từ khoá \\
+-- & POST, GET, DELETE & \code{/auth/staff/{role}/session} & Đăng nhập, đọc và huỷ phiên nhân sự \\
 -- & GET & \code{/events} & Server-Sent Events cho sự kiện trực tiếp \\
 \bottomrule
 \end{longtable}}

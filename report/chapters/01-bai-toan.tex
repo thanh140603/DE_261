@@ -29,7 +29,7 @@ Phạm vi: báo cáo dùng \textbf{dữ liệu tổng hợp} (synthetic); hệ t
 \subsection{Đóng góp chính}
 
 \begin{itemize}
-  \item \textbf{Lakehouse Delta Lake} ba lớp với 50 bảng và 43 model SQL; lớp gold là kho dữ liệu Kimball gồm 9 bảng chiều và 11 bảng sự kiện, dùng khoá thay thế tất định; các mart cho BR4, BR6, BR7, BR8 và kho đặc trưng ngoại tuyến cho BR2; Hive Metastore lập danh mục, Trino phục vụ truy vấn có phân quyền theo vai trò.
+  \item \textbf{Lakehouse Delta Lake} ba lớp với 51 bảng và 44 model (43 model tại thời điểm đo thời gian build ở Chương~\ref{chap:eval}, trước khi bổ sung model lịch sử chuyển trạng thái cảnh báo của BR5); lớp gold là kho dữ liệu Kimball gồm 9 bảng chiều và 11 bảng sự kiện, dùng khoá thay thế tất định; các mart cho BR4, BR6, BR7, BR8 và kho đặc trưng ngoại tuyến cho BR2; Hive Metastore lập danh mục, Trino phục vụ truy vấn có phân quyền theo vai trò.
   \item \textbf{Đường chạy thật cho BR1--BR3}: dịch vụ thông báo và chấm bài trên Kafka, Redis, PostgreSQL; feature store hai nhánh cho gợi ý.
   \item Đường \textbf{CDC thật} từ PostgreSQL WAL qua Debezium, Kafka và Spark Structured Streaming đến mart, trạng thái rủi ro và cảnh báo cho BR4--BR5; đường này chịu được replay, cập nhật, xoá và khởi động lại checkpoint.
   \item Đồng bộ nội dung \textbf{BR8 dựa trên CDC}: vô hiệu hoá cache Redis, chia đoạn, nhúng vector vào OpenSearch và tìm kiếm lai, idempotent theo phiên bản.
@@ -108,7 +108,7 @@ Nhật ký sandbox & stdout, stderr, thời gian chạy, bộ nhớ, trạng th�
 \bottomrule
 \end{longtable}}
 
-Danh mục Kafka gồm 26 topic, khai báo dưới dạng mã. Ngoài các topic trên còn có topic sự kiện miền: \code{lms.*} (bài tập mới, sắp đến hạn, khoá học cập nhật), \code{risk.*} (điểm rủi ro, cảnh báo), \code{notification.*} và \code{content.*}.
+Danh mục Kafka gồm 26 topic, khai báo dưới dạng mã. Ngoài các topic trên còn có topic sự kiện miền: \code{lms.*} (bài tập mới, sắp đến hạn, khoá học cập nhật), \code{risk.*} (điểm rủi ro, cảnh báo), \code{notification.*} và \code{content.*}. Runtime BR4/BR5 tự tạo thêm các topic của riêng nó khi khởi tạo, ngoài danh mục này: chín topic CDC \code{br45.cdc.br45.<table>}, \code{br45.activity.v1}, \code{br45.clean.v2}, \code{br45.analytics.v2} và \code{risk.alert_transition.v1}.
 
 \subsection{Yêu cầu phi chức năng}
 
@@ -143,7 +143,7 @@ Bảng~\ref{tab:br-map} ánh xạ mỗi BR vào bounded context, runtime xử l�
 1 & notification & Dịch vụ Kafka + rule engine; fan-out theo PostgreSQL & Redis (dedup, inbox); SSE & Chạy thật \\
 2 & recommendation & Spark batch + session streaming; xếp hạng bằng luật & Delta, Redis, API & Chạy thật \\
 3 & grading & Kafka + grading-ingest/worker/normalizer & Redis; PostgreSQL \code{grading.*} & Chạy thật \\
-4 & analytics + br45 & CDC, SQL aggregation & PostgreSQL \code{analytics}; lịch sử ở \code{mart.assessment_item_stats} & Chạy thật \\
+4 & analytics + br45 & CDC, bảng Delta, job Spark SQL bất đồng bộ & PostgreSQL \code{analytics}; lịch sử ở \code{mart.assessment_item_stats} & Chạy thật \\
 5 & risk + br45 & CDC, Spark Structured Streaming (cửa sổ 7 ngày) & PostgreSQL; lịch sử ở \code{gold.fct_risk_score_daily} & Chạy thật \\
 6 & telemetry + analytics & Medallion Spark & Delta, Trino (\code{mart.org_progress}) & Chạy thật \\
 7 & analytics & Spark batch + lớp phủ streaming & Delta, Trino, Redis & Chạy thật \\
