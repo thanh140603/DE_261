@@ -16,7 +16,7 @@ services:
       - "127.0.0.1:8000:8000"
     environment:
       <<: *classroom
-      EDU_BR45_AUTH: '${EDU_BR45_CLASSROOM_STAFF_AUTH:-{"instructor-demo":{"id":"instructor-local","role":"instructor","courses":["c-py-201","c-sql-101","c-de-301"]},"advisor-demo":{"id":"advisor-local","role":"advisor","courses":["c-py-201","c-sql-101","c-de-301"]},"admin-demo":{"id":"admin-local","role":"admin","organisations":["org-acme","org-globex"]},"acme-admin-demo":{"id":"acme-admin-local","role":"admin","organisations":["org-acme"]}}}'
+      EDU_BR45_AUTH: '${EDU_BR45_CLASSROOM_STAFF_AUTH:-${EDU_BR45_AUTH:-{}}}'
     depends_on:
       br45-classroom-init:
         condition: service_completed_successfully

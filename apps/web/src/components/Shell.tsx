@@ -85,7 +85,7 @@ function AccountMenu() {
   const [dark, setDark] = useState(() => stored("ui-theme") === "dark");
   useLayoutEffect(() => { document.body.classList.toggle("hide-br", !showBr); }, [showBr]);
   useLayoutEffect(() => { document.documentElement.setAttribute("data-theme", dark ? "dark" : "light"); }, [dark]);
-  const roles = WORKSPACES.filter((w) => w.role).map((w) => ({ w, id: auth.identity(w.role!) ?? (auth.token(w.role!) ? "signed in" : null) }));
+  const roles = WORKSPACES.filter((w) => w.role).map((w) => ({ w, id: auth.identities[w.role!]?.name }));
   return (
     <div className="pop-anchor rail-account" ref={pop.ref}>
       <button className="rail-item" onClick={() => pop.setOpen(!pop.open)} aria-expanded={pop.open} aria-haspopup="dialog">
@@ -97,7 +97,7 @@ function AccountMenu() {
             <span className="avatar">{initials(learnerName)}</span>
             <div><b>{learnerName}</b><span className="small muted">Student · demo account</span></div>
           </div>
-          <h3>Roles in this browser tab</h3>
+          <h3>Staff sessions</h3>
           <ul className="tray-list">
             {roles.map(({ w, id }) => (
               <li key={w.id}><span>{w.label}</span><span className={id ? "small" : "small muted"}>{id ?? "not signed in"}</span></li>
@@ -137,7 +137,8 @@ function TopBar({ ws, page, onMenu, menuOpen }: { ws: WorkspaceDef; page: PageDe
     setStudent(null);
   });
   const auth = useAuth();
-  const identity = ws.role ? auth.identity(ws.role) : null;
+  const identity = ws.role ? auth.identities[ws.role] : null;
+  const staffLogout = useAction(auth.signOut);
   const learners = overview?.learners ?? [];
   const learnerName = learners.find((l) => l.id === learnerId)?.name ?? "";
   return (
@@ -176,8 +177,10 @@ function TopBar({ ws, page, onMenu, menuOpen }: { ws: WorkspaceDef; page: PageDe
         )}
         {ws.role && identity && (
           <>
-            <span className="session-chip" title={`Signed in as ${identity}`}><Icon name="user" />{identity}</span>
-            <button className="icon-btn" onClick={() => auth.signOut(ws.role!)} aria-label="Sign out" title="Sign out"><Icon name="logout" /></button>
+            <span className="session-chip" title={`Signed in as ${identity.name}`}><Icon name="user" />{identity.name}</span>
+            <button className="icon-btn" disabled={staffLogout.pending} onClick={() => void staffLogout.run(identity.role)}
+              aria-label="Sign out" title="Sign out"><Icon name="logout" /></button>
+            {staffLogout.error && <span role="alert">{staffLogout.error}</span>}
           </>
         )}
       </div>

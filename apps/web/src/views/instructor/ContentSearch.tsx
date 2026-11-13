@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { analyticsApi, type ContentStatus } from "../../analytics";
+import { type AnalyticsClient, type ContentStatus } from "../../analytics";
 import { AnalyticsAccess, localDateTime, useAnalyticsPolling } from "../../components/AnalyticsAccess";
 import { Icon } from "../../components/Icon";
 import { Badge, Btn, Callout, Card, Chip, PageHead, Seg, Status } from "../../components/ui";
@@ -12,23 +12,22 @@ export function ContentSearch() {
       <PageHead br="BR8" title="Content & search">
         Publish a new version and follow it until the cache, the transcript passages and the search index all serve it.
       </PageHead>
-      <AnalyticsAccess role="instructor" source="lakehouse">{(token, session) => <Content token={token} courses={session.courses} />}</AnalyticsAccess>
+      <AnalyticsAccess role="instructor" source="lakehouse">{(client, session) => <Content client={client} courses={session.courses} />}</AnalyticsAccess>
     </>
   );
 }
 
 interface Tracking { version: number; at: number; invalidated?: number; indexed?: number; synced?: number }
 
-function Content({ token, courses }: { token: string; courses: { id: string; title: string }[] }) {
+function Content({ client, courses }: { client: AnalyticsClient; courses: { id: string; title: string }[] }) {
   const [course, setCourse] = useInstructorCourse(courses);
-  const client = analyticsApi(token);
-  const list = useFetch(course ? () => client.courseContent(course) : null, [token, course]);
+  const list = useFetch(course ? () => client.courseContent(course) : null, [client, course]);
   useAnalyticsPolling(list.reload);
   const [picked, setPicked] = useState("");
   useEffect(() => setPicked(""), [course]);
   const contentId = picked || list.data?.items[0]?.content_id || "";
   const current = list.data?.items.find((i) => i.content_id === contentId);
-  const doc = useFetch(contentId ? () => client.contentDocument(contentId) : null, [token, contentId]);
+  const doc = useFetch(contentId ? () => client.contentDocument(contentId) : null, [client, contentId]);
   const loaded = doc.data?.content_id === contentId ? doc.data : null; // never edit a stale document
   const [title, setTitle] = useState("");
   const [body, setBody] = useState("");
@@ -101,7 +100,7 @@ function Content({ token, courses }: { token: string; courses: { id: string; tit
           </Card>
           <div className="stack">
             {current && <SyncStatus item={current} track={track} />}
-            <SearchPreview token={token} course={course} />
+            <SearchPreview client={client} course={course} />
           </div>
         </div>
       )}
@@ -139,10 +138,10 @@ function SyncStatus({ item, track }: { item: ContentStatus; track: Tracking | nu
   );
 }
 
-function SearchPreview({ token, course }: { token: string; course: string }) {
+function SearchPreview({ client, course }: { client: AnalyticsClient; course: string }) {
   const [query, setQuery] = useState("left join");
   const [mode, setMode] = useState<"hybrid" | "keyword">("hybrid");
-  const search = useAction(() => analyticsApi(token).search(course, query, mode));
+  const search = useAction(() => client.search(course, query, mode));
   return (
     <Card title="Search preview" sub="What learners get when they search this course.">
       <form className="filters" style={{ marginBottom: 6 }} onSubmit={(e) => { e.preventDefault(); if (query.trim()) void search.run(); }}>

@@ -1,0 +1,90 @@
+\section*{Đánh giá trước khi chỉnh sửa}
+
+Mã nguồn báo cáo đã đáp ứng phần lớn yêu cầu CO5173, nhưng bản hiện tại
+chưa sẵn sàng để nộp. Đánh giá dưới đây tập trung vào cấu trúc, nội dung,
+minh chứng nghiệp vụ và mức độ hoàn thiện của các yêu cầu BR.
+
+\begin{table}[htbp]
+\centering
+\small
+\begin{tabularx}{\textwidth}{@{}>{\bfseries}p{0.19\textwidth}Y@{}}
+\toprule
+Tiêu chí & Đánh giá \\
+\midrule
+Cấu trúc &
+Mã LaTeX có sáu mục chính, phù hợp với rubric. Tuy nhiên, PDF hiện có vẫn
+dùng bố cục cũ (\code{main.tex} và \code{main.pdf}); cần biên dịch lại sau
+khi chỉnh sửa. \\
+Nội dung kỹ thuật &
+Báo cáo đã trình bày bối cảnh, người dùng, nguồn dữ liệu, kiến trúc, công
+nghệ, ứng dụng và kết luận. Báo cáo cũng nêu phương án thay thế như Flink
+cho Spark Structured Streaming và so sánh PostgreSQL SQL với Python
+(Mục~\ref{sec:solution} và Mục~\ref{chap:eval}). \\
+Đánh giá ứng dụng &
+Tính đúng đắn và hiệu năng có minh chứng. Hiệu quả sử dụng được minh họa
+qua việc giảng viên khoanh vùng ca kiểm thử lỗi và cố vấn theo dõi cảnh báo.
+Tuy vậy, bảng kiểm chứng nghiệp vụ mới liệt kê kịch bản cho BR4--BR8; cần
+nêu rõ kết quả demo hoặc giới hạn của BR1--BR3 (Mục~\ref{chap:eval}). \\
+Số lượng BR &
+Đề yêu cầu tối thiểu hai BR cho mỗi thành viên. Báo cáo có tám BR, đủ nếu
+nhóm có bốn người; nếu có năm người thì cần thêm hai BR. Bìa hiện có năm
+dòng thông tin thành viên nên chưa xác nhận được quy mô nhóm. Cần đối chiếu
+đề bài CO5173 và thông tin trong \code{config/info.tex}. \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\subsection*{Các BR cần làm rõ}
+
+Qua đối chiếu thiết kế với mã nguồn, BR2 là khoảng thiếu lớn nhất. BR1 và
+BR3 đã có các dịch vụ xử lý Kafka riêng, nhưng chưa chứng minh được đường
+tích hợp hoàn chỉnh với giao diện. BR4--BR8 đã có các chức năng chính; riêng
+BR7 cần tách rõ thao tác tua lùi khỏi số liệu seek tổng hợp. Các luồng đầu
+cuối chưa được chạy lại trong lần rà soát này.
+
+\begin{description}[leftmargin=2.6cm,labelwidth=2.4cm,style=nextline]
+  \item[\br{1} -- Thông báo]
+  Đã có Kafka consumer, bộ luật và Redis trong Compose riêng. Tuy nhiên,
+  API thông báo của giao diện vẫn đọc kho demo, nên còn thiếu đường nối từ
+  sự kiện Kafka đến thông báo hiển thị cho người học. Push và email hiện
+  mới ghi log.
+
+  \item[\br{2} -- Gợi ý học tập]
+  Đã có gợi ý theo luật và bảng đặc trưng dài hạn. Còn thiếu đặc trưng phiên
+  theo luồng và việc kết hợp hai nhánh qua feature store để phục vụ gợi ý.
+  Đây là khoảng thiếu chính, kể cả khi tiếp tục dùng luật để xếp hạng.
+
+  \item[\br{3} -- Chấm bài]
+  Đã có API nhận bài, hàng đợi Kafka, worker và bộ chuẩn hóa kết quả. Code
+  Lab trong classroom vẫn gọi bộ chấm demo rồi lưu kết quả vào PostgreSQL.
+  Cần bổ sung minh chứng cho luồng nộp bài từ Code Lab qua Kafka và worker,
+  rồi trả phản hồi về Code Lab.
+
+  \item[\br{4}--\br{6}]
+  Đã có minh chứng cho các chức năng chính: phát hiện ca kiểm thử bất
+  thường, cảnh báo từ CDC qua cửa sổ trượt và báo cáo tiến độ có ngưỡng
+  nhóm tối thiểu. Báo cáo còn thiếu benchmark BR4/BR5 mới và đánh giá ngoại
+  tuyến BR5 trên OULAD.
+
+  \item[\br{7} -- Heatmap]
+  Đã có heatmap theo giây và phiên bản video. Đề bài yêu cầu rewind, trong
+  khi mart hiện đếm seek chung cho cả tua lùi và tua tới; vì vậy cần bổ sung
+  số đếm tua lùi riêng.
+
+  \item[\br{8} -- Nội dung và tương tác]
+  Đã có cả hai phần theo thiết kế: đồng bộ cache/chỉ mục tìm kiếm và phát
+  hiện xu hướng tương tác giảm.
+\end{description}
+
+\subsection*{Ưu tiên trước khi nộp}
+
+Cần sửa phần báo cáo mô tả adapter BR1/BR3 như công việc tương lai: các dịch
+vụ tương ứng đã có, còn khoảng trống nằm ở tích hợp với giao diện và minh
+chứng đầu cuối. Về số lượng yêu cầu, tám BR đủ cho nhóm bốn người; nhóm năm
+người cần bổ sung hai BR theo quy định.
+
+Trước khi nộp, cần chốt số thành viên, điền thông tin bìa, biên dịch lại và
+đặt tên PDF theo mã nhóm. Repo đã có benchmark Spark--Flink và đánh giá
+ngoại tuyến BR5 trên OULAD, có thể dùng để củng cố Mục~5. Kết quả OULAD cần được trình bày riêng với
+demo giả lập. Đồng thời, cần đối chiếu lại các yêu cầu
+về nội dung và quy cách nộp trong đề bài CO5173.

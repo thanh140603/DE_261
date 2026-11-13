@@ -1,15 +1,15 @@
 import { expect, test } from "@playwright/test";
+import { bearerFor, signInStaff } from "./staff-credentials";
 
 test("replay publishes the same synthetic stage to Instructor and Advisor", async ({ page, request }) => {
   test.skip(!process.env.BR45_REPLAY_BROWSER, "Start the replay server first");
   await page.goto("/instructor/assessments");
-  await page.getByLabel("instructor access token").fill("instructor-demo");
-  await page.getByRole("button", { name: "Connect", exact: true }).click();
+  await signInStaff(page, "instructor");
   await expect(page.getByText("Simulated data", { exact: true })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Measured benchmarks" })).toBeVisible();
 
   const endpoint = "/api/analytics/replay";
-  const advisor = { Authorization: "Bearer advisor-demo" };
+  const advisor = bearerFor("advisor");
   const initial = await (await request.get(endpoint, { headers: advisor })).json();
   await page.getByRole("button", { name: "Advance demo" }).click();
   await expect.poll(async () => (await (await request.get(endpoint, { headers: advisor })).json()).revision)
@@ -18,8 +18,7 @@ test("replay publishes the same synthetic stage to Instructor and Advisor", asyn
   await page.setViewportSize({ width: 390, height: 844 });
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
   await page.goto("/advisor");
-  await page.getByLabel("advisor access token").fill("advisor-demo");
-  await page.getByRole("button", { name: "Connect", exact: true }).click();
+  await signInStaff(page, "advisor");
   await expect(page.getByText("Simulated data", { exact: true })).toBeVisible();
   await expect(page.getByRole("list", { name: "Learners to review" })).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);

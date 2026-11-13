@@ -2,6 +2,8 @@
 
 Use the [restoration runbook](BR45_RESTORATION.md) to build and start the current checkout. Commands below describe the original workstation walkthrough.
 
+[Provision staff accounts](STAFF_AUTH.md) and export `EDU_STAFF_ACCOUNTS` before starting the API. The walkthrough uses `instructor.demo` and `advisor.demo` with their configured passwords.
+
 ## Classroom accounts and live pipeline on port 8000
 
 Run from the repository root. The classroom uses a separate PostgreSQL database, Debezium connector, Kafka topics and consumer group, and Spark checkpoint on the existing Compose network.
@@ -22,9 +24,9 @@ Use the password you set above for all three accounts at [Learner sign-in](http:
 | `chi.demo` | Chi Hoang | Four previous-week Python activities and an overdue FizzBuzz lab |
 | `ha.demo` | Ha Dang | New enrollment with limited history |
 
-1. Open [Advisor](http://127.0.0.1:8000/advisor) with `advisor-demo`. In **Python for Data**, open **Chi Hoang** and check the initial warning. Page through the low-risk learners to find **Ha Dang**, whose enrollment is too new to score.
+1. Open [Advisor](http://127.0.0.1:8000/advisor) as `advisor.demo`. In **Python for Data**, open **Chi Hoang** and check the initial warning. Page through the low-risk learners to find **Ha Dang**, whose enrollment is too new to score.
 2. Sign in as Chi. Start and complete two different Python lessons to record four activities. Wait for the Advisor poll to show the recent activity and the lower score. The overdue lab still contributes risk points.
-3. Open **Code Lab** and select **FizzBuzz**. Submit a solution and inspect its feedback. Open [Instructor](http://127.0.0.1:8000/instructor) with `instructor-demo` and select **FizzBuzz** in **Python for Data**. The attempt and its per-test evaluations share the Code Lab submission ID. Check Chi’s Advisor record again after the submission.
+3. Open **Code Lab** and select **FizzBuzz**. Submit a solution and inspect its feedback. Open [Instructor](http://127.0.0.1:8000/instructor) as `instructor.demo` and select **FizzBuzz** in **Python for Data**. The attempt and its per-test evaluations share the Code Lab submission ID. Check Chi’s Advisor record again after the submission.
 4. Sign out and sign in as An or Ha to smoke-test their courses, recommendations, and submission history. The recorded benchmark comparisons appear below both staff dashboards.
 
 Use this FizzBuzz solution to smoke-test a passing attempt.
@@ -67,8 +69,8 @@ DEMO_PORT=8000 docker compose -f docker-compose.yml -f docker-compose.br45-repla
   up -d --no-build --pull never --no-deps --force-recreate demo
 ```
 
-- Open [Instructor](http://127.0.0.1:8000/instructor) with `instructor-demo`. In **Python for Data**, select **Sum even numbers** to follow the test corrections from 2/24 to 22/24 passes.
-- Open [Advisor](http://127.0.0.1:8000/advisor) with `advisor-demo`. Select **Linh Dao** in **Python for Data** and follow the alert and risk history from 100 to 0 points. **Measured benchmarks** under each dashboard shows the saved performance results separately from the replay.
+- Open [Instructor](http://127.0.0.1:8000/instructor) as `instructor.demo`. In **Python for Data**, select **Sum even numbers** to follow the test corrections from 2/24 to 22/24 passes.
+- Open [Advisor](http://127.0.0.1:8000/advisor) as `advisor.demo`. Select **Linh Dao** in **Python for Data** and follow the alert and risk history from 100 to 0 points. **Measured benchmarks** under each dashboard shows the saved performance results separately from the replay.
 
 After a React change, compile the frontend assets, then restart the container. For a Python-only change, run the restart command by itself. Both use the same Docker image, and a restart returns the replay to stage one.
 
@@ -101,6 +103,8 @@ DATA="data/br45-demo/DE_261_BR45_${RUN}.json"
 br45demo() { .venv/bin/python -m edu_platform.br45.demo_dataset "$@"; }
 br45demo build --run-id "$RUN"
 
+# Provision the Instructor and Advisor with this generated course ID.
+jq -r .course_id "$DATA"
 docker compose run --detach --no-deps --name "de261-br45-web-$RUN" \
   --publish 127.0.0.1:8001:8000 \
   --env "EDU_BR45_AUTH=$(jq -c .auth "$DATA")" demo
@@ -113,7 +117,7 @@ The generator uses the persisted BR45 clock, or the current UTC hour on a fresh 
 
 ## BR4 · Review and correct an assessment
 
-1. Open [Instructor](http://127.0.0.1:8001/instructor). In **Assessment health**, connect with `br45-instructor-demo` and select the synthetic course. Leave the date fields blank to follow the demo clock.
+1. Open [Instructor](http://127.0.0.1:8001/instructor). In **Assessment health**, sign in with your provisioned account and select the synthetic course. Leave the date fields blank to follow the demo clock.
 2. Select **Normalize input rows**. Point out the 24 passes in 28 valid attempts, the first and latest valid rates of 20/24 and 24/24, and the two excluded attempts. Select **Validate CSV headers** to show why five passes from five learners still leave the question with insufficient data.
 3. Select **Sum even numbers** and open the test-case breakdown. The `case-empty-input` test has two passes from 24 learners, while both peers pass 24/24. In this scenario the grading team finds a faulty expected result for the empty input test. The regrade corrects the 20 affected evaluations and leaves two genuine failures.
 
@@ -126,7 +130,7 @@ The next successful dashboard poll shows 22/24 for both the question and the emp
 
 ## BR5 · Acknowledge an alert and show recovery
 
-1. Open [Advisor](http://127.0.0.1:8001/advisor) and connect with `br45-advisor-demo`. Keep the default date and level filters. Select the learner whose ID ends in `needs-outreach`. The initial score is 100, with 0 recent and 4 previous-week activities and 1 of 1 required deadlines missed.
+1. Open [Advisor](http://127.0.0.1:8001/advisor) and sign in with your provisioned account. Keep the default date and level filters. Select the learner whose ID ends in `needs-outreach`. The initial score is 100, with 0 recent and 4 previous-week activities and 1 of 1 required deadlines missed.
 2. Compare the 50-point learner who missed the same deadline but was recently active. On the next page of the risk queue, inspect the new enrollment that is too recent to score and `learner-24`, whose submission is present and whose last activity is unknown. Return to `needs-outreach` on the first page and click **Acknowledge**.
 
 ```bash

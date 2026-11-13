@@ -1,7 +1,14 @@
 export interface Page<T> { items: T[]; total: number; offset: number; limit: number; window_start?: string; window_end?: string;
   materialization_status?: string; computed_at?: string; engine?: string; error?: string; stale?: boolean;
   publication_id?: string; published_revision?: string; pending_revision?: string; source_delta_version?: number }
-export interface AnalyticsSession { id: string; role: string; courses: { id: string; title: string }[]; replay?: boolean; classroom?: boolean }
+export type StaffRole = "instructor" | "advisor" | "admin";
+export interface StaffIdentity {
+  id: string;
+  name: string;
+  role: StaffRole;
+  courses: string[];
+  organisations: string[];
+}
 export interface AnalyticsSession { id: string; role: string; courses: { id: string; title: string }[]; replay?: boolean; classroom?: boolean }
 export interface AssessmentStat {
   id: string; course_id: string; assignment_id: string; question_id: string; question_version: number;
@@ -105,14 +112,17 @@ export interface ContentDocument { content_id: string; course_id: string; title:
 export type PublishedVersion = Omit<ContentStatus, "indexed_version" | "indexed_at" | "chunk_count" | "cache_state" | "in_sync"> & { changed: boolean; status: "pending_sync" | "unchanged" };
 export interface SearchHit { content_id: string; version: number; title: string; ordinal: number; section_path: string[]; snippet: string; score: number }
 
-export function analyticsApi(token: string) {
+export type AnalyticsClient = ReturnType<typeof analyticsApi>;
+
+export function analyticsApi(role: StaffRole, onUnauthorized: () => void) {
   async function request<T>(path: string, filters: Filters = {}, method = "GET", body?: unknown): Promise<T> {
     const query = new URLSearchParams();
     for (const [key, value] of Object.entries(filters)) if (value !== undefined && value !== "") query.set(key, String(value));
-    const headers: Record<string, string> = { Authorization: `Bearer ${token}` };
+    const headers: Record<string, string> = { "X-Staff-Role": role };
     if (body !== undefined) headers["Content-Type"] = "application/json";
     const response = await fetch(`/api${path}?${query}`, { method, headers, body: body === undefined ? undefined : JSON.stringify(body) });
     if (!response.ok) {
+      if (response.status === 401) onUnauthorized();
       const body: { detail?: unknown } = await response.json().catch(() => ({}));
       throw new Error(typeof body.detail === "string" ? body.detail : `Request failed (${response.status}); check the filters and retry.`);
     }
@@ -123,6 +133,7 @@ export function analyticsApi(token: string) {
     return response.json() as Promise<T>;
   }
   return {
+    currentStaffSession: () => request<StaffIdentity>(`/auth/staff/${role}/session`),
     session: () => request<AnalyticsSession>("/analytics/session"),
     diagnostics: () => request<Diagnostics>("/analytics/diagnostics"),
     refresh: (course: string, start?: string, end?: string) => request<{ id: string; status: string }>(`/instructor/courses/${encodeURIComponent(course)}/assessment-jobs`, {}, "POST", { start, end }),

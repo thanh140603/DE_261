@@ -2,21 +2,18 @@
 
 from __future__ import annotations
 
-import hmac
-import json
 from collections.abc import Iterator
-from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
 from typing import Annotated, Any, Literal, cast
 
 import psycopg
 from fastapi import APIRouter, Depends, HTTPException, Query
-from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from pydantic import AwareDatetime, BaseModel, Field
 
 from edu_platform.demo import seed
 
 from .advisor import CoursePolicy, Note, NoteBody, PolicyChange, change_policy, policy
+from .auth import Advisor, Instructor, Principal, User, scope
 from .config import settings
 from .contracts import timestamp
 from .db import Db, clean, connect, state
@@ -24,51 +21,6 @@ from .events import alert_transition
 from .outputs import Alert, AssessmentPage, JobStatus, Metric, Page, Risk, RiskPage, StudentRisk
 
 router = APIRouter(tags=["BR4 / BR5 persistent analytics"])
-bearer = HTTPBearer(auto_error=False)
-
-
-@dataclass(frozen=True)
-class Principal:
-    id: str
-    role: str
-    courses: list[str]
-    organisations: list[str] = field(default_factory=list)  # BR6 B2B admin scope
-
-
-def principal(
-    credentials: Annotated[HTTPAuthorizationCredentials | None, Depends(bearer)],
-) -> Principal:
-    if credentials is None:
-        raise HTTPException(
-            401, "An analytics access token is required", headers={"WWW-Authenticate": "Bearer"}
-        )
-    try:
-        accounts = json.loads(settings().auth)
-    except ValueError as exc:
-        raise HTTPException(503, "Analytics authentication is not configured") from exc
-    for token, account in accounts.items():
-        if hmac.compare_digest(token, credentials.credentials):
-            return Principal(
-                account["id"],
-                account["role"],
-                account.get("courses", []),
-                account.get("organisations", []),
-            )
-    raise HTTPException(
-        401, "Invalid analytics access token", headers={"WWW-Authenticate": "Bearer"}
-    )
-
-
-def instructor(user: Annotated[Principal, Depends(principal)]) -> Principal:
-    if user.role != "instructor":
-        raise HTTPException(403, "Instructor access required")
-    return user
-
-
-def advisor(user: Annotated[Principal, Depends(principal)]) -> Principal:
-    if user.role != "advisor":
-        raise HTTPException(403, "Advisor access required")
-    return user
 
 
 def database() -> Iterator[Db]:
@@ -84,9 +36,6 @@ def database() -> Iterator[Db]:
 
 
 DB = Annotated[Db, Depends(database)]
-Instructor = Annotated[Principal, Depends(instructor)]
-Advisor = Annotated[Principal, Depends(advisor)]
-User = Annotated[Principal, Depends(principal)]
 Offset = Annotated[int, Query(ge=0)]
 Limit = Annotated[int, Query(ge=1, le=100)]
 AnomalyState = Literal[
@@ -95,11 +44,6 @@ AnomalyState = Literal[
 Severity = Literal["INFO", "MEDIUM", "HIGH"]
 RiskLevel = Literal["LOW", "MEDIUM", "HIGH", "CRITICAL"]
 AlertStatus = Literal["NEW", "ACKNOWLEDGED", "RESOLVED"]
-
-
-def scope(user: Principal, course_id: str) -> None:
-    if course_id not in user.courses:
-        raise HTTPException(403, "Course is outside your authorized scope")
 
 
 def window(conn: Db, start: datetime | None, end: datetime | None) -> tuple[datetime, datetime]:

@@ -93,11 +93,12 @@ passes for every new module.
 
 ## 6. APIs, auth and UI
 
-Contract: [api.md](api.md) sections *Lakehouse analytics* and *Content sync*. Tokens come from
-`EDU_BR45_AUTH`; local demo identities: `admin-demo` (both organisations),
-`acme-admin-demo` (Acme only), `instructor-demo`. 401 / 403 (role or scope) / 404 / 422 / 503
-are tested. The Admin and Instructor views use the token flow already used by BR4/BR5; one
-instructor token serves both instructor panels.
+See the *Lakehouse analytics* and *Content sync* sections for API contracts.
+[API documentation](api.md)
+
+Provision Admin and Instructor accounts with the assigned organisations or courses.
+The Instructor session works across the BR4, BR7 and BR8 panels. API scripts can
+use tokens from `EDU_BR45_AUTH`. [Account setup](STAFF_AUTH.md)
 
 ## 7. Defects found and fixed while validating
 
@@ -193,7 +194,7 @@ scaling the data well beyond this.
 docker compose --profile br678 up -d --build
 docker compose --profile br678 logs -f br678-init content-init      # first start: a few minutes
 
-# demo: Admin (admin-demo / acme-admin-demo) and Instructor (instructor-demo) at :8000
+# Sign in to Admin and Instructor at :8000 with the provisioned accounts.
 docker compose exec demo edu telemetry simulate --sessions 50         # live overlay input
 
 # checks

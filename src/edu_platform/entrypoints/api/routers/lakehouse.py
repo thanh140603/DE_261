@@ -15,7 +15,7 @@ from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 
-from edu_platform.br45.api import Principal, instructor, principal
+from edu_platform.br45.auth import Admin, Instructor, Principal, User, organisation_scope
 from edu_platform.contexts.analytics.application.ports import (
     AnalyticsMartReader,
     LiveOverlayReader,
@@ -46,12 +46,6 @@ def mart_reader() -> AnalyticsMartReader:
     return _mart_reader()
 
 
-def admin(user: Annotated[Principal, Depends(principal)]) -> Principal:
-    if user.role != "admin":
-        raise HTTPException(403, "Organisation admin access required")
-    return user
-
-
 @lru_cache(maxsize=1)
 def _live() -> RedisLiveOverlay:
     return RedisLiveOverlay(create_redis_client(get_settings().redis_url))
@@ -69,9 +63,6 @@ Reader = Annotated[AnalyticsMartReader, Depends(mart_reader)]
 Live = Annotated[LiveOverlayReader, Depends(live_overlay)]
 Today = Annotated[date, Depends(today)]
 WithLive = Annotated[bool, Query(description="Add today's streaming overlay (Redis)")]
-User = Annotated[Principal, Depends(principal)]
-Admin = Annotated[Principal, Depends(admin)]
-Instructor = Annotated[Principal, Depends(instructor)]
 AsOf = Annotated[date | None, Query(description="Snapshot on or before this date (UTC)")]
 
 
@@ -97,8 +88,7 @@ def session(user: User, reader: Reader) -> dict[str, Any]:
 def skill_progress(
     organisation_id: str, user: Admin, reader: Reader, as_of: AsOf = None
 ) -> dict[str, Any]:
-    if organisation_id not in user.organisations:
-        raise HTTPException(403, "Organisation is outside your authorized scope")
+    organisation_scope(user, organisation_id)
     snapshot = reader.org_progress(organisation_id, as_of)
     if snapshot is None:
         raise HTTPException(404, "No progress report has been built for this organisation yet")

@@ -4,7 +4,7 @@ The restoration starts from main at `57a8c2b`. The working modules and two patch
 
 ## Start the local stack
 
-Run from the repository root with a running Docker daemon and Compose. The commands build the app and the Spark runtime from this checkout. Local demonstration tokens are displayed on the staff sign-in forms.
+Run from the repository root with a running Docker daemon and Compose. The commands build the app and the Spark runtime from this checkout. [Provision staff accounts](STAFF_AUTH.md) before opening the dashboards.
 
 ```sh
 # Persistent source writes and analytics
@@ -46,6 +46,7 @@ export EDU_BR45_CLOCK_MODE=manual
 docker compose --profile br45 up -d --build demo br45-cdc br45-stream
 docker compose --profile br45 exec -T br45-cdc python -m edu_platform.br45.cli seed
 # Wait until the Instructor API serves the seeded question, then run the end-to-end check.
+# Set BR45_VERIFY_INSTRUCTOR_TOKEN and BR45_VERIFY_ADVISOR_TOKEN to the tokens configured in EDU_BR45_AUTH.
 EDU_BR45_DSN=postgresql://lms:lms@127.0.0.1:15433/lms EDU_BR45_KAFKA=localhost:19092 \
   python -m edu_platform.br45.verify --url http://127.0.0.1:18080 --restart --output data/br45-e2e
 ```

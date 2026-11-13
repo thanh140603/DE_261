@@ -49,10 +49,9 @@ docker compose --profile br45 up -d --build demo br45-init br45-cdc br45-stream
 docker compose exec -T br45-cdc python -m edu_platform.br45.cli seed
 ```
 
-Open Instructor or Advisor at `http://localhost:8000`. For the local synthetic
-demo, connect with `instructor-demo` or `advisor-demo` respectively. The assessment
-fixture is under Python for Data. Set `EDU_BR45_AUTH` for private identities and
-explicit course scopes.
+[Provision staff accounts](docs/STAFF_AUTH.md) and sign in to Instructor or Advisor
+at `http://localhost:8000`. The assessment fixture is under Python for Data.
+Scripts can authenticate with a token configured in `EDU_BR45_AUTH`.
 
 **What was done, exact metric rules, changed files, tests, measured benchmarks,
 screenshots and the complete demonstration runbook:**
@@ -71,10 +70,9 @@ docker compose --profile br678 up -d --build    # everything; first start builds
 [BR6/BR7/BR8 implementation document](docs/BR6_BR7_BR8_IMPLEMENTATION.md).
 
 The Admin view (BR6 organisation progress) and the Instructor video heatmap (BR7)
-and engagement trend (BR8) read the warehouse marts through Trino with scoped
-tokens. Build the warehouse first (see "Run the lakehouse warehouse"), then open
-Admin with `admin-demo` (both organisations) or `acme-admin-demo` (Acme only),
-and Instructor with `instructor-demo`. Plan and status:
+and engagement trend (BR8) read the warehouse marts through Trino. Build the
+warehouse first (see "Run the lakehouse warehouse"), then sign in as a provisioned
+Admin or Instructor. Account scopes determine the organisations and courses shown.
 [BR6/BR7/BR8 plan](docs/BR6_BR7_BR8_PLAN.md); API contract: `docs/api.md`.
 Content sync (BR8) runs on CDC: publish a transcript version in Instructor and follow it
 until it is searchable. Start it with:

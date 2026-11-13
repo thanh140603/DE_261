@@ -6,6 +6,7 @@ from typing import Any
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
+from edu_platform.br45.auth import Instructor, scope
 from edu_platform.contexts.analytics.domain.model import TimeWindow
 from edu_platform.contexts.content.application.publish_content_version import (
     PublishContentVersionCommand,
@@ -21,15 +22,18 @@ router = APIRouter(prefix="/instructor", tags=["instructor"])
 
 @router.get("/assessments")
 async def assessments(
-    course_id: str | None = None, p: DemoPlatform = Depends(platform)
+    user: Instructor, course_id: str | None = None, p: DemoPlatform = Depends(platform)
 ) -> list[dict[str, Any]]:
+    if course_id is not None:
+        scope(user, course_id)
+    courses = [course_id] if course_id is not None else user.courses
     now = datetime.now(tz=UTC)
     window = TimeWindow(now - timedelta(days=30), now + timedelta(minutes=1))
     rows = p.assessment_mart.execute(p.submissions.all(), window)
     out = []
     for r in rows:
         assignment = seed.assignment(r.assignment_id)
-        if course_id and assignment.course_id != course_id:
+        if assignment.course_id not in courses:
             continue
         out.append(
             {
@@ -47,11 +51,14 @@ async def assessments(
 
 
 @router.get("/videos/{content_id}/heatmap")
-async def heatmap(content_id: str, p: DemoPlatform = Depends(platform)) -> dict[str, Any]:
+async def heatmap(
+    content_id: str, user: Instructor, p: DemoPlatform = Depends(platform)
+) -> dict[str, Any]:
     found = seed.lesson_by_content(content_id)
     if found is None:
         raise HTTPException(404, f"unknown content {content_id}")
-    _, lesson = found
+    course, lesson = found
+    scope(user, course.id)
     buckets = p.video_heatmap.execute(p.silver.all(), ContentId(content_id), lesson.duration_sec)
     return {
         "content_id": content_id,
@@ -71,7 +78,10 @@ async def heatmap(content_id: str, p: DemoPlatform = Depends(platform)) -> dict[
 
 
 @router.get("/courses/{course_id}/engagement")
-async def engagement(course_id: str, p: DemoPlatform = Depends(platform)) -> dict[str, Any]:
+async def engagement(
+    course_id: str, user: Instructor, p: DemoPlatform = Depends(platform)
+) -> dict[str, Any]:
+    scope(user, course_id)
     try:
         seed.course(course_id)
     except StopIteration as exc:
@@ -91,10 +101,11 @@ async def engagement(course_id: str, p: DemoPlatform = Depends(platform)) -> dic
     }
 
 
-def _content_record(p: DemoPlatform, content_id: str) -> dict[str, Any]:
+def _content_record(p: DemoPlatform, content_id: str, user: Instructor) -> dict[str, Any]:
     item = p.content.get(ContentId(content_id))
     if item is None:
         raise HTTPException(404, f"unknown content {content_id}")
+    scope(user, item.course_id)
     return {
         "id": item.id,
         "course_id": item.course_id,
@@ -116,8 +127,10 @@ def _content_record(p: DemoPlatform, content_id: str) -> dict[str, Any]:
 
 
 @router.get("/content/{content_id}")
-async def content(content_id: str, p: DemoPlatform = Depends(platform)) -> dict[str, Any]:
-    return _content_record(p, content_id)
+async def content(
+    content_id: str, user: Instructor, p: DemoPlatform = Depends(platform)
+) -> dict[str, Any]:
+    return _content_record(p, content_id, user)
 
 
 class ContentBody(BaseModel):
@@ -127,12 +140,13 @@ class ContentBody(BaseModel):
 
 @router.post("/content/{content_id}")
 async def publish(
-    content_id: str, body: ContentBody, sim: Simulator = Depends(simulator)
+    content_id: str, body: ContentBody, user: Instructor, sim: Simulator = Depends(simulator)
 ) -> dict[str, Any]:
     p = sim.p
     item = p.content.get(ContentId(content_id))
     if item is None:
         raise HTTPException(404, f"unknown content {content_id}")
+    scope(user, item.course_id)
     result = p.publish_content.execute(
         PublishContentVersionCommand(content_id, body.body, body.title, datetime.now(tz=UTC))
     )
@@ -154,5 +168,5 @@ async def publish(
         "version": result.version,
         "sync": [{"step": s.step, "status": s.status, "ms": s.ms} for s in result.steps],
         "notifications_created": created,
-        "content": _content_record(p, content_id),
+        "content": _content_record(p, content_id, user),
     }

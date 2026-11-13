@@ -1,6 +1,7 @@
 import { expect, test } from "@playwright/test";
 import { execFileSync } from "node:child_process";
 import { randomUUID } from "node:crypto";
+import { bearerFor, signInStaff } from "./staff-credentials";
 
 const CDC_TIMEOUT = 150_000;
 const EVIDENCE = `../../docs/evidence/${process.env.EVIDENCE ?? "br45"}`;
@@ -14,8 +15,7 @@ function runSourceScript(source: string, ...args: string[]) {
 test("Instructor reads actual metrics, drills down and refreshes after a PostgreSQL correction", async ({ page, request }) => {
   test.setTimeout(220_000);
   await page.goto("/instructor/assessments");
-  await page.getByLabel("instructor access token").fill("instructor-demo");
-  await page.getByRole("button", { name: "Connect", exact: true }).click();
+  await signInStaff(page, "instructor");
   const question = page.getByRole("row").filter({ has: page.getByRole("button", { name: /SYNTHETIC: Sum even numbers/ }) });
   await expect(question).toContainText("8%", { timeout: CDC_TIMEOUT });
   await question.getByRole("button").click();
@@ -26,7 +26,7 @@ test("Instructor reads actual metrics, drills down and refreshes after a Postgre
   try {
     correct("passed");
     await expect(question).toContainText("13%", { timeout: CDC_TIMEOUT });
-    const response = await request.get("/api/instructor/courses/c-py-201/questions/statistics", { headers: { Authorization: "Bearer instructor-demo" } });
+    const response = await request.get("/api/instructor/courses/c-py-201/questions/statistics", { headers: bearerFor("instructor") });
     const data = await response.json();
     expect(data.items.find((r: { question_id: string }) => r.question_id === "br45-demo-question").passed_evaluations).toBe(3);
   } finally { correct("failed"); }
@@ -73,8 +73,7 @@ with connect() as db:
   study("prior");
   try {
     await page.goto("/advisor");
-    await page.getByLabel("advisor access token").fill("advisor-demo");
-    await page.getByRole("button", { name: "Connect", exact: true }).click();
+    await signInStaff(page, "advisor");
     const riskRow = page.getByRole("button", { name: student, exact: true });
     await expect(riskRow).toContainText("100", { timeout: CDC_TIMEOUT });
     await expect(riskRow).toContainText("Critical");
@@ -100,12 +99,10 @@ with connect() as db:
 
 test("Invalid credentials display an access error and do not expose learner records", async ({ page, request }) => {
   await page.goto("/advisor");
-  await page.getByLabel("advisor access token").fill("incorrect-token");
-  await page.getByRole("button", { name: "Connect", exact: true }).click();
-  await expect(page.getByText(/Invalid analytics access token/)).toBeVisible();
-  await page.getByRole("button", { name: "Use a different token" }).click();
-  await expect(page.getByLabel("advisor access token")).toBeVisible();
+  await signInStaff(page, "advisor", true);
+  await expect(page.getByText(/Invalid username or password/)).toBeVisible();
+  await expect(page.getByLabel("Username", { exact: true })).toBeVisible();
   expect((await request.get("/api/advisor/alerts")).status()).toBe(401);
-  expect((await request.get("/api/advisor/alerts", { headers: { Authorization: "Bearer instructor-demo" } })).status()).toBe(403);
-  expect((await request.get("/api/advisor/courses/c-sql-101/at-risk-students", { headers: { Authorization: "Bearer advisor-demo" } })).status()).toBe(403);
+  expect((await request.get("/api/advisor/alerts", { headers: bearerFor("instructor") })).status()).toBe(403);
+  expect((await request.get("/api/advisor/courses/c-sql-101/at-risk-students", { headers: bearerFor("advisor") })).status()).toBe(403);
 });

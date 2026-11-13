@@ -1,44 +1,58 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
-import { analyticsApi, type LakehouseSession } from "../analytics";
-import { useFetch } from "../hooks";
+import { analyticsApi, type AnalyticsClient, type LakehouseSession, type StaffIdentity, type StaffRole } from "../analytics";
+import { api, ApiError } from "../api";
+import { useAction, useFetch } from "../hooks";
+import { useStore } from "../store";
 import { Btn, Callout, Status } from "./ui";
 
-export type Role = "instructor" | "advisor" | "admin";
+export type Role = StaffRole;
+const ROLES = ["instructor", "advisor", "admin"] as const;
 const ROLE_LABEL: Record<Role, string> = { instructor: "Instructor", advisor: "Advisor", admin: "Organisation admin" };
-const DEMO_TOKEN: Record<Role, string> = { instructor: "instructor-demo", advisor: "advisor-demo", admin: "admin-demo" };
-const storageKey = (role: Role) => `br45-${role}-token`;
-
-function read(role: Role) {
-  try { return sessionStorage.getItem(storageKey(role)) ?? ""; } catch { return ""; }
-}
+type Identities = Partial<Record<Role, StaffIdentity | null>>;
 
 interface Auth {
-  token: (role: Role) => string;
-  identity: (role: Role) => string | null;
-  signIn: (role: Role, token: string) => void;
-  signOut: (role: Role) => void;
-  setIdentity: (role: Role, id: string | null) => void;
+  identities: Identities;
+  errors: Partial<Record<Role, string>>;
+  clients: Record<Role, AnalyticsClient>;
+  signIn: (role: Role, username: string, password: string) => Promise<void>;
+  signOut: (role: Role) => Promise<void>;
 }
 const AuthContext = createContext<Auth | null>(null);
 
-/** One token per role, kept for the browser tab (sessionStorage) and shared by every page of that workspace. */
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [tokens, setTokens] = useState<Record<Role, string>>(() => ({ instructor: read("instructor"), advisor: read("advisor"), admin: read("admin") }));
-  const [ids, setIds] = useState<Record<Role, string | null>>({ instructor: null, advisor: null, admin: null });
-  const signIn = useCallback((role: Role, value: string) => {
-    try { sessionStorage.setItem(storageKey(role), value); } catch { /* private mode: keep in memory */ }
-    setTokens((t) => ({ ...t, [role]: value }));
+  const [identities, setIdentities] = useState<Identities>({});
+  const [errors, setErrors] = useState<Partial<Record<Role, string>>>({});
+  useEffect(() => {
+    const pending = new AbortController();
+    for (const role of ROLES) {
+      void api.staff.current(role, pending.signal).then((identity) => {
+        if (!pending.signal.aborted) setIdentities((current) => ({ ...current, [role]: identity }));
+      }, (error: unknown) => {
+        if (pending.signal.aborted) return;
+        setIdentities((current) => ({ ...current, [role]: null }));
+        if (!(error instanceof ApiError && error.status === 401)) {
+          setErrors((current) => ({ ...current, [role]: (error as Error).message }));
+        }
+      });
+    }
+    return () => pending.abort();
   }, []);
-  const signOut = useCallback((role: Role) => {
-    try { sessionStorage.removeItem(storageKey(role)); } catch { /* ignore */ }
-    setTokens((t) => ({ ...t, [role]: "" }));
-    setIds((i) => ({ ...i, [role]: null }));
+  const signIn = useCallback(async (role: Role, username: string, password: string) => {
+    const identity = await api.staff.login(role, username, password);
+    setIdentities((current) => ({ ...current, [role]: identity }));
+    setErrors((current) => ({ ...current, [role]: undefined }));
   }, []);
-  const setIdentity = useCallback((role: Role, id: string | null) => setIds((i) => (i[role] === id ? i : { ...i, [role]: id })), []);
-  const value = useMemo<Auth>(() => ({
-    token: (r) => tokens[r], identity: (r) => ids[r], signIn, signOut, setIdentity,
-  }), [tokens, ids, signIn, signOut, setIdentity]);
-  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+  const signOut = useCallback(async (role: Role) => {
+    await api.staff.logout(role);
+    setIdentities((current) => ({ ...current, [role]: null }));
+  }, []);
+  const clients = useMemo(() => {
+    const client = (role: Role) => analyticsApi(role, () => {
+      setIdentities((current) => current[role] === identities[role] ? { ...current, [role]: null } : current);
+    });
+    return { instructor: client("instructor"), advisor: client("advisor"), admin: client("admin") };
+  }, [identities]);
+  return <AuthContext.Provider value={{ identities, errors, clients, signIn, signOut }}>{children}</AuthContext.Provider>;
 }
 
 export function useAuth(): Auth {
@@ -47,63 +61,72 @@ export function useAuth(): Auth {
   return ctx;
 }
 
-/** Sign-in gate. `source` picks the session endpoint: BR4/BR5 PostgreSQL or the BR6-BR8 lakehouse. */
 export function AnalyticsAccess({ role, source = "br45", children }: {
   role: Role;
-  source?: "br45" | "lakehouse";
-  children: (token: string, session: LakehouseSession) => ReactNode;
+  source?: "br45" | "lakehouse" | "identity";
+  children: (client: AnalyticsClient, session: LakehouseSession) => ReactNode;
 }) {
-  const auth = useAuth();
-  const token = auth.token(role);
-  const session = useFetch<LakehouseSession>(token ? async () => {
-    const client = analyticsApi(token);
+  const { identities, clients } = useAuth();
+  const { overview } = useStore();
+  const identity = identities[role];
+  const client = clients[role];
+  const session = useFetch<LakehouseSession>(identity && source !== "identity" ? async () => {
     return source === "lakehouse" ? client.lakehouseSession() : { organisations: [], ...(await client.session()) };
-  } : null, [token, source]);
-  const authorized = !!token && session.data?.role === role && !session.error;
-  useEffect(() => { auth.setIdentity(role, authorized ? session.data!.id : null); }, [authorized, session.data, role]); // eslint-disable-line react-hooks/exhaustive-deps
+  } : null, [identity, client, source]);
+  // Even an idle dashboard must return to sign-in after expiry or API restart.
+  const checkSession = useCallback(async () => {
+    await client.currentStaffSession().catch(() => undefined);
+  }, [client]);
+  useAnalyticsPolling(checkSession, identity ? 30000 : null);
 
-  if (!token) return <SignIn role={role} showDatasetToken={source === "br45" && role !== "admin"} />;
-  return (
-    <>
-      <Status loading={session.loading && !session.data} error={session.error}>
-        {session.data && session.data.role !== role
-          ? <Callout tone="bad">This token does not grant {role} access. <Btn variant="link" onClick={() => auth.signOut(role)}>Use a different token</Btn></Callout>
-          : authorized && children(token, session.data!)}
-      </Status>
-      {session.error && <div className="actions"><Btn onClick={() => auth.signOut(role)}>Use a different token</Btn></div>}
-    </>
-  );
+  if (identity === undefined) return <p role="status">Checking staff session…</p>;
+  if (!identity) return <SignIn role={role} />;
+  if (source === "identity") {
+    return children(client, {
+      ...identity,
+      courses: identity.courses.map((id) => ({ id, title: id })),
+      organisations: identity.organisations.map((id) => ({
+        id, name: overview?.organisations.find((org) => org.id === id)?.name ?? id,
+      })),
+    });
+  }
+  return <Status loading={session.loading} error={session.error}>
+    {session.data && session.data.role === role && session.data.id === identity.id && children(client, session.data)}
+  </Status>;
 }
 
-function SignIn({ role, showDatasetToken }: { role: Role; showDatasetToken: boolean }) {
+function SignIn({ role }: { role: Role }) {
   const auth = useAuth();
-  const [input, setInput] = useState("");
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
+  const login = useAction(async () => {
+    await auth.signIn(role, username.trim(), password);
+    setPassword("");
+  });
+  const error = login.error ?? auth.errors[role];
   return (
     <section className="card signin" aria-label={`${ROLE_LABEL[role]} sign in`}>
       <h2>Sign in as {ROLE_LABEL[role].toLowerCase()}</h2>
-      <p className="muted small" style={{ marginTop: 6 }}>
-        {role === "admin"
-          ? "Reports are scoped to the organisations your token allows."
-          : "Records are scoped to the courses your token allows."}
-      </p>
-      <form onSubmit={(e) => { e.preventDefault(); if (input.trim()) auth.signIn(role, input.trim()); }}>
-        <label className="field">Access token
-          <input className="input full" type="password" autoComplete="off" value={input} onChange={(e) => setInput(e.target.value)} aria-label={`${role} access token`} />
+      {error && <Callout tone="bad">{error}</Callout>}
+      <form onSubmit={(event) => { event.preventDefault(); void login.run(); }}>
+        <label className="field">Username
+          <input className="input full" autoComplete="username" value={username} onChange={(event) => setUsername(event.target.value)} required maxLength={64} />
         </label>
-        <Btn type="submit" variant="primary" disabled={!input.trim()}>Connect</Btn>
+        <label className="field">Password
+          <input className="input full" type="password" autoComplete="current-password" value={password} onChange={(event) => setPassword(event.target.value)} required maxLength={128} />
+        </label>
+        <Btn type="submit" variant="primary" disabled={login.pending}>Sign in</Btn>
       </form>
-      <p className="xs muted" style={{ marginTop: 12 }}>Default local demo token <code>{DEMO_TOKEN[role]}</code></p>
-      {showDatasetToken && <p className="xs muted">BR45 dataset walkthrough token <code>br45-{role}-demo</code></p>}
     </section>
   );
 }
 
-export function useAnalyticsPolling(reload: () => Promise<void>, ms = 5000) {
-  useEffect(() => { const id = window.setInterval(() => void reload(), ms); return () => window.clearInterval(id); }, [reload, ms]);
+export function useAnalyticsPolling(reload: () => Promise<void>, ms: number | null = 5000) {
+  useEffect(() => { if (ms === null) return; const id = window.setInterval(() => void reload(), ms); return () => window.clearInterval(id); }, [reload, ms]);
 }
 
-export function AnalyticsFreshness({ token }: { token: string }) {
-  const diagnostics = useFetch(() => analyticsApi(token).diagnostics(), [token]);
+export function AnalyticsFreshness({ client }: { client: AnalyticsClient }) {
+  const diagnostics = useFetch(() => client.diagnostics(), [client]);
   useAnalyticsPolling(diagnostics.reload);
   const heartbeat = diagnostics.data?.state.find((s) => s.key === "cdc_heartbeat");
   const stream = diagnostics.data?.state.find((s) => s.key === "spark_progress");

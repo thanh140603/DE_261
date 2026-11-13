@@ -21,6 +21,7 @@ from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
 from edu_platform.br45.api import router as analytics_router
+from edu_platform.br45.auth import StaffSessions
 from edu_platform.br45.classroom import StudyError, load_enrollments
 from edu_platform.br45.classroom_bots import run as run_bots
 from edu_platform.br45.config import settings as analytics_settings
@@ -42,6 +43,7 @@ from edu_platform.entrypoints.api.routers import (
     pipeline,
     reference,
     simulate,
+    staff,
 )
 from edu_platform.platform.logging import configure_logging, get_logger
 from edu_platform.shared_kernel.domain import DomainError, NotFoundError
@@ -91,6 +93,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
 
 def create_app() -> FastAPI:
     app = FastAPI(title="DE_261 learning data platform (demo)", lifespan=lifespan)
+    app.state.staff_sessions = StaffSessions()
     app.add_middleware(
         CORSMiddleware,
         allow_origins=["http://localhost:5173", "http://127.0.0.1:5173"],
@@ -105,6 +108,7 @@ def create_app() -> FastAPI:
     )
     app.include_router(lakehouse.router, prefix="/api")
     app.include_router(content.router, prefix="/api")
+    app.include_router(staff.router, prefix="/api")
     for router in (reference, pipeline, learner, instructor, advisor, admin, events):
         app.include_router(router.router, prefix="/api")
     if settings.classroom:
@@ -125,15 +129,21 @@ def create_app() -> FastAPI:
                 {"detail": "The classroom database is unavailable"}, status_code=503
             )
 
-        @app.exception_handler(RequestValidationError)
-        async def _classroom_validation(request: Request, exc: RequestValidationError) -> Response:
-            if request.url.path == "/api/classroom/student/session":
-                return JSONResponse(
-                    {"detail": "Enter a classroom username and password"}, status_code=422
-                )
-            return await request_validation_exception_handler(request, exc)
     else:
         app.include_router(simulate.router, prefix="/api")
+
+    @app.exception_handler(RequestValidationError)
+    async def _validation(request: Request, exc: RequestValidationError) -> Response:
+        path = request.url.path
+        if settings.classroom and path == "/api/classroom/student/session":
+            return JSONResponse(
+                {"detail": "Enter a classroom username and password"}, status_code=422
+            )
+        if path.startswith("/api/auth/staff/"):
+            return JSONResponse(
+                {"detail": "Invalid staff role or sign-in fields"}, status_code=422
+            )
+        return await request_validation_exception_handler(request, exc)
 
     @app.exception_handler(StudyError)
     async def _study_error(_: Request, exc: StudyError) -> JSONResponse:

@@ -1,0 +1,236 @@
+\subsection{Thiết kế và hiện thực theo từng yêu cầu}
+\label{chap:impl}
+
+BR4--BR8 chạy trên PostgreSQL, Debezium, Kafka, Spark, Delta, Trino, Redis và OpenSearch. Giao diện BR1--BR3 dùng runtime demo (ADR 0008). Code Lab Classroom còn lưu kết quả và hoạt động vào PostgreSQL để chuyển qua CDC. Bảng~\ref{tab:scenarios} nêu mức kiểm chứng của từng luồng.
+
+% =====================================================================
+\subsubsection{BR1 --- Pipeline thông báo hướng sự kiện}
+
+\textbf{Luồng.} Hệ thống LMS phát các sự kiện \code{lms.assignment_created.v1}, \code{lms.deadline_approaching.v1}, \code{lms.course_updated.v1}; các context khác phát \code{grading.submission_graded.v1} và \code{risk.dropout_risk_detected.v1}. Dịch vụ thông báo tiêu thụ các topic này, đối chiếu với tập luật, xác định người nhận, rồi gửi qua các kênh in-app, push hoặc email. Kết quả (đã gửi hoặc bị chặn) được phát lên \code{notification.dispatched.v1} và \code{notification.suppressed.v1}, rồi đi vào lakehouse thành \code{gold.fct_notification}.
+
+\textbf{Rule engine.} Luật được khai báo trong YAML và nạp lại nóng được (Hình~\ref{lst:rules}). Điều kiện viết bằng một ngôn ngữ biểu thức rất nhỏ trên payload của sự kiện, không cho chạy mã tuỳ ý.
+
+\begin{figure}[H]
+\begin{lstlisting}[language=yaml]
+rules:
+  - rule_id: deadline-24h
+    event_type: lms.deadline_approaching.v1
+    condition: "hours_to_deadline <= 24"
+    channels: [push, email]
+    priority: high
+    template_id: deadline_soon
+  - rule_id: dropout-risk-advisor
+    event_type: risk.dropout_risk_detected.v1
+    channels: [email]      # người nhận = cố vấn của học viên
+    priority: high
+\end{lstlisting}
+\caption{Trích tập luật thông báo (\texttt{infra/notification/rules.yaml})}
+\label{lst:rules}
+\end{figure}
+
+\textbf{Chống làm phiền.} Mỗi thông báo có một khoá khử trùng lặp, lưu trong Redis với TTL 24 giờ, nên cùng một sự kiện không bao giờ gửi hai lần. Chính sách giới hạn tần suất mặc định là tối đa 5 thông báo mỗi giờ cho mỗi người học. Thông báo ưu tiên cao (ví dụ còn dưới 24 giờ đến hạn) được bỏ qua giới hạn này. Thông báo bị chặn được ghi lại kèm lý do để giao diện hiển thị.
+
+\textbf{Mức kiểm chứng.} Bộ luật, chính sách và use case có kiểm thử. Dịch vụ Kafka và Redis có cấu hình chạy riêng. Hộp thông báo trên web hiện đọc dữ liệu demo, còn đường từ dịch vụ Kafka đến hộp thông báo cần nghiệm thu.
+
+% =====================================================================
+\subsubsection{BR2 --- Gợi ý khoá học và bước học tiếp theo}
+\label{sec:br2}
+
+Đề bài mô tả một pipeline đặc trưng hai nhánh: đặc trưng dài hạn tính theo lô bằng Spark, kết hợp đặc trưng phiên tính theo luồng, qua feature store. Nhóm đã hiện thực nhánh lô: bảng \code{features.learner_longterm} gồm tỷ lệ hoàn thành 30 ngày, tỷ lệ đạt trung bình, số ngày hoạt động, nền tảng ưa dùng và mức thành thạo theo kỹ năng. Bảng có một phân vùng cho mỗi ngày tính, để huấn luyện mô hình sau này không bị rò rỉ dữ liệu tương lai.
+
+Bộ gợi ý hiện tại được rút gọn thành \textbf{gợi ý dựa trên luật}, tính tại thời điểm truy vấn từ danh mục khoá học và các khoá học viên đã hoàn thành. Luật xếp các khoá chưa ghi danh theo \emph{tầng}, sau đó theo mức liên quan, độ khó và độ ưa thích (Bảng~\ref{tab:br2}). Mỗi gợi ý luôn kèm một câu giải thích để người học hiểu vì sao.
+
+\begin{table}[H]
+\centering\small
+\caption{Các tầng của luật gợi ý (BR2)}\label{tab:br2}
+\begin{tabularx}{\textwidth}{@{}cL{3.4cm}YL{1.2cm}@{}}
+\toprule
+\textbf{Tầng} & \textbf{Trường hợp} & \textbf{Ví dụ lời giải thích} & \textbf{Điểm} \\
+\midrule
+0 & Bước tiếp theo trong lộ trình & ``Tiếp tục lộ trình data engineering: mức khó tiếp theo'' hoặc ``Bước liên quan trong lộ trình'' & 1,00 \\
+1 & Mở rộng cùng mức & ``Mở rộng ở mức của bạn: một khoá analytics mức dễ'' & 0,75 \\
+2 & Bù khoá bị bỏ qua & ``Bổ sung khoá mức dễ bạn đã bỏ qua'' & 0,50 \\
+3 & Quá sức & ``Quá sức: hoàn thành khoá mức trung bình trước'' (khoá bị khoá) & 0,00 \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+% =====================================================================
+\subsubsection{BR3 --- Tiếp nhận bài nộp và phản hồi chi tiết}
+
+\textbf{Luồng Kafka riêng.} Dịch vụ tiếp nhận đưa bài nộp vào \code{grading.submission_received.v1}. Worker sandbox chạy bài và ghi nhật ký lên \code{grading.sandbox_result.raw.v1}. Dịch vụ chấm bài chuẩn hoá kết quả và phát \code{grading.submission_graded.v1} cho luồng thông báo BR1.
+
+\textbf{Code Lab trong Classroom.} Giao diện dùng bộ chấm demo và lưu bài nộp cùng các kết quả test trong PostgreSQL. Một bài FizzBuzz kiểm chứng cùng ID xuất hiện trong phản hồi, bảng nguồn và facts BR4 với đủ năm test. Hai hoạt động bài học Python trong kịch bản kiểm tra làm điểm rủi ro giảm từ 15 xuống 0. Đường Kafka riêng cần kiểm chứng tích hợp với giao diện.
+
+\textbf{Sandbox.} Bài Python chạy trong tiến trình con có giới hạn thời gian 3 giây. Bài SQL chạy trên SQLite trong bộ nhớ ở chế độ chỉ đọc, có hàm ngắt khi quá hạn. Lỗi hạ tầng được tách khỏi lỗi trong mã của người học: lỗi và timeout của mã người học tính là trượt, còn lỗi hạ tầng không tính vào tỷ lệ đạt.
+
+\textbf{Phản hồi có cấu trúc.} \code{FeedbackPolicy} là một hàm thuần, không có I/O, tạo phản hồi gồm: câu tóm tắt, danh sách test trượt kèm giá trị mong đợi và thực tế (hoặc diff), 8 dòng cuối của stderr, và gợi ý theo ngôn ngữ dựa trên một bảng mẫu lỗi thường gặp. Kết quả còn gồm thời gian chạy, bộ nhớ và mã thoát. Mục~\ref{chap:ui} cho thấy cách phản hồi này hiển thị trong Code lab.
+
+% =====================================================================
+\subsubsection{BR4 --- Phát hiện câu hỏi và test case bất thường}
+\label{sec:br4-runtime}
+
+\textbf{Luồng CDC thật} (ADR 0009). Dữ liệu vận hành nằm trong schema \code{br45} của PostgreSQL: khoá học, bài tập, câu hỏi và test case có phiên bản, bài nộp và kết quả chấm. Một connector Debezium riêng bắt WAL vào các topic \code{br45.cdc.br45.<bảng>}. Worker CDC lưu phong bì gốc vào \code{analytics.raw_changes}, kiểm tra hợp đồng (sai thì vào \code{quarantine}), khử trùng lặp theo định danh ổn định gồm bảng, LSN, giao dịch, thao tác và ảnh dòng, rồi ghi \code{clean_rows}. Thay đổi có LSN cũ không thể làm sống lại bản ghi mới hơn.
+
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[font=\footnotesize, node distance=5mm]
+  \node[stage, text width=10.8cm] (w) {PostgreSQL WAL $\rightarrow$ Debezium $\rightarrow$ Kafka $\rightarrow$ CDC worker};
+  \node[hl, below left=8mm and -35mm of w, text width=3.7cm] (m) {BR4: Kafka chuẩn hóa\\Snapshot và bản công bố Delta\\Spark SQL};
+  \node[hl, right=12mm of m, text width=3.7cm] (sp) {BR5: Kafka hoạt động\\Spark Structured Streaming\\Cửa sổ và offset đã commit};
+  \node[box, below=of m, text width=3.7cm] (api) {Mart PostgreSQL\\API Instructor};
+  \node[box, below=of sp, text width=3.7cm] (risk) {Policy, lịch sử, cảnh báo\\API Advisor};
+  \draw[arr] (w.south -| m.north) -- (m.north);
+  \draw[arr] (w.south -| sp.north) -- (sp.north);
+  \draw[arr] (m) -- (api);
+  \draw[arr] (sp) -- (risk);
+\end{tikzpicture}
+\caption{Từ CDC đến kết quả phục vụ BR4 và BR5}
+\label{fig:br45}
+\end{figure}
+
+\textbf{Phương án cơ sở.} Worker PostgreSQL SQL đọc các bản ghi đã chuẩn hóa trong \code{analytics.clean_rows}, tính chỉ số trong một giao dịch và ghi mart phục vụ. Engine này dùng cùng API job và cùng logic phân loại cơ sở với đường Spark. Phép đối chiếu ở Mục~\ref{chap:eval} kiểm tra số đếm cơ sở của cả hai engine bằng oracle độc lập.
+
+\textbf{Đường triển khai mặc định.} Worker Spark đọc snapshot Delta theo \code{versionAsOf} khi chuỗi đã hạ cánh bao phủ revision mà job yêu cầu. Job theo khóa học và cửa sổ có lease. Mỗi lần công bố dùng một định danh từ job, Delta version, source revision và lease generation. Spark ghi facts và các chiều khoá học, câu hỏi, test case, ghi danh vào đường dẫn bất biến của lần công bố. Sau khi kiểm tra chất lượng và xác nhận còn lease, worker thay ba mart PostgreSQL và cập nhật con trỏ công bố trong cùng giao dịch. Nếu revision nguồn đổi trong lúc tính, job quay lại hàng đợi cho revision mới.
+
+\textbf{Ngữ nghĩa chỉ số.} Mọi khoảng quan sát là nửa mở $[t_0, t_1)$. Một lần chấm test hợp lệ khi bài nộp đã được chấm, kết quả hợp lệ và trạng thái thuộc \{passed, failed, error, timeout\}. Một lần làm câu hỏi hợp lệ khi mọi test bắt buộc của phiên bản câu hỏi \emph{tại thời điểm nộp} đều có kết quả hợp lệ, và chỉ đạt khi mọi test bắt buộc đều đạt. Phiên bản test mới hơn không âm thầm diễn giải lại các bài nộp cũ.
+\[
+  \text{pass\_rate} = \frac{\text{số lần chấm hợp lệ đạt}}{\text{tổng số lần chấm hợp lệ}}
+\]
+Thiếu kết quả test bắt buộc, đánh giá không hợp lệ và lỗi hạ tầng bị loại khỏi mẫu số và được đếm riêng. Mẫu số bằng 0 cho kết quả \code{null} (hiển thị là chưa có số liệu). Hệ thống cũng tính tỷ lệ đạt ở lần làm đầu tiên và lần làm cuối cùng của mỗi học viên.
+
+\begin{table}[H]
+\centering\small
+\caption{Quy tắc phát hiện bất thường của BR4 (cấu hình được)}\label{tab:br4-rules}
+\begin{tabularx}{\textwidth}{@{}YL{2.4cm}L{5.0cm}@{}}
+\toprule
+\textbf{Quy tắc} & \textbf{Mặc định} & \textbf{Trạng thái sinh ra} \\
+\midrule
+Số học viên hợp lệ phân biệt tối thiểu & 20 & \code{INSUFFICIENT_DATA} nếu thiếu \\
+Tỷ lệ đạt thấp của câu hỏi & dưới 30\% & \code{LOW_PASS_RATE} \\
+Tỷ lệ đạt thấp của test case & dưới 20\% & \code{LOW_PASS_RATE} \\
+Thấp hơn trung vị các test bắt buộc khác & $\ge 50$ điểm \% & \code{SUSPICIOUS_TEST_CASE} \\
+Giảm so với cửa sổ liền trước cùng độ dài & $\ge 30$ điểm \% & \code{NEEDS_REVIEW} \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+Kết quả lưu ở ba mart câu hỏi, test case và bất thường. Đường Spark bổ sung phân tích nhóm học viên có thành tích trước đó từ phân vị 80 trên các câu hỏi khác, giữ các trường hợp đồng hạng và yêu cầu tối thiểu ba câu hỏi có lịch sử. Chỉ hiển thị tỷ lệ nhóm khi đủ số học viên. Cờ bất thường hướng dẫn giảng viên xem lại đề và kết quả chấm.
+
+\textbf{Ví dụ sửa điểm.} Với 24 lượt hợp lệ, hai lượt đạt và 22 lượt trượt cùng một test, giảng viên khoanh vùng test có tỷ lệ 8{,}33\%. Debezium chuyển \code{UPDATE} của lần chấm qua Kafka. Bước chuẩn hóa áp dụng thay đổi theo LSN và yêu cầu tính lại cửa sổ liên quan. Mart mới trả $3/24$. Lượt thử chèn lỗi sau khi thay mart nhưng trước commit giữ kết quả $2/24$ và Delta version cũ trong API. Lượt retry công bố $3/24$ ở phiên bản Delta mới. Snapshot cũ vẫn đọc được.
+
+% =====================================================================
+\subsubsection{BR5 --- Cảnh báo sớm nguy cơ bỏ học}
+
+\textbf{Cửa sổ trượt theo thời gian sự kiện.} Spark Structured Streaming đọc \code{br45.activity.v1}, dùng watermark 21 ngày và \code{dropDuplicatesWithinWatermark(event_id)}, rồi tổng hợp bằng \code{window(event_time, '7 days', slide)} với bước trượt mặc định 1 giờ. Phương án đối chiếu Flink dùng cùng cửa sổ, watermark và ngữ nghĩa rút lại. Một phép tính lô Python từ các sự kiện gốc kiểm tra số đếm của từng engine. Với mốc đánh giá $T$ căn theo giờ UTC, các đặc trưng được tính như Hình~\ref{fig:windows}.
+
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[font=\footnotesize, x=0.86cm]
+  \draw[muted, line width=0.6pt, -{Stealth}] (0,0) -- (15.2,0) node[right, font=\scriptsize]{thời gian};
+  \foreach \x/\l in {0/{$T-14$ ngày}, 7/{$T-7$ ngày}, 14/{$T$}} {
+    \draw[muted] (\x,0.12) -- (\x,-0.12);
+    \node[below, font=\scriptsize] at (\x,-0.15) {\l};
+  }
+  \fill[sdim!60, rounded corners=2pt] (0.05,0.3) rectangle (6.95,0.85);
+  \node[font=\scriptsize] at (3.5,0.575) {previous: $[T-14, T-7)$};
+  \fill[sone!70, rounded corners=2pt] (7.05,0.3) rectangle (13.95,0.85);
+  \node[font=\scriptsize, white] at (10.5,0.575) {recent: $[T-7, T)$};
+  \draw[decorate, decoration={brace, amplitude=5pt}, muted] (0.05,1.0) -- (13.95,1.0) node[midway, above=5pt, font=\scriptsize\color{ink}]{14-day count = recent + previous};
+  \draw[stcrit, dashed] (14.6,-0.1) -- (14.6,0.9) node[above, font=\scriptsize]{giờ đang mở};
+\end{tikzpicture}
+\caption{Các cửa sổ đặc trưng tại mốc đánh giá $T$ (BR5)}
+\label{fig:windows}
+\end{figure}
+
+Cập nhật một hoạt động sẽ rút phần đóng góp cũ khỏi các cửa sổ rồi cộng phần mới; xoá thì rút phần đóng góp. Sự kiện ``đồng hồ'' có trọng số 0 tạo các cửa sổ rỗng, để tình trạng không hoạt động vẫn được ghi nhận khi học viên không làm gì. Mỗi micro-batch upsert tổng tuyệt đối của cửa sổ trong một giao dịch. Việc chấm điểm rủi ro chờ đến khi offset Spark đã commit bao phủ hết outbox, để tránh chấm trên đặc trưng chưa đầy đủ. Khi khởi động lại, checkpoint giữ cả tổng cửa sổ và định danh sự kiện. Phép thử gửi lại một ID cũ và thêm một ID mới kiểm tra đồng thời hai tính chất này. Dữ liệu cũ hơn watermark đi vào vùng cách ly và được xử lý bằng backfill cô lập khi cần.
+
+\textbf{Điều kiện xét.} Học viên phải ghi danh đang hiệu lực ít nhất 7 ngày. Bài tập bắt buộc chỉ tính khi hạn nộp nằm trong 14 ngày gần nhất và sau ngày ghi danh; hạn trong tương lai không bị phạt. Riêng việc thiếu telemetry không bị coi là không hoạt động: tín hiệu này đòi hỏi đã từng quan sát thấy hoạt động thật.
+
+\begin{table}[H]
+\centering\small
+\caption{Các tín hiệu rủi ro và điểm (BR5)}\label{tab:br5-signals}
+\begin{tabularx}{\textwidth}{@{}L{3.2cm}YL{1.3cm}@{}}
+\toprule
+\textbf{Tín hiệu} & \textbf{Điều kiện} & \textbf{Điểm} \\
+\midrule
+Không hoạt động & Ít nhất 7 ngày kể từ hoạt động có ý nghĩa gần nhất & 35 \\
+Trễ hạn & Ít nhất một bài tập bắt buộc đã đến hạn mà chưa nộp & 30 \\
+Tỷ lệ nộp thấp & Tỷ lệ nộp các bài đã đến hạn dưới 50\% & 20 \\
+Hoạt động giảm & Hoạt động giảm ít nhất 50\%, với ít nhất 3 quan sát ở cửa sổ trước & 15 \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+Điểm tối đa là 100. Các mức: LOW 0--29, MEDIUM 30--59, HIGH 60--79, CRITICAL 80--100. Mọi kết quả kèm đặc trưng, lời giải thích, điều kiện xét, thời điểm đánh giá và chính sách. \textbf{Điểm không phải xác suất bỏ học}; đây là công cụ giúp cố vấn ưu tiên.
+
+\textbf{Vòng đời cảnh báo.} Mỗi cặp học viên × khoá học chỉ có một cảnh báo mở. Từ 60 điểm có thể sinh cảnh báo mới; thời gian chờ mặc định là 72 giờ đánh giá. Cảnh báo đang mở được cập nhật mức độ và lý do hiện tại. Cố vấn có thể xác nhận (acknowledge) hoặc giải quyết (resolve); hệ thống lưu thời điểm và người thực hiện. Khi điểm giảm dưới ngưỡng, cảnh báo tự động được giải quyết. Mỗi phiên bản policy ghi tác giả và mốc bắt đầu. Một cập nhật dùng phiên bản dự kiến để chặn ghi đè đồng thời và có hiệu lực tại mốc đánh giá hoàn tất kế tiếp. Gửi lại cùng khóa idempotency và cùng nội dung ghi chú trả về cùng ID. Outbox ghi điểm, phiên bản policy, lý do và chuyển trạng thái để kho lưu được các đánh giá cùng điểm nhưng khác policy hoặc lý do. Trong kịch bản CDC, bốn hoạt động mới đưa learner từ 100 xuống 50 điểm và giải quyết đúng cảnh báo đang mở.
+
+\textbf{Ví dụ đổi policy.} Giả sử phiên bản 1 đã chấm xong mốc $T$ và cố vấn đề xuất nâng ngưỡng từ 60 lên 65 với phiên bản dự kiến là 1. Bản chấm tại $T$ giữ policy 1. Bản chấm ở mốc hoàn tất kế tiếp dùng phiên bản 2 và lưu định danh policy vào lịch sử. Với điểm 62, hai lần đánh giá có cùng điểm nhưng có thể dẫn đến trạng thái cảnh báo khác nhau. Đây là ví dụ về cơ chế phiên bản. Đường triển khai giữ ngưỡng 60 theo đánh giá ở Mục~\ref{chap:eval}.
+
+% =====================================================================
+\subsubsection{BR6 --- Tiến độ kỹ năng theo tổ chức}
+
+BR6 là ví dụ đầy đủ nhất của pipeline medallion. Telemetry và CDC đi qua silver (chuyển schema, khử định danh), lên gold (\code{fct_enrollment}, \code{fct_lesson_progress}, \code{fct_submission}), rồi tổng hợp thành \code{mart.org_progress} theo tổ chức × khoá học. Tỷ lệ hoàn thành là tỷ lệ bài học đã xong trung bình của khoá. Mức thành thạo là tỷ lệ đạt test trung bình của các bài nộp đã chấm; học viên chưa có bài chấm được tính là 0.
+
+\textbf{k-anonymity được bảo vệ ba lớp.} (1) Mart chỉ công bố quy mô cho nhóm dưới $k = 5$ người, các tỷ lệ để trống. (2) Cổng chất lượng mức error \code{mart_org_progress_k_anonymity} làm hỏng lần build nếu vi phạm. (3) Bộ đọc của API xoá các tỷ lệ của dòng bị ẩn, kể cả khi mart lỗi vẫn mang giá trị. Token quản trị viên chỉ được phép đọc các tổ chức trong phạm vi của mình; truy cập ngoài phạm vi trả về 403.
+
+% =====================================================================
+\subsubsection{BR7 --- Heatmap tương tác video}
+
+\textbf{Theo phiên bản.} Sự kiện được quy về phiên bản nội dung có hiệu lực tại thời điểm xảy ra (\code{gold.dim_content} là SCD2). Vì vậy video quay lại có heatmap riêng cho mỗi phiên bản, và API mặc định chọn phiên bản mới nhất. Bảng \code{gold.fct_video_second_activity} có grain phiên bản × giây × ngày, đếm play, pause, seek và số người học phân biệt. \code{mart.video_heatmap} tạo lưới dày cho từng giây trong 28 ngày, có số người học phân biệt chính xác và cường độ chuẩn hoá 0--1. Vị trí vượt quá độ dài video được kẹp về giây cuối.
+
+\textbf{Lớp phủ hôm nay} (ADR 0014). Ứng dụng \code{telemetry-live} chạy ba truy vấn Spark có checkpoint. Truy vấn thứ nhất chuẩn hoá telemetry thô bằng đúng \code{normalize_rows} của silver. Hai truy vấn còn lại tổng hợp theo giây video (BR7) và điểm tương tác theo ngày (BR8), với watermark 5 phút và khử trùng lặp theo \code{event_id}. Kết quả ghi vào Redis dưới dạng giá trị tuyệt đối, nên phát lại sẽ ghi đè chứ không cộng thêm. API chỉ ghép lớp phủ cho những ngày sau ảnh chụp của mart, và chỉ cho phiên bản mới nhất. Nếu Redis lỗi, API trả về dữ liệu mart.
+
+% =====================================================================
+\subsubsection{BR8 --- Đồng bộ nội dung và xu hướng tương tác}
+
+\paragraph{Đồng bộ cache và chỉ mục tìm kiếm}
+\label{sec:br8-sync}
+
+Một phiên bản nội dung mới là một lần cập nhật dòng \code{public.course_content}, trỏ tới một đối tượng bất biến mới trong MinIO (\code{courses/<khoá>/<nội dung>/v<n>.<ext>}). API của giảng viên chỉ ghi đối tượng và dòng dữ liệu, dưới khoá dòng để tránh hai người xuất bản cùng lúc, chứ không tự đồng bộ. Debezium bắt thay đổi, và dịch vụ \code{content-sync} chạy use case \code{SyncContentChange} (Hình~\ref{fig:sync}).
+
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[font=\footnotesize, node distance=3.5mm]
+  \node[box, text width=1.6cm] (gv) {Giảng viên\\\scriptsize xuất bản};
+  \node[box, right=of gv, text width=2.3cm] (api) {API\\\scriptsize ghi MinIO + dòng LMS};
+  \node[box, right=of api, text width=1.9cm] (cdc) {WAL $\rightarrow$ Debezium $\rightarrow$ Kafka};
+  \node[hl, right=of cdc, text width=2.8cm] (cs) {content-sync\\\scriptsize \texttt{SyncContentChange}};
+  \node[box, right=of cs, text width=2.5cm] (out) {Redis cache\\OpenSearch\\\scriptsize \texttt{content.*} events};
+  \draw[arr] (gv) -- (api); \draw[arr] (api) -- (cdc); \draw[arr] (cdc) -- (cs); \draw[arr] (cs) -- (out);
+  \node[anchor=north, text width=13cm, align=center, font=\scriptsize] (steps) at ($(gv.west |- out.south)!0.5!(out.east |- out.south) + (0,-3mm)$) {\textit{Các bước trong content-sync:}\\1.~Lấy đối tượng \quad 2.~Vô hiệu hoá cache Redis \quad 3.~Chia đoạn + nhúng vector \quad 4.~Dọn phiên bản khác\\5.~Làm mới mục tìm kiếm \quad 6.~Làm ấm cache \quad 7.~Phát sự kiện};
+\end{tikzpicture}
+\caption{Đồng bộ nội dung BR8 dựa trên CDC}
+\label{fig:sync}
+\end{figure}
+
+\textbf{Idempotent theo trạng thái chỉ mục, không theo thứ tự đến.} \code{sync_policy} chỉ áp dụng phiên bản mới hơn phiên bản đã chỉ mục; bằng nhau là trùng lặp, cũ hơn là lỗi thời. Do đó phát lại CDC, khởi động lại hay backfill đều an toàn. Tìm kiếm chỉ trả các đoạn thuộc phiên bản hiện hành của mỗi nội dung, nên việc dọn dẹp chậm không bao giờ làm lộ văn bản cũ.
+
+\textbf{Tìm kiếm lai.} OpenSearch lưu các đoạn văn bản với chỉ mục BM25 và vector \code{knn_vector} (HNSW~\cite{malkov2018hnsw}). Kết quả hai phía được hợp nhất bằng reciprocal rank fusion~\cite{cormack2009rrf} phía client. Vector hiện được sinh bởi một bộ nhúng băm tất định (không cần tải mô hình, không cần GPU), nằm sau cổng \code{Embedder}; thay bằng mô hình sentence-embedding chỉ cần một adapter mới và một lần reindex. Job Spark \code{edu batch content-reindex} phân phối \emph{cùng} use case theo từng nhóm nội dung để backfill và ghi \code{silver.content_chunks}.
+
+\paragraph{Xu hướng tương tác}
+\label{sec:br8-trend}
+
+Điểm tương tác của mỗi học viên trong một cửa sổ là tổng có trọng số của các hoạt động (Bảng~\ref{tab:weights}). Mart \code{mart.engagement_trend} tính 4 cửa sổ tuần (thứ Hai đến Chủ nhật) cho mỗi học viên × khoá học.
+
+\begin{table}[H]
+\centering\small
+\caption{Trọng số hoạt động trong điểm tương tác (\texttt{EngagementWeights})}\label{tab:weights}
+\begin{tabular}{@{}lll@{}}
+\toprule
+\textbf{Nhóm} & \textbf{Động từ (verb)} & \textbf{Trọng số} \\
+\midrule
+Đăng nhập & \code{logged_in} & 1,0 \\
+Xem bài & \code{viewed}, \code{played}, \code{completed} & 1,0 \\
+Làm bài & \code{attempted}, \code{submitted} & 2,0 \\
+Thảo luận & \code{posted} & 1,5 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Gọi $a, b, c$ là điểm của ba cửa sổ gần nhất theo thứ tự thời gian, và $r = 0{,}30$ là tỷ lệ giảm. Học viên được đánh dấu \emph{đang giảm} khi
+\[
+  a > 0 \;\wedge\; b \le a\,(1 - r) \;\wedge\; c \le b\,(1 - r),
+\]
+tức là điểm giảm ít nhất 30\% trong \emph{mỗi} cửa sổ của hai tuần liên tiếp. Lớp phủ ``hôm nay'' dùng đúng các trọng số này, nên giá trị trong ngày bằng giá trị mà kho dữ liệu sẽ tính vào ngày hôm sau.

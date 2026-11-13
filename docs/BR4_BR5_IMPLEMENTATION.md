@@ -305,18 +305,11 @@ and alert status where relevant. Missing/incorrect tokens return 401, incorrect
 roles or explicit out-of-scope courses return 403, unavailable scoped students
 return 404, invalid queries return 422 and unavailable storage returns 503.
 
-`EDU_BR45_AUTH` is a server-configured JSON mapping of bearer tokens to identity,
-role and explicit course scopes. Client-supplied role/course claims are not
-trusted. Learner activity writes derive student identity from the token and
-require active enrollment. Tokens are entered in the view and stored only in
-the tab's session storage. The existing application had no shared identity
-provider; this is a deliberately small course-scoped local authentication layer.
-
-Compose provides public **local demonstration** identities when no token mapping
-is configured: `instructor-demo`, `advisor-demo`, and `learner-demo`. The advisor
-and learner identities are restricted to `c-py-201`. Configure private tokens
-for a shared deployment. Authentication applies to the new persistent BR4/BR5
-paths; unrelated pre-existing demo endpoints retain their previous behavior.
+`EDU_BR45_AUTH` maps script tokens to identities, roles and course scopes.
+Learner activity writes derive student identity from the token and require
+active enrollment. Staff sign in with accounts provisioned through
+`EDU_STAFF_ACCOUNTS`. The API checks course scope for both browser sessions
+and Bearer requests. [Staff account setup](STAFF_AUTH.md)
 
 The Instructor dashboard shows question/test versions, valid attempts, distinct
 students, first/latest rates, invalid/infrastructure counts and review reasons.
@@ -456,20 +449,20 @@ docker compose exec -T br45-cdc python -m edu_platform.br45.cli seed
 docker compose exec -T br45-cdc python -m edu_platform.br45.cli br4
 ```
 
-Open `http://localhost:8000/instructor`, enter `instructor-demo`, and click
-Connect. Choose Python for Data in **Assessment course**, then select the
+Sign in to `http://localhost:8000/instructor` with the provisioned Instructor account.
+Choose Python for Data in **Assessment course**, then select the
 synthetic sum-even question. Verify 24 valid attempts, two passes, 24 students
 and the suspicious test's explicit review reason. The separate outer Course
 selector continues to control the other instructors' video/content demo panels.
 
 ```bash
-curl -s -H 'Authorization: Bearer instructor-demo' \
+curl -s -H "Authorization: Bearer $BR45_VERIFY_INSTRUCTOR_TOKEN" \
   http://localhost:8000/api/instructor/courses/c-py-201/questions/statistics
 ```
 
 ### Inspect BR5 and demonstrate recovery
 
-Open `http://localhost:8000/advisor`, enter `advisor-demo`, and click Connect.
+Sign in to `http://localhost:8000/advisor` with the provisioned Advisor account.
 Inspect `br45-demo-at-risk`, its four explanations and its intervention alert.
 Acknowledge the alert, then run:
 
@@ -482,9 +475,9 @@ becomes four, score becomes 50, and the open alert resolves. Select the learner
 to inspect the persisted risk trend. No local UI score calculation is used.
 
 ```bash
-curl -s -H 'Authorization: Bearer advisor-demo' \
+curl -s -H "Authorization: Bearer $BR45_VERIFY_ADVISOR_TOKEN" \
   http://localhost:8000/api/advisor/students/br45-demo-at-risk/risk
-curl -s -H 'Authorization: Bearer advisor-demo' \
+curl -s -H "Authorization: Bearer $BR45_VERIFY_ADVISOR_TOKEN" \
   http://localhost:8000/api/analytics/diagnostics
 curl -s http://localhost:8083/connectors/br45-postgres-cdc/status
 ```
@@ -528,7 +521,7 @@ docker compose exec -T postgres createdb -U lms br45_test
 EDU_BR45_TEST_DSN=postgresql://lms:lms@localhost:5433/br45_test \
   .venv/bin/python -m pytest tests/integration/test_br45.py
 
-# Requires the running profile and the 24-student seed.
+# Requires the running profile, the 24-student seed and the BR45_VERIFY_*_TOKEN variables.
 .venv/bin/python -m edu_platform.br45.verify --restart
 EDU_BR45_E2E=1 .venv/bin/python -m pytest tests/e2e/test_br45.py
 

@@ -1,4 +1,5 @@
 import type * as T from "./types";
+import type { StaffIdentity, StaffRole } from "./analytics";
 
 export class ApiError extends Error {
   constructor(public status: number, message: string) {
@@ -8,8 +9,8 @@ export class ApiError extends Error {
 
 async function request<R>(path: string, init?: RequestInit): Promise<R> {
   const res = await fetch(`/api${path}`, {
-    headers: { "Content-Type": "application/json", ...(init?.headers ?? {}) },
     ...init,
+    headers: { "Content-Type": "application/json", ...(init?.headers ?? {}) },
   });
   if (!res.ok) {
     let detail = res.statusText;
@@ -28,10 +29,20 @@ async function request<R>(path: string, init?: RequestInit): Promise<R> {
 const get = <R>(path: string) => request<R>(path);
 const post = <R>(path: string, body?: unknown) =>
   request<R>(path, { method: "POST", body: body === undefined ? undefined : JSON.stringify(body) });
+const staffGet = <R>(role: StaffRole, path: string) =>
+  request<R>(path, { headers: { "X-Staff-Role": role } });
 
 export const api = {
   health: () => get<{ status: string; mode: string }>("/health"),
   overview: () => get<T.Overview>("/demo/overview"),
+  staff: {
+    current: (role: StaffRole, signal: AbortSignal) =>
+      request<StaffIdentity>(`/auth/staff/${role}/session`, { signal }),
+    login: (role: StaffRole, username: string, password: string) =>
+      post<StaffIdentity>(`/auth/staff/${role}/session`, { username, password }),
+    logout: (role: StaffRole) =>
+      request<void>(`/auth/staff/${role}/session`, { method: "DELETE" }),
+  },
   classroom: {
     current: () => get<T.ClassroomStudent>("/classroom/student/session"),
     login: (username: string, password: string) =>
@@ -80,20 +91,22 @@ export const api = {
 
   instructor: {
     assessments: (courseId?: string) =>
-      get<T.AssessmentRow[]>(`/instructor/assessments${courseId ? `?course_id=${encodeURIComponent(courseId)}` : ""}`),
-    heatmap: (contentId: string) => get<T.Heatmap>(`/instructor/videos/${contentId}/heatmap`),
-    engagement: (courseId: string) => get<T.Engagement>(`/instructor/courses/${courseId}/engagement`),
-    content: (contentId: string) => get<T.ContentRecord>(`/instructor/content/${contentId}`),
+      staffGet<T.AssessmentRow[]>("instructor", `/instructor/assessments${courseId ? `?course_id=${encodeURIComponent(courseId)}` : ""}`),
+    heatmap: (contentId: string) => staffGet<T.Heatmap>("instructor", `/instructor/videos/${contentId}/heatmap`),
+    engagement: (courseId: string) => staffGet<T.Engagement>("instructor", `/instructor/courses/${courseId}/engagement`),
+    content: (contentId: string) => staffGet<T.ContentRecord>("instructor", `/instructor/content/${contentId}`),
     publish: (contentId: string, body: string, title?: string) =>
-      post<T.PublishResult>(`/instructor/content/${contentId}`, { body, title }),
+      request<T.PublishResult>(`/instructor/content/${contentId}`, {
+        method: "POST", body: JSON.stringify({ body, title }), headers: { "X-Staff-Role": "instructor" },
+      }),
   },
 
   advisor: {
-    alerts: () => get<T.RiskAlert[]>("/advisor/demo-alerts"),
-    risk: (learnerId: string) => get<T.RiskDetail>(`/advisor/learners/${learnerId}/risk`),
+    alerts: () => staffGet<T.RiskAlert[]>("advisor", "/advisor/demo-alerts"),
+    risk: (learnerId: string) => staffGet<T.RiskDetail>("advisor", `/advisor/learners/${learnerId}/risk`),
   },
 
   admin: {
-    progress: (orgId: string) => get<T.OrgProgress>(`/admin/organisations/${orgId}/progress`),
+    progress: (orgId: string) => staffGet<T.OrgProgress>("admin", `/admin/organisations/${orgId}/progress`),
   },
 };

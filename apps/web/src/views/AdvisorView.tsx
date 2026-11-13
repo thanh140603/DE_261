@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { analyticsApi, type CoursePolicy, type DropoutAlert, type RiskPolicy, type StudentRisk } from "../analytics";
+import { type AnalyticsClient, type CoursePolicy, type DropoutAlert, type RiskPolicy, type StudentRisk } from "../analytics";
 import { AnalyticsAccess, AnalyticsFreshness, localDateTime, useAnalyticsPolling, utcDay } from "../components/AnalyticsAccess";
 import { LineChart, TipRow } from "../components/charts";
 import { MeasuredBenchmarks, ReplayControl } from "../components/ReplayAnalytics";
@@ -38,14 +38,14 @@ export function AdvisorView() {
       <PageHead br="BR5" title="Learners to support">
         Risk points come from simple rules on activity, deadlines and submissions. They show who may need a check-in; they are not a dropout probability.
       </PageHead>
-      <AnalyticsAccess role="advisor">{(token, session) => <Results token={token} courses={session.courses}
+      <AnalyticsAccess role="advisor">{(client, session) => <Results client={client} courses={session.courses}
         replay={session.replay} benchmarks={session.replay || session.classroom} />}</AnalyticsAccess>
     </>
   );
 }
 
-function Results({ token, courses, replay, benchmarks }: {
-  token: string; courses: { id: string; title: string }[]; replay?: boolean; benchmarks?: boolean;
+function Results({ client, courses, replay, benchmarks }: {
+  client: AnalyticsClient; courses: { id: string; title: string }[]; replay?: boolean; benchmarks?: boolean;
 }) {
   const [course, setCourse] = useState(courses[0]?.id ?? "");
   const [level, setLevel] = useState("");
@@ -54,10 +54,9 @@ function Results({ token, courses, replay, benchmarks }: {
   const [end, setEnd] = useState("");
   const [offset, setOffset] = useState(0);
   const [student, setStudent] = useState("");
-  const client = analyticsApi(token);
   const range = { start: utcDay(start), end: utcDay(end, true) };
-  const risks = useFetch(course ? () => client.risks(course, { level, ...range, offset, limit: 20 }) : null, [token, course, level, start, end, offset]);
-  const alerts = useFetch(course ? () => client.alerts({ course_id: course, level, ...range, limit: 100 }) : null, [token, course, level, start, end]);
+  const risks = useFetch(course ? () => client.risks(course, { level, ...range, offset, limit: 20 }) : null, [client, course, level, start, end, offset]);
+  const alerts = useFetch(course ? () => client.alerts({ course_id: course, level, ...range, limit: 100 }) : null, [client, course, level, start, end]);
   useAnalyticsPolling(risks.reload);
   useAnalyticsPolling(alerts.reload);
   const refresh = () => Promise.all([risks.reload(), alerts.reload()]);
@@ -96,11 +95,11 @@ function Results({ token, courses, replay, benchmarks }: {
         </label>
         <label className="field">From (UTC)<input className="input" type="date" value={start} onChange={(e) => change(setStart, e.target.value)} /></label>
         <label className="field">Through (UTC)<input className="input" type="date" value={end} onChange={(e) => change(setEnd, e.target.value)} /></label>
-        {replay ? <ReplayControl token={token} refresh={refresh} />
+        {replay ? <ReplayControl client={client} refresh={refresh} />
           : <Btn icon="refresh" onClick={() => void refresh()}>Refresh</Btn>}
       </div>
-      {!replay && <AnalyticsFreshness token={token} />}
-      {!replay && course && <PolicyEditor key={course} token={token} course={course} />}
+      {!replay && <AnalyticsFreshness client={client} />}
+      {!replay && course && <PolicyEditor key={course} client={client} course={course} />}
       <div className="tiles">
         <Tile label="Learners monitored" value={risks.data?.summary.monitored ?? "–"}
           delta={replay ? "from the latest replay stage" : "refreshes every 5 s"} />
@@ -150,20 +149,19 @@ function Results({ token, courses, replay, benchmarks }: {
             <Pager offset={offset} total={risks.data?.total ?? 0} onChange={setOffset} />
           </Status>
         </Card>
-        {selected ? <Detail token={token} course={course} row={selected} alert={alertOf.get(selected.student_id) ?? null} onAlertChange={() => void alerts.reload()} replay={replay} />
+        {selected ? <Detail client={client} course={course} row={selected} alert={alertOf.get(selected.student_id) ?? null} onAlertChange={() => void alerts.reload()} replay={replay} />
           : <Card className="sticky"><p className="empty">Select a learner to see the signals behind the score.</p></Card>}
       </div>
-      {benchmarks && <MeasuredBenchmarks token={token} requirement="BR5" />}
+      {benchmarks && <MeasuredBenchmarks client={client} requirement="BR5" />}
     </>
   );
 }
 
-function Detail({ token, course, row, alert, onAlertChange, replay }: { token: string; course: string; row: StudentRisk; alert: DropoutAlert | null; onAlertChange: () => void; replay?: boolean }) {
-  const client = analyticsApi(token);
+function Detail({ client, course, row, alert, onAlertChange, replay }: { client: AnalyticsClient; course: string; row: StudentRisk; alert: DropoutAlert | null; onAlertChange: () => void; replay?: boolean }) {
   const toast = useToast();
   const replayAt = row.student_name ? row.evaluated_at : undefined;
-  const detail = useFetch(() => client.student(row.student_id, { course_id: course }), [token, course, row.student_id, replayAt]);
-  const history = useFetch(() => client.history(row.student_id, { course_id: course, limit: 50 }), [token, course, row.student_id, replayAt]);
+  const detail = useFetch(() => client.student(row.student_id, { course_id: course }), [client, course, row.student_id, replayAt]);
+  const history = useFetch(() => client.history(row.student_id, { course_id: course, limit: 50 }), [client, course, row.student_id, replayAt]);
   useAnalyticsPolling(detail.reload);
   useAnalyticsPolling(history.reload);
   const action = useAction(async (id: string, kind: "acknowledge" | "resolve") => {
@@ -238,18 +236,17 @@ function Detail({ token, course, row, alert, onAlertChange, replay }: { token: s
             </div>
           </div>
           {action.error && <div className="mt"><Callout tone="bad">{action.error}</Callout></div>}
-          {!replay && <AlertNotes key={alert.id} token={token} alertId={alert.id} />}
+          {!replay && <AlertNotes key={alert.id} client={client} alertId={alert.id} />}
         </>
       )}
     </section>
   );
 }
 
-function AlertNotes({ token, alertId }: { token: string; alertId: string }) {
+function AlertNotes({ client, alertId }: { client: AnalyticsClient; alertId: string }) {
   const [draft, setDraft] = useState("");
   const [requestKey, setRequestKey] = useState(() => crypto.randomUUID());
-  const client = analyticsApi(token);
-  const notes = useFetch(() => client.notes(alertId), [token, alertId]);
+  const notes = useFetch(() => client.notes(alertId), [client, alertId]);
   const save = useAction(async () => {
     await client.addNote(alertId, draft.trim(), requestKey);
     setDraft("");
@@ -284,9 +281,8 @@ const POLICY_FIELDS: Record<keyof RiskPolicy, string> = {
   cooldown_hours: "Cooldown (hours)", minimum_reference_events: "Minimum reference events",
 };
 
-function PolicyEditor({ token, course }: { token: string; course: string }) {
-  const client = analyticsApi(token);
-  const policy = useFetch(() => client.coursePolicy(course), [token, course]);
+function PolicyEditor({ client, course }: { client: AnalyticsClient; course: string }) {
+  const policy = useFetch(() => client.coursePolicy(course), [client, course]);
   const [draft, setDraft] = useState<CoursePolicy | null>(null);
   const save = useAction(async (version: CoursePolicy) => {
     await client.updatePolicy(course, version.version, version.parameters);

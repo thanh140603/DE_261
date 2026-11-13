@@ -1,9 +1,11 @@
+import json
 from datetime import timedelta
 
 import httpx
 import pytest
 from fastapi import FastAPI
 
+from edu_platform.br45.config import settings
 from edu_platform.br45.replay import COURSES, INTERVAL, Replay, assessment_rows
 from edu_platform.br45.replay_api import router
 
@@ -46,7 +48,13 @@ def test_shared_replay_coalesces_timer_and_button_then_restarts_the_scenario():
 
 
 @pytest.mark.asyncio
-async def test_dashboard_contracts_share_replay_and_keep_benchmarks_fixed():
+async def test_dashboard_contracts_share_replay_and_keep_benchmarks_fixed(monkeypatch, request):
+    monkeypatch.setenv("EDU_BR45_AUTH", json.dumps({
+        f"{role}-demo": {"id": role, "role": role, "courses": list(COURSES)}
+        for role in ("instructor", "advisor")
+    }))
+    settings.cache_clear()
+    request.addfinalizer(settings.cache_clear)
     app = FastAPI()
     app.include_router(router, prefix="/api")
     app.state.br45_replay = Replay(lambda: 0)

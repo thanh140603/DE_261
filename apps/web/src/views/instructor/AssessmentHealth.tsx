@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { analyticsApi, type AssessmentStat } from "../../analytics";
+import { type AnalyticsClient, type AssessmentStat } from "../../analytics";
 import { AnalyticsAccess, localDateTime, useAnalyticsPolling, utcDay } from "../../components/AnalyticsAccess";
 import { HBars } from "../../components/charts";
 import { Icon } from "../../components/Icon";
@@ -27,14 +27,14 @@ export function AssessmentHealth() {
       <PageHead br="BR4" title="Assessment health">
         Questions and test cases whose pass rate is abnormal: below the threshold, far below the other required tests, or dropping since the previous window.
       </PageHead>
-      <AnalyticsAccess role="instructor">{(token, session) => <Results token={token} courses={session.courses}
+      <AnalyticsAccess role="instructor">{(client, session) => <Results client={client} courses={session.courses}
         replay={session.replay} benchmarks={session.replay || session.classroom} />}</AnalyticsAccess>
     </>
   );
 }
 
-function Results({ token, courses, replay, benchmarks }: {
-  token: string; courses: { id: string; title: string }[]; replay?: boolean; benchmarks?: boolean;
+function Results({ client, courses, replay, benchmarks }: {
+  client: AnalyticsClient; courses: { id: string; title: string }[]; replay?: boolean; benchmarks?: boolean;
 }) {
   const [course, setCourse] = useInstructorCourse(courses);
   const [state, setState] = useState("");
@@ -44,10 +44,10 @@ function Results({ token, courses, replay, benchmarks }: {
   const [offset, setOffset] = useState(0);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const filters = { status: state, severity, start: utcDay(start), end: utcDay(end, true), offset, limit: 20 };
-  const q = useFetch(course ? () => analyticsApi(token).questions(course, filters) : null, [token, course, state, severity, start, end, offset]);
+  const q = useFetch(course ? () => client.questions(course, filters) : null, [client, course, state, severity, start, end, offset]);
   useAnalyticsPolling(q.reload);
   const requestRefresh = useAction(async () => {
-    await analyticsApi(token).refresh(course, filters.start, filters.end);
+    await client.refresh(course, filters.start, filters.end);
     await q.reload();
   });
   const publication = q.data?.materialization_status;
@@ -78,7 +78,7 @@ function Results({ token, courses, replay, benchmarks }: {
         </label>
         <label className="field">From (UTC)<input className="input" type="date" value={start} onChange={(e) => change(setStart, e.target.value)} /></label>
         <label className="field">Through (UTC)<input className="input" type="date" value={end} onChange={(e) => change(setEnd, e.target.value)} /></label>
-        {replay ? <ReplayControl token={token} refresh={q.reload} />
+        {replay ? <ReplayControl client={client} refresh={q.reload} />
           : <Btn icon="refresh" disabled={!course || requestRefresh.pending}
               onClick={() => void requestRefresh.run()}>Refresh</Btn>}
       </div>
@@ -129,15 +129,15 @@ function Results({ token, courses, replay, benchmarks }: {
             <Pager offset={offset} total={q.data?.total ?? 0} onChange={setOffset} />
           </Status>
         </Card>
-        {selected ? <Detail token={token} row={selected} window={{ start: q.data?.window_start, end: q.data?.window_end }} /> : <Card className="sticky"><p className="empty">Select a question to see its test cases.</p></Card>}
+        {selected ? <Detail client={client} row={selected} window={{ start: q.data?.window_start, end: q.data?.window_end }} /> : <Card className="sticky"><p className="empty">Select a question to see its test cases.</p></Card>}
       </div>
-      {benchmarks && <MeasuredBenchmarks token={token} requirement="BR4" />}
+      {benchmarks && <MeasuredBenchmarks client={client} requirement="BR4" />}
     </>
   );
 }
 
-function Detail({ token, row, window }: { token: string; row: AssessmentStat; window: { start?: string; end?: string } }) {
-  const cases = useFetch(() => analyticsApi(token).cases(row.question_id, { version: row.question_version, start: window.start, end: window.end, limit: 100 }), [token, row.question_id, row.question_version, window.start, window.end]);
+function Detail({ client, row, window }: { client: AnalyticsClient; row: AssessmentStat; window: { start?: string; end?: string } }) {
+  const cases = useFetch(() => client.cases(row.question_id, { version: row.question_version, start: window.start, end: window.end, limit: 100 }), [client, row.question_id, row.question_version, window.start, window.end]);
   useAnalyticsPolling(cases.reload);
   const caseRows = cases.data?.items ?? [];
   const threshold = caseRows[0]?.threshold;

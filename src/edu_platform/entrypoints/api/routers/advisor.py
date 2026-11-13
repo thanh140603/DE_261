@@ -4,6 +4,7 @@ from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException
 
+from edu_platform.br45.auth import Advisor
 from edu_platform.demo import seed
 from edu_platform.demo.container import DemoPlatform
 from edu_platform.entrypoints.api.deps import platform
@@ -12,18 +13,22 @@ router = APIRouter(prefix="/advisor", tags=["advisor"])
 
 
 @router.get("/demo-alerts", deprecated=True)
-async def alerts(p: DemoPlatform = Depends(platform)) -> list[dict[str, Any]]:
-    return list(reversed(p.risk_alerts))
+async def alerts(user: Advisor, p: DemoPlatform = Depends(platform)) -> list[dict[str, Any]]:
+    return [row for row in reversed(p.risk_alerts) if row["course_id"] in user.courses]
 
 
 @router.get("/learners/{learner_id}/risk")
-async def learner_risk(learner_id: str, p: DemoPlatform = Depends(platform)) -> dict[str, Any]:
+async def learner_risk(
+    learner_id: str, user: Advisor, p: DemoPlatform = Depends(platform)
+) -> dict[str, Any]:
     try:
         learner = seed.learner(learner_id)
     except StopIteration as exc:
         raise HTTPException(404, f"unknown learner {learner_id}") from exc
     courses = []
     for course_id in learner.course_ids:
+        if course_id not in user.courses:
+            continue
         profile = p.risk_repo.get(f"{learner_id}:{course_id}")
         courses.append(
             {
@@ -50,6 +55,8 @@ async def learner_risk(learner_id: str, p: DemoPlatform = Depends(platform)) -> 
                 else None,
             }
         )
+    if not courses:
+        raise HTTPException(403, "Learner is outside your authorized courses")
     policy = p.risk_policy
     return {
         "learner_id": learner_id,

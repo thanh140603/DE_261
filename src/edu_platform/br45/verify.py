@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import subprocess
 import time
 import uuid
@@ -45,6 +46,14 @@ def run(
     output: str = "docs/evidence/br45",
     restart: bool = False,
 ) -> dict[str, Any]:
+    headers = {}
+    for role in ("advisor", "instructor"):
+        variable = f"BR45_VERIFY_{role.upper()}_TOKEN"
+        token = os.environ.get(variable)
+        if not token:
+            raise ValueError(f"Set {variable} to a token configured in EDU_BR45_AUTH")
+        headers[role] = {"Authorization": "Bearer " + token}
+    advisor, instructor = headers["advisor"], headers["instructor"]
     cfg = settings()
     with connect() as conn:
         at = timestamp(state(conn, "evaluation_clock"))
@@ -120,8 +129,6 @@ def run(
                 (sid,),
             )
         )
-    advisor = {"Authorization": "Bearer advisor-demo"}
-    instructor = {"Authorization": "Bearer instructor-demo"}
     with httpx.Client(base_url=base_url, timeout=30) as api:
         response = api.get("/api/advisor/alerts", headers=advisor, params={"course_id": COURSE})
         response.raise_for_status()

@@ -76,7 +76,10 @@ services:
 
   br45-bench-api:
     image: ${BR45_BENCH_API_IMAGE:-de261/demo:local}
-    environment: *benchmark
+    environment:
+      <<: *benchmark
+      EDU_STAFF_ACCOUNTS: '${EDU_STAFF_ACCOUNTS:-[]}'
+      EDU_STAFF_ORIGIN: ${EDU_STAFF_ORIGIN:-}
     ports: ["127.0.0.1:18001:8000"]
     volumes: ["./src:/app/src:ro"]
     depends_on:

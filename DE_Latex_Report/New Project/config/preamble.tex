@@ -1,0 +1,149 @@
+% =====================================================================
+%  Preamble — biên dịch bằng XeLaTeX (tectonic, latexmk -xelatex, Overleaf: XeLaTeX)
+% =====================================================================
+\usepackage[a4paper,top=2.9cm,bottom=2.5cm,left=3cm,right=2cm,
+  headheight=40pt,headsep=13pt,footskip=27pt]{geometry}
+% Extra stretch so long English terms and code names in Vietnamese text never push past the margin
+\setlength{\emergencystretch}{1.5em}
+
+\PassOptionsToPackage{obeyspaces,spaces}{url}
+
+% ---- Phông chữ và tiếng Việt ----
+\usepackage{fontspec}
+\usepackage[vietnamese]{babel}
+\addto\captionsvietnamese{\renewcommand{\refname}{Tài liệu tham khảo}}
+\setmainfont{texgyretermes}[
+  Extension=.otf, UprightFont=*-regular, BoldFont=*-bold,
+  ItalicFont=*-italic, BoldItalicFont=*-bolditalic]
+\setsansfont{texgyreheros}[
+  Extension=.otf, UprightFont=*-regular, BoldFont=*-bold,
+  ItalicFont=*-italic, BoldItalicFont=*-bolditalic]
+\setmonofont{texgyrecursor}[
+  Extension=.otf, UprightFont=*-regular, BoldFont=*-bold,
+  ItalicFont=*-italic, BoldItalicFont=*-bolditalic, Scale=0.95]
+
+% ---- Bố cục ----
+\usepackage{setspace}
+\setstretch{1.3}
+\setlength{\parskip}{4pt}
+\setlength{\parindent}{0pt}
+\usepackage{enumitem}
+\setlist{itemsep=2pt,topsep=4pt,parsep=0pt}
+
+% ---- Màu (bảng màu biểu đồ đã kiểm định: slot 1-4 + trạng thái) ----
+\usepackage[table]{xcolor}
+\definecolor{brand}{HTML}{1F7A5A}
+\definecolor{brandsoft}{HTML}{E2F1EA}
+\definecolor{ink}{HTML}{141B24}
+\definecolor{muted}{HTML}{687282}
+\definecolor{rulegray}{HTML}{CBD2DA}
+\definecolor{panel}{HTML}{F3F5F7}
+\definecolor{sone}{HTML}{2A78D6}
+\definecolor{stwo}{HTML}{EB6834}
+\definecolor{sthree}{HTML}{1BAF7A}
+\definecolor{sfour}{HTML}{EDA100}
+\definecolor{sdim}{HTML}{9EC5F4}
+\definecolor{stgood}{HTML}{0CA30C}
+\definecolor{stcrit}{HTML}{D03B3B}
+\definecolor{bronze}{HTML}{B07A47}
+\definecolor{silver}{HTML}{8D99A6}
+\definecolor{gold}{HTML}{C9A227}
+
+% ---- Tiêu đề mục ----
+\usepackage{titlesec}
+\titleformat{\section}{\normalfont\Large\bfseries}{\thesection}{0.8em}{}
+\titleformat{\subsection}{\normalfont\large\bfseries}{\thesubsection}{0.8em}{}
+\titleformat{\subsubsection}{\normalfont\normalsize\bfseries}{\thesubsubsection}{0.8em}{}
+\titleformat{\paragraph}[block]{\normalfont\normalsize\bfseries\itshape}{\theparagraph}{0.8em}{}
+\titlespacing*{\paragraph}{0pt}{1.25ex plus 0.3ex minus 0.2ex}{0.5ex}
+\setcounter{secnumdepth}{4}
+\setcounter{tocdepth}{3}
+
+% ---- Đầu trang / chân trang ----
+\usepackage{fancyhdr}
+\usepackage{lastpage}
+\newcommand{\hcmutlogo}{figures/hcmut-logo.png}
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{%
+  \raisebox{-0.5\height}{\includegraphics[width=8mm]{\hcmutlogo}}%
+  \hspace{0.75em}%
+  \raisebox{-0.5\height}{\small\bfseries
+    \shortstack[l]{Trường Đại học Bách khoa TP. Hồ Chí Minh\\
+      Khoa Khoa học và Kỹ thuật Máy tính}}%
+}
+\fancyfoot[L]{\footnotesize Kỹ thuật dữ liệu (\coursecode) -- \semester}
+\fancyfoot[R]{\footnotesize Trang \thepage/\pageref*{LastPage}}
+\renewcommand{\headrulewidth}{0.3pt}
+\renewcommand{\footrulewidth}{0.3pt}
+
+% ---- Bảng, hình, mã nguồn ----
+\usepackage{graphicx}
+\usepackage{float}
+\usepackage{booktabs}
+\usepackage{tabularx}
+\usepackage{longtable}
+\usepackage{array}
+\usepackage{multirow}
+\usepackage{makecell}
+\newcolumntype{L}[1]{>{\raggedright\arraybackslash}p{#1}}
+\newcolumntype{Y}{>{\raggedright\arraybackslash}X}
+\renewcommand{\arraystretch}{1.25}
+\usepackage[font=small,labelfont={bf,color=ink},labelsep=period,skip=6pt]{caption}
+\usepackage{subcaption}
+\usepackage{amsmath,amssymb}
+
+\usepackage{listings}
+\lstset{
+  basicstyle=\ttfamily\footnotesize,
+  backgroundcolor=\color{panel},
+  frame=single, rulecolor=\color{rulegray},
+  framesep=4pt, xleftmargin=6pt, xrightmargin=6pt,
+  breaklines=true, columns=fullflexible, keepspaces=true,
+  showstringspaces=false, tabsize=2,
+  keywordstyle=\color{sone}\bfseries, commentstyle=\color{muted}\itshape,
+  stringstyle=\color{stwo},
+}
+\lstdefinelanguage{yaml}{keywords={true,false,null}, comment=[l]\#, morestring=[b]"}
+
+% ---- Sơ đồ, biểu đồ ----
+\usepackage{tikz}
+\usetikzlibrary{positioning,arrows.meta,shapes.geometric,shapes.misc,fit,backgrounds,calc,decorations.pathreplacing}
+\usepackage{pgfplots}
+\pgfplotsset{compat=1.18}
+\usepgfplotslibrary{groupplots}
+\pgfkeys{/pgf/number format/.cd, use comma, 1000 sep={.}}  % 1.000 và 92,1 theo cách viết tiếng Việt
+\pgfplotsset{
+  every axis/.append style={
+    font=\small, axis line style={rulegray}, tick style={rulegray},
+    grid style={draw=rulegray!45}, major grid style={draw=rulegray!45},
+    legend style={draw=none, fill=none, font=\small},
+    label style={font=\small}, tick label style={font=\footnotesize},
+  },
+}
+\tikzset{
+  box/.style={draw=rulegray, rounded corners=3pt, fill=white, align=center, font=\footnotesize, inner sep=4pt, minimum height=8mm},
+  stage/.style={box, fill=panel},
+  hl/.style={box, draw=brand, fill=brandsoft},
+  arr/.style={-{Stealth[length=2.2mm]}, draw=muted, line width=0.6pt},
+  grp/.style={draw=rulegray, dashed, rounded corners=5pt, inner sep=6pt},
+  grplabel/.style={font=\scriptsize\bfseries\color{muted}, anchor=south west},
+}
+
+% ---- Hộp ghi chú ----
+\usepackage[most]{tcolorbox}
+\newtcolorbox{notebox}[1][]{colback=brandsoft, colframe=brand, boxrule=0.6pt, arc=2pt,
+  left=6pt, right=6pt, top=4pt, bottom=4pt, fonttitle=\bfseries\small, #1}
+\newtcolorbox{warnbox}[1][]{colback=sfour!10, colframe=sfour!80!black, boxrule=0.6pt, arc=2pt,
+  left=6pt, right=6pt, top=4pt, bottom=4pt, fonttitle=\bfseries\small, #1}
+
+% ---- Lệnh tiện ích ----
+\newcommand{\br}[1]{\textbf{\color{sone}BR#1}}
+\newcommand{\en}[1]{\textit{#1}}
+
+% ---- Liên kết ----
+\usepackage[hidelinks,unicode]{hyperref}
+\usepackage{bookmark}
+\hypersetup{pdftitle={Báo cáo DE\_261 --- Nền tảng kỹ thuật dữ liệu cho giáo dục trực tuyến}}
+\usepackage{xurl}
+\DeclareUrlCommand\code{\def\UrlFont{\small\ttfamily}}  % ngắt dòng được tại . _ /

@@ -7,12 +7,10 @@ import json
 from collections.abc import Callable
 from datetime import UTC, datetime, timedelta
 from functools import lru_cache
-from hmac import compare_digest
 from statistics import mean
 from typing import Annotated, Any, Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
-from fastapi.security import HTTPAuthorizationCredentials
 from pydantic import AwareDatetime, BaseModel, Field
 
 from .api import (
@@ -20,13 +18,11 @@ from .api import (
     AnomalyState,
     Limit,
     Offset,
-    Principal,
     RiskLevel,
     Severity,
-    bearer,
     paged,
-    scope,
 )
+from .auth import Advisor, Instructor, User, scope
 from .contracts import timestamp
 from .db import ROOT
 from .outputs import Alert, Metric, Page, Risk, RiskPage, StudentRisk
@@ -35,42 +31,12 @@ from .replay import COURSES, Replay, assessment_rows
 router = APIRouter(tags=["BR4 / BR5 simulated replay"])
 
 
-async def principal(
-    credentials: Annotated[HTTPAuthorizationCredentials | None, Depends(bearer)],
-) -> Principal:
-    if credentials:
-        for role in ("instructor", "advisor"):
-            if compare_digest(credentials.credentials.encode(), f"{role}-demo".encode()):
-                return Principal(f"{role}-local", role, list(COURSES))
-    detail = (
-        "Invalid analytics access token" if credentials else "An analytics access token is required"
-    )
-    raise HTTPException(401, detail, headers={"WWW-Authenticate": "Bearer"})
-
-
-User = Annotated[Principal, Depends(principal)]
-
-
-async def instructor(user: User) -> Principal:
-    if user.role != "instructor":
-        raise HTTPException(403, "Instructor access required")
-    return user
-
-
-async def advisor(user: User) -> Principal:
-    if user.role != "advisor":
-        raise HTTPException(403, "Advisor access required")
-    return user
-
-
 async def replay(request: Request) -> Replay:
     engine: Replay = request.app.state.br45_replay
     engine.tick()
     return engine
 
 
-Instructor = Annotated[Principal, Depends(instructor)]
-Advisor = Annotated[Principal, Depends(advisor)]
 Engine = Annotated[Replay, Depends(replay)]
 
 
@@ -84,7 +50,11 @@ async def session(user: User) -> dict[str, Any]:
         "id": user.id,
         "role": user.role,
         "replay": True,
-        "courses": [{"id": course.id, "title": course.title} for course in COURSES.values()],
+        "courses": [
+            {"id": course.id, "title": course.title}
+            for course in COURSES.values()
+            if course.id in user.courses
+        ],
     }
 
 
@@ -95,6 +65,8 @@ async def replay_status(engine: Engine, user: User) -> dict[str, Any]:
 
 @router.post("/analytics/replay/advance")
 async def advance(body: Advance, engine: Engine, user: User) -> dict[str, Any]:
+    if user.role not in {"instructor", "advisor"}:
+        raise HTTPException(403, "Instructor or advisor access required")
     engine.tick(body.revision)
     return engine.status()
 
@@ -192,6 +164,8 @@ async def questions(
     sort: Literal["pass_rate", "students", "question"] = "pass_rate",
 ) -> dict[str, Any]:
     scope(user, course_id)
+    if course_id not in COURSES:
+        raise HTTPException(404, "Replay course not found")
     rows, _, first, last = assessment(engine, course_id, start, end)
     order: Callable[[dict[str, Any]], Any] = {
         "pass_rate": metric_order,
@@ -259,6 +233,8 @@ async def learners(
     limit: Limit = 50,
 ) -> dict[str, Any]:
     scope(user, course_id)
+    if course_id not in COURSES:
+        raise HTTPException(404, "Replay course not found")
     rows = engine.risks[course_id]
     levels = {
         key: sum(row["level"] == key for row in rows)

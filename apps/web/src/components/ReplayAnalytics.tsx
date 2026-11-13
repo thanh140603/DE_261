@@ -1,11 +1,10 @@
-import { analyticsApi } from "../analytics";
+import { type AnalyticsClient } from "../analytics";
 import { useAction, useFetch } from "../hooks";
 import { localDateTime, useAnalyticsPolling } from "./AnalyticsAccess";
 import { Badge, Btn, Callout, Card, Status } from "./ui";
 
-export function ReplayControl({ token, refresh }: { token: string; refresh: () => Promise<unknown> }) {
-  const client = analyticsApi(token);
-  const stage = useFetch(() => client.replayStatus(), [token]);
+export function ReplayControl({ client, refresh }: { client: AnalyticsClient; refresh: () => Promise<unknown> }) {
+  const stage = useFetch(() => client.replayStatus(), [client]);
   useAnalyticsPolling(stage.reload);
   const advance = useAction(async (revision: number) => {
     await client.advanceReplay(revision);
@@ -22,8 +21,8 @@ export function ReplayControl({ token, refresh }: { token: string; refresh: () =
   </div>;
 }
 
-export function MeasuredBenchmarks({ token, requirement }: { token: string; requirement: "BR4" | "BR5" }) {
-  const results = useFetch(() => analyticsApi(token).replayBenchmarks(), [token]);
+export function MeasuredBenchmarks({ client, requirement }: { client: AnalyticsClient; requirement: "BR4" | "BR5" }) {
+  const results = useFetch(() => client.replayBenchmarks(), [client]);
   const comparison = requirement === "BR4"
     ? results.data?.engine_comparison?.br4 : results.data?.engine_comparison?.br5;
   return <Card title="Measured benchmarks" sub="Historical local runs on synthetic inputs">

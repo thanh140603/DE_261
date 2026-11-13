@@ -13,7 +13,7 @@ from uuid import UUID
 from fastapi import APIRouter, HTTPException, Request, Response
 from pydantic import BaseModel, Field
 
-from edu_platform.br45.api import User
+from edu_platform.br45.auth import User
 from edu_platform.br45.classroom import lesson_activity, lesson_progress, password_hash
 from edu_platform.br45.db import connect
 from edu_platform.br45.replay_api import benchmark_results
