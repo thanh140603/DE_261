@@ -2,18 +2,18 @@
 <rect width="760" height="300" fill="white"/>
 <text x="20" y="25" font-family="sans-serif" font-size="18">BR4 measured aggregation time (mean milliseconds)</text>
 <text x="20" y="73" font-family="sans-serif">1,000 evaluations</text>
-<rect x="180" y="55" width="4.15" height="20" fill="#1f7a5a"/>
-<text x="590" y="71" font-family="sans-serif">SQL 27.7</text>
-<rect x="180" y="80" width="1.82" height="20" fill="#4a6fa5"/>
-<text x="590" y="96" font-family="sans-serif">Python 12.1</text>
+<rect x="180" y="55" width="4.04" height="20" fill="#1f7a5a"/>
+<text x="590" y="71" font-family="sans-serif">SQL 28.0</text>
+<rect x="180" y="80" width="1.93" height="20" fill="#4a6fa5"/>
+<text x="590" y="96" font-family="sans-serif">Python 13.4</text>
 <text x="20" y="148" font-family="sans-serif">10,000 evaluations</text>
-<rect x="180" y="130" width="40.51" height="20" fill="#1f7a5a"/>
-<text x="590" y="146" font-family="sans-serif">SQL 270.1</text>
-<rect x="180" y="155" width="18.16" height="20" fill="#4a6fa5"/>
-<text x="590" y="171" font-family="sans-serif">Python 121.1</text>
+<rect x="180" y="130" width="38.57" height="20" fill="#1f7a5a"/>
+<text x="590" y="146" font-family="sans-serif">SQL 266.7</text>
+<rect x="180" y="155" width="17.24" height="20" fill="#4a6fa5"/>
+<text x="590" y="171" font-family="sans-serif">Python 119.2</text>
 <text x="20" y="223" font-family="sans-serif">100,000 evaluations</text>
 <rect x="180" y="205" width="400.00" height="20" fill="#1f7a5a"/>
-<text x="590" y="221" font-family="sans-serif">SQL 2666.6</text>
-<rect x="180" y="230" width="198.98" height="20" fill="#4a6fa5"/>
-<text x="590" y="246" font-family="sans-serif">Python 1326.5</text>
+<text x="590" y="221" font-family="sans-serif">SQL 2765.5</text>
+<rect x="180" y="230" width="221.44" height="20" fill="#4a6fa5"/>
+<text x="590" y="246" font-family="sans-serif">Python 1531.0</text>
 </svg>

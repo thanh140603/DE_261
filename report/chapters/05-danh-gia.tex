@@ -65,9 +65,11 @@ Ba kịch bản BR1--BR3 chạy trên stack thật với Kafka, Redis, PostgreSQ
 
 Toàn bộ phép đo chạy ngày 13/11/2026 trên một máy Apple M1 Pro (10 nhân CPU: 8 nhân hiệu năng và 2 nhân tiết kiệm điện), 32 GB RAM, macOS 26.6.2. Docker Desktop (Docker Engine 29.7.2) được cấp 10 CPU và 8 GB RAM (máy ảo báo 7,75 GiB), kèm 1 GiB swap; container Hive Metastore dùng image amd64 nên chạy giả lập trên ARM. Stack Docker Compose đầy đủ (\code{docker-compose.yml} và \code{docker-compose.br13.yml} với các profile \code{br45}, \code{br678}, \code{airflow}, \code{pipelines}) gồm 30 container chạy lâu dài: Kafka, Kafka UI, Schema Registry, Debezium, PostgreSQL, Redis, MinIO, Hive Metastore cùng cơ sở dữ liệu của nó, Trino, Flink (jobmanager, taskmanager), Spark (master, worker), OpenSearch, Airflow (webserver, scheduler, metadata database), API demo, các dịch vụ notification, grading (ingest, worker, normalizer), push-sink, Mailpit, content-sync, telemetry-live, lakehouse-streaming, br45-cdc và br45-stream.
 
-Với 8 GB, stack đầy đủ không chạy ổn định: trong 25 phút đầu của đợt đo, khi thử các cấu hình 24--27 container, bộ nhớ khả dụng của máy ảo nhiều lần về gần 0 và Trino bị dừng đột ngột rồi tự khởi động lại 14 lần (dấu hiệu của OOM-kill). Vì vậy mỗi phép đo chạy trên một cấu hình rút gọn, và kết quả chỉ được giữ khi cấu hình đó đứng vững suốt cửa sổ đo. Thứ tự tạm dừng là: trước hết các job streaming mà phép đo không dùng (lakehouse-streaming, br45-cdc, br45-stream, telemetry-live); nếu vẫn thiếu bộ nhớ thì đến các dịch vụ nhàn rỗi không nằm trên đường đo (cụm Flink chưa có job, Kafka UI), rồi đến Airflow (mọi DAG đang tạm dừng); riêng build kho còn phải dừng OpenSearch và content-sync. Bảng~\ref{tab:env-services} ghi cấu hình của từng phép đo.
+Các phép đo chia thành hai đợt trong cùng ngày, trên cùng máy và cùng cấu hình Docker. Đợt đầu đo toàn bộ BR1--BR8 và phần so sánh Debezium với polling trên mã trước khi gộp nhánh BR4/BR5 (commit \code{4d70703}). Sau đó nhánh \code{Benchmark_BR45} được gộp vào \code{main} (commit \code{05bb5af}); lần gộp này thay đổi chính các đường mà hai benchmark BR4 và BR5 đo, nên riêng hai phép đo này được đo lại trên mã đã gộp: BR4 từ 21:17:33 đến 21:18:13 và BR5 từ 21:19:23 đến 21:20:42 ngày 13/11/2026 (giờ Việt Nam, UTC+7). Mọi số liệu của hai thí nghiệm quy mô BR4 và BR5 trong chương này lấy từ lần đo lại đó. Các phép đo còn lại (BR1--BR3, BR6--BR8, build kho, Debezium và polling) giữ kết quả của đợt đầu trên commit \code{4d70703} và chưa được đo lại trên mã đã gộp.
 
-Trạng thái mọi container được chụp lại ngay trước và ngay sau mỗi phép đo. Một lần đo chỉ được giữ khi tập container đang chạy, số lần khởi động lại và thời điểm khởi động của từng container không đổi trong suốt cửa sổ đo; các lần đo có container bị dừng giữa chừng đều bị loại (cột ghi chú của Bảng~\ref{tab:env-services}). Riêng br45-stream chạy với một thư mục checkpoint mới (\code{EDU_BR45_CHECKPOINT=/checkpoints/br45-v2-bench}, đặt qua một tệp Compose override ngoài repo), vì checkpoint mặc định trỏ tới một offset của topic \code{br45.activity.v1} mà Kafka đã xoá theo thời hạn lưu giữ (offset sớm nhất còn lại là 3394). Bảng~\ref{tab:env} tóm tắt môi trường cho BR4--BR8.
+Với 8 GB, stack đầy đủ không chạy ổn định: trong 25 phút đầu của đợt đo đầu, khi thử các cấu hình 24--27 container, bộ nhớ khả dụng của máy ảo nhiều lần về gần 0 và Trino bị dừng đột ngột rồi tự khởi động lại 14 lần (dấu hiệu của OOM-kill). Vì vậy mỗi phép đo chạy trên một cấu hình rút gọn, và kết quả chỉ được giữ khi cấu hình đó đứng vững suốt cửa sổ đo. Thứ tự tạm dừng là: trước hết các job streaming mà phép đo không dùng (lakehouse-streaming, br45-cdc, br45-stream, telemetry-live); nếu vẫn thiếu bộ nhớ thì đến các dịch vụ nhàn rỗi không nằm trên đường đo (cụm Flink chưa có job, Kafka UI), rồi đến Airflow (mọi DAG đang tạm dừng); riêng build kho còn phải dừng OpenSearch và content-sync. Bảng~\ref{tab:env-services} ghi cấu hình của từng phép đo; hàng BR4/BR5 là cấu hình của lần đo lại trên commit \code{05bb5af}, các hàng còn lại thuộc đợt đầu trên commit \code{4d70703}.
+
+Trạng thái mọi container được chụp lại ngay trước và ngay sau mỗi phép đo. Một lần đo chỉ được giữ khi tập container đang chạy, số lần khởi động lại và thời điểm khởi động của từng container không đổi trong suốt cửa sổ đo; các lần đo có container bị dừng giữa chừng đều bị loại (cột ghi chú của Bảng~\ref{tab:env-services}). Bảng~\ref{tab:env} tóm tắt môi trường cho BR4--BR8.
 
 \begin{table}[H]
 \centering\small
@@ -77,7 +79,7 @@ Trạng thái mọi container được chụp lại ngay trước và ngay sau m
 \textbf{Phép đo} & \textbf{Chạy} & \textbf{Tạm dừng trong lúc đo} & \textbf{Ghi chú} \\
 \midrule
 BR1--BR3; BR6--BR8 phục vụ mart; BR8 xuất bản; Debezium và polling & 26 & lakehouse-streaming, br45-cdc, br45-stream, telemetry-live & Chỉ tạm dừng các job streaming mà phép đo không dùng \\
-BR4; BR5 & 23 & lakehouse-streaming, telemetry-live, Flink (jobmanager, taskmanager), Kafka UI, Airflow (scheduler, webserver) & Khi Airflow còn chạy cùng br45-stream, bộ nhớ khả dụng chỉ còn khoảng 560 MiB nên Airflow được tạm dừng trước khi đo \\
+BR4; BR5 (đo lại trên commit \code{05bb5af}) & 23 & lakehouse-streaming, telemetry-live, Flink (jobmanager, taskmanager), Kafka UI, Airflow (scheduler, webserver) & Cùng tập container như lần đo BR4/BR5 của đợt đầu (khi đó Airflow chạy cùng br45-stream chỉ để lại khoảng 560 MiB bộ nhớ khả dụng nên được tạm dừng). Ở lần đo lại, bộ nhớ khả dụng lúc bắt đầu đo là khoảng 740 MiB (BR4) và 590 MiB (BR5), swap 1 GiB đã đầy \\
 BR7/BR8 lớp phủ & 23 & lakehouse-streaming, br45-cdc, br45-stream, Flink (jobmanager, taskmanager), Airflow (scheduler, webserver) & Hai lần đo khi Airflow còn chạy (27 và 24 container) bị loại vì Trino khởi động lại giữa chừng \\
 Build kho dữ liệu & 19 & như lớp phủ, thêm Kafka UI, OpenSearch, content-sync, telemetry-live & Hai lần thử với 24 và 22 container bị loại vì tiến trình Spark bị dừng giữa chừng (dấu hiệu của OOM-kill) \\
 \bottomrule
@@ -89,15 +91,17 @@ Build kho dữ liệu & 19 & như lớp phủ, thêm Kafka UI, OpenSearch, conte
 \caption{Môi trường đo hiệu năng}\label{tab:env}
 \begin{tabularx}{\textwidth}{@{}L{2.6cm}YY@{}}
 \toprule
-& \textbf{BR4 / BR5 (13/11/2026)} & \textbf{BR6--BR8 (13/11/2026)} \\
+& \textbf{BR4 / BR5 (13/11/2026, đo lại trên commit \code{05bb5af})} & \textbf{BR6--BR8 (13/11/2026, commit \code{4d70703})} \\
 \midrule
 Máy & Apple M1 Pro (10 nhân), 32 GB, macOS 26.6.2; Docker Desktop: 10 CPU, 8 GB (7,75 GiB) & Apple M1 Pro (10 nhân), 32 GB, macOS 26.6.2; Docker Desktop: 10 CPU, 8 GB (7,75 GiB) \\
-Engine & Spark 3.5.1, \code{local[2]}, driver 1 GiB; PostgreSQL 16.15; script đo, phép tổng hợp Python (BR4) và phép tính lô (BR5) chạy ngoài Docker bằng Python 3.13 & Spark 3.5.5, Delta 3.3.2 (build kho: \code{local[*]}, 10 luồng); Trino 478 (heap 1,2 GB); OpenSearch 2.17.1 (heap 512 MB) \\
+Engine & Spark 3.5.5 và Delta 3.3.2 (image \code{de261/spark}), \code{local[2]}, driver 1 GiB, state store RocksDB, container giới hạn 2 CPU và 2.304 MiB; PostgreSQL 16.15; script đo, phép tổng hợp Python (BR4) và phép tính lô (BR5) chạy ngoài Docker bằng Python 3.13 & Spark 3.5.5, Delta 3.3.2 (build kho: \code{local[*]}, 10 luồng); Trino 478 (heap 1,2 GB); OpenSearch 2.17.1 (heap 512 MB) \\
 Lặp lại & 3 lần mỗi kích thước & 2--30 lần tuỳ thí nghiệm \\
 Dữ liệu & Tổng hợp & Tổng hợp \\
 \bottomrule
 \end{tabularx}
 \end{table}
+
+Ở lần đo lại BR4/BR5, hai image \code{de261/demo} và \code{de261/spark} được build lại từ commit \code{05bb5af}, và các migration bổ sung của schema \code{analytics} được áp dụng trước khi đo. Job br45-stream chạy đúng cấu hình Compose mặc định của mã đã gộp: Spark 3.5.5 \code{local[2]} trong container giới hạn 2 CPU và 2.304 MiB, với thư mục checkpoint mặc định của Compose (\code{br45-v2}), được mã nguồn tự gắn thêm dấu vân tay cấu hình \code{ff4b0f4a118a}; tệp Compose override ngoài repo từng dùng ở đợt đầu để đổi thư mục checkpoint không còn cần. Vì đây là checkpoint mới, job đọc lại topic \code{br45.activity.v1} từ offset sớm nhất Kafka còn giữ (3394); phép đo chỉ bắt đầu sau khi job đã bắt kịp cuối topic và các job tổng hợp BR4 trên Spark do lần seed sinh ra đã hoàn tất.
 
 \section{Kết quả hiệu năng}
 
@@ -124,7 +128,9 @@ BR1 đạt trung vị khoảng 12 ms, phù hợp với yêu cầu thông báo g�
 
 \subsection{BR4: tổng hợp SQL so với Python}
 
-Hai cách dùng cùng tập dữ kiện hợp lệ và cùng ngữ nghĩa chỉ số; kết quả khớp ở mọi kích thước và lần lặp. Hình~\ref{fig:br4} cho thấy thời gian tăng gần tuyến tính theo số lượt chấm. Python nhanh hơn khoảng hai lần (2,0--2,3 lần) nhờ dùng lại dữ kiện đã nối cho cả hai phép tổng hợp, còn SQL lặp lại một số phép nối JSONB. Nhóm giữ SQL cho đường phục vụ vì tính giao dịch và ngữ nghĩa rõ ràng; truy vấn mart đã tổng hợp mất khoảng 0,5--0,6 ms.
+Hai cách dùng cùng tập dữ kiện hợp lệ và cùng ngữ nghĩa chỉ số; kết quả khớp ở mọi kích thước và lần lặp. Hình~\ref{fig:br4} cho thấy thời gian tăng gần tuyến tính theo số lượt chấm. Python nhanh hơn khoảng hai lần (1,8--2,2 lần theo trung bình) nhờ dùng lại dữ kiện đã nối cho cả hai phép tổng hợp, còn SQL lặp lại một số phép nối JSONB. Ở 100.000 lượt chấm, một trong ba lần lặp của Python chậm hẳn (1,79 giây so với 1,38 và 1,42 giây), nên trung bình 1,53 giây cao hơn trung vị 1,42 giây; tính theo trung vị thì tỉ lệ ở kích thước này là 2,0 lần. Nhóm giữ SQL cho đường phục vụ vì tính giao dịch và ngữ nghĩa rõ ràng; truy vấn mart đã tổng hợp mất khoảng 0,7--0,8 ms.
+
+Phép đo này chạy lại trên mã sau khi gộp (commit \code{05bb5af}, 23/30 container, Bảng~\ref{tab:env-services}) và chỉ đo đường PostgreSQL: ``tổng hợp SQL'' là hai truy vấn SQL của PostgreSQL trên \code{analytics.clean_rows} (JSONB), còn ``làm mới mart'' là hàm \code{refresh} của PostgreSQL, nay kết thúc bằng bước công bố có khoá advisory và cổng chất lượng trên từng dòng. Trên mã đã gộp, engine tổng hợp mặc định của BR4 là Spark trên Delta (\code{EDU_BR45_ASSESSMENT_ENGINE=spark}), còn đường PostgreSQL là engine đối chứng; benchmark này không đo engine Spark.
 
 \begin{figure}[H]
 \centering
@@ -137,13 +143,13 @@ Hai cách dùng cùng tập dữ kiện hợp lệ và cùng ngữ nghĩa chỉ 
   ymajorgrids, legend style={at={(0.5,-0.3)}, anchor=north, legend columns=2}, legend cell align=left,
   mark size=2.2pt, line width=1pt,
 ]
-\addplot[color=sone, mark=*] coordinates {(1000,27.68) (10000,270.06) (100000,2666.60)};
-\addlegendentry{Tổng hợp SQL}
-\addplot[color=stwo, mark=square*] coordinates {(1000,12.13) (10000,121.09) (100000,1326.47)};
+\addplot[color=sone, mark=*] coordinates {(1000,27.96) (10000,266.68) (100000,2765.54)};
+\addlegendentry{Tổng hợp SQL (PostgreSQL)}
+\addplot[color=stwo, mark=square*] coordinates {(1000,13.36) (10000,119.23) (100000,1531.00)};
 \addlegendentry{Tổng hợp Python}
-\addplot[color=sthree, mark=triangle*] coordinates {(1000,36.45) (10000,292.93) (100000,2816.45)};
+\addplot[color=sthree, mark=triangle*] coordinates {(1000,41.87) (10000,285.30) (100000,2914.22)};
 \addlegendentry{Làm mới mart (ghi + phát hiện)}
-\addplot[color=sfour, mark=diamond*] coordinates {(1000,0.49) (10000,0.56) (100000,0.56)};
+\addplot[color=sfour, mark=diamond*] coordinates {(1000,0.76) (10000,0.76) (100000,0.68)};
 \addlegendentry{Truy vấn mart}
 \end{axis}
 \end{tikzpicture}
@@ -153,7 +159,7 @@ Hai cách dùng cùng tập dữ kiện hợp lệ và cùng ngữ nghĩa chỉ 
 
 \subsection{BR5: độ trễ đầu cuối và thông lượng cửa sổ}
 
-Lần chạy chấp nhận trên đường CDC thật mất khoảng \textbf{10.164 ms} từ khi ghi dữ liệu nguồn đến khi lưu kết quả rủi ro và cảnh báo. Khởi động lại Spark và hồi phục mất khoảng \textbf{20.142 ms}, không sinh cảnh báo trùng sau replay. Hai số này lấy từ lần chạy kịch bản chấp nhận trước đó (không đo lại). Thí nghiệm quy mô (Bảng~\ref{tab:br5}) đo riêng chặng Kafka $\rightarrow$ Spark $\rightarrow$ cửa sổ trong PostgreSQL với khoảng 1\% bản ghi trùng; mọi kết quả khớp với phép tổng hợp lô độc lập bằng Python.
+Lần chạy chấp nhận trên đường CDC thật mất khoảng \textbf{10.164 ms} từ khi ghi dữ liệu nguồn đến khi lưu kết quả rủi ro và cảnh báo. Khởi động lại Spark và hồi phục mất khoảng \textbf{20.142 ms}, không sinh cảnh báo trùng sau replay. Hai số này lấy từ lần chạy kịch bản chấp nhận trước đó (không đo lại). Thí nghiệm quy mô (Bảng~\ref{tab:br5}) đo riêng chặng Kafka $\rightarrow$ Spark $\rightarrow$ cửa sổ trong PostgreSQL với khoảng 1\% bản ghi trùng; mọi kết quả khớp với phép tổng hợp lô độc lập bằng Python. Thí nghiệm này được đo lại trên mã sau khi gộp (commit \code{05bb5af}, 23/30 container, Bảng~\ref{tab:env-services}) với job br45-stream của mã đó: Spark 3.5.5 dùng state store RocksDB, và cùng driver còn chạy thêm truy vấn landing Delta của BR4.
 
 \begin{table}[H]
 \centering\small
@@ -162,14 +168,14 @@ Lần chạy chấp nhận trên đường CDC thật mất khoảng \textbf{10.
 \toprule
 \textbf{Sự kiện duy nhất} & \textbf{Kafka đến cửa sổ đã lưu} & \textbf{Thông lượng quan sát} & \textbf{Tính lô bằng Python} \\
 \midrule
-1.000 & 5.806 ms & 177 sự kiện/s & 1,6 ms \\
-10.000 & 4.805 ms & 2.103 sự kiện/s & 18,7 ms \\
-100.000 & 14.949 ms & 6.697 sự kiện/s & 151,9 ms \\
+1.000 & 6.161 ms & 170 sự kiện/s & 1,8 ms \\
+10.000 & 4.843 ms & 2.088 sự kiện/s & 18,4 ms \\
+100.000 & 14.707 ms & 6.800 sự kiện/s & 150,2 ms \\
 \bottomrule
 \end{tabular}
 \end{table}
 
-Ở 1.000 và 10.000 sự kiện, từng lần đo mất 4,1--7,2 giây và không tăng theo khối lượng: job chạy micro-batch với trigger 5 giây, nên độ trễ chủ yếu là thời gian chờ trigger. Tính lô rẻ hơn nhiều cho ảnh chụp tĩnh; streaming đổi lấy tiếp nhận liên tục, xử lý sửa đổi, replay, checkpoint và cập nhật tự động, trong khi lô theo lịch phải chờ lượt chạy mới thấy thay đổi. Nhóm không đưa ra số liệu dương tính giả hay độ hiệu chỉnh điểm rủi ro vì không có nhãn bỏ học thật.
+Ở 1.000 và 10.000 sự kiện, từng lần đo mất 4,1--8,2 giây và không tăng theo khối lượng: job chạy micro-batch với trigger 5 giây, nên độ trễ chủ yếu là thời gian chờ trigger. Tính lô rẻ hơn nhiều cho ảnh chụp tĩnh; streaming đổi lấy tiếp nhận liên tục, xử lý sửa đổi, replay, checkpoint và cập nhật tự động, trong khi lô theo lịch phải chờ lượt chạy mới thấy thay đổi. Nhóm không đưa ra số liệu dương tính giả hay độ hiệu chỉnh điểm rủi ro vì không có nhãn bỏ học thật.
 
 \subsection{BR6--BR8: phục vụ mart}
 

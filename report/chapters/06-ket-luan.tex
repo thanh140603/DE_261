@@ -10,7 +10,7 @@ Chương này nêu các hạn chế còn lại, hướng phát triển và kết
   \item \textbf{Embedding mang tính từ vựng.} Bộ nhúng băm không hiểu ngữ nghĩa (``join'' không khớp ``merge''); cổng \code{Embedder} và đường reindex cho phép thay bằng mô hình thật.
   \item \textbf{Lớp phủ không mang phiên bản nội dung.} Khi video được quay lại, lớp phủ trộn hai phiên bản nên chỉ hiển thị cho phiên bản mới nhất.
   \item \textbf{Lịch sử BR5 trong kho dữ liệu đến từ dữ liệu tổng hợp.} Runtime BR4--BR5 lưu điểm và cảnh báo trong PostgreSQL; cần phát lên \code{risk.learner_score.v1} và \code{risk.dropout_alert.v1} (hoặc thêm bảng vào connector CDC) để kho nhận từ đường thật.
-  \item \textbf{Hiệu năng BR4.} Mỗi lần sửa làm mới toàn bộ bản tổng hợp bị ảnh hưởng và dùng phép nối JSONB; với 100.000 lượt chấm, một lần sửa tốn khoảng 2,8 giây.
+  \item \textbf{Hiệu năng BR4.} Mỗi lần sửa làm mới toàn bộ bản tổng hợp bị ảnh hưởng và dùng phép nối JSONB; với 100.000 lượt chấm, một lần sửa tốn khoảng 2,9 giây.
   \item \textbf{Vận hành đơn nút, bảo mật cục bộ.} Trino, OpenSearch và Kafka chạy một nút; plugin bảo mật OpenSearch tắt; token tĩnh thay cho định danh của trường; chưa có giám sát độ trễ consumer, thời gian checkpoint hay SLA độ tươi.
   \item \textbf{Dữ liệu tổng hợp, không nhãn thật.} Thiếu nhãn bỏ học nên chưa đánh giá được độ chính xác cảnh báo; các số đo hiệu năng chỉ là quan sát trên một máy.
   \item \textbf{Lệch dữ liệu mẫu.} Seed lakehouse khai báo khoảng 18 khoá học và video không có trong LMS mẫu, nên job reindex báo lỗi.
@@ -22,8 +22,8 @@ Chương này nêu các hạn chế còn lại, hướng phát triển và kết
   \item Đưa stack đầy đủ thành mặc định khi triển khai; bổ sung retry và circuit breaker cho gửi thông báo.
   \item Chuyển job cần độ trễ dưới một giây sang Flink khi nền tảng lên Flink 2.x và connector Delta Kernel ổn định.
   \item Thay bộ nhúng băm bằng sentence-embedding và chạy một lần reindex.
-  \item Chuyển bảng snapshot (\code{fct_enrollment}, \code{fct_lesson_progress}) sang MERGE dựa trên Change Data Feed khi khối lượng đủ lớn; với dashboard dưới giây ở quy mô lớn, gắn StarRocks vào Hive Metastore.
-  \item Triển khai trên Kubernetes nhiều nút với TLS và xác thực tập trung; giám sát bằng Prometheus/Grafana; bổ sung quy trình xoay khoá bút danh.
+  \item Chuyển bảng snapshot (\code{fct_enrollment}, \code{fct_lesson_progress}) sang MERGE dựa trên Change Data Feed khi khối lượng đủ lớn; với dashboard dưới giây ở quy mô lớn, bổ sung một engine OLAP chuyên dụng đọc qua Hive Metastore.
+  \item Triển khai trên cụm nhiều nút với TLS và xác thực tập trung; bổ sung giám sát tập trung và quy trình xoay khoá bút danh.
   \item Thu thập nhãn kết quả thật để hiệu chỉnh và đánh giá điểm rủi ro BR5.
 \end{itemize}
 
