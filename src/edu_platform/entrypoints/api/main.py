@@ -186,9 +186,7 @@ def create_app() -> FastAPI:
                 {"detail": "Enter a classroom username and password"}, status_code=422
             )
         if path.startswith("/api/auth/staff/"):
-            return JSONResponse(
-                {"detail": "Invalid staff role or sign-in fields"}, status_code=422
-            )
+            return JSONResponse({"detail": "Invalid staff role or sign-in fields"}, status_code=422)
         return await request_validation_exception_handler(request, exc)
 
     @app.exception_handler(StudyError)

@@ -115,8 +115,10 @@ class StaffSessions:
         self.origin = os.environ.get("EDU_STAFF_ORIGIN", "").rstrip("/")
         if self.origin:
             origin = urlsplit(self.origin)
-            if origin.scheme not in {"http", "https"} or not origin.netloc or (
-                origin.username or origin.path or origin.query or origin.fragment
+            if (
+                origin.scheme not in {"http", "https"}
+                or not origin.netloc
+                or (origin.username or origin.path or origin.query or origin.fragment)
             ):
                 raise ValueError("EDU_STAFF_ORIGIN must be an HTTP(S) origin")
         self.active: dict[str, tuple[StaffAccount, float]] = {}
@@ -204,7 +206,9 @@ async def principal(
             for token, account in accounts.items():
                 if hmac.compare_digest(token.encode(), credentials.credentials.encode()):
                     return Principal(
-                        account["id"], account["role"], account.get("courses", []),
+                        account["id"],
+                        account["role"],
+                        account.get("courses", []),
                         account.get("organisations", []),
                     )
         except (ValueError, KeyError, TypeError) as exc:
@@ -275,15 +279,19 @@ def main() -> None:
         parser.error("Password must contain 12-128 characters")
     if password != getpass("Confirm password: "):
         parser.error("Passwords do not match")
-    raw = json.dumps([{
-        "username": normalize(args.username),
-        "id": args.id,
-        "name": args.name,
-        "role": args.role,
-        "password_hash": hasher.hash(password),
-        "courses": args.course,
-        "organisations": args.organisation,
-    }])
+    raw = json.dumps(
+        [
+            {
+                "username": normalize(args.username),
+                "id": args.id,
+                "name": args.name,
+                "role": args.role,
+                "password_hash": hasher.hash(password),
+                "courses": args.course,
+                "organisations": args.organisation,
+            }
+        ]
+    )
     try:
         account_config(raw)
     except ValueError as exc:

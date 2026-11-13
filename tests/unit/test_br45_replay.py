@@ -49,10 +49,15 @@ def test_shared_replay_coalesces_timer_and_button_then_restarts_the_scenario():
 
 @pytest.mark.asyncio
 async def test_dashboard_contracts_share_replay_and_keep_benchmarks_fixed(monkeypatch, request):
-    monkeypatch.setenv("EDU_BR45_AUTH", json.dumps({
-        f"{role}-demo": {"id": role, "role": role, "courses": list(COURSES)}
-        for role in ("instructor", "advisor")
-    }))
+    monkeypatch.setenv(
+        "EDU_BR45_AUTH",
+        json.dumps(
+            {
+                f"{role}-demo": {"id": role, "role": role, "courses": list(COURSES)}
+                for role in ("instructor", "advisor")
+            }
+        ),
+    )
     settings.cache_clear()
     request.addfinalizer(settings.cache_clear)
     app = FastAPI()

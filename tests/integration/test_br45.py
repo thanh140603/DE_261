@@ -308,6 +308,7 @@ def test_scoped_api_alert_lifecycle_and_idempotent_history(conn, monkeypatch):
     result = risk()
     # V2 GET reads a published generation; it must not run an aggregation itself.
     from edu_platform.br45.db import state
+
     state(conn, "evaluation_clock", T.isoformat())
     results(conn)
     for _ in range(3):
@@ -496,17 +497,29 @@ def test_job_lease_fences_expired_worker_and_requeues_new_revision(conn):
 def test_policy_version_and_note_idempotency(conn, monkeypatch):
     from edu_platform.br45.risk import refresh as refresh_risk
 
-    monkeypatch.setenv("EDU_BR45_AUTH", json.dumps({
-        "advisor": {"id": "advisor", "role": "advisor", "courses": ["c"]},
-        "other": {"id": "other", "role": "advisor", "courses": ["different"]},
-    }))
+    monkeypatch.setenv(
+        "EDU_BR45_AUTH",
+        json.dumps(
+            {
+                "advisor": {"id": "advisor", "role": "advisor", "courses": ["c"]},
+                "other": {"id": "other", "role": "advisor", "courses": ["different"]},
+            }
+        ),
+    )
     settings.cache_clear()
     try:
         source(conn, 1)
-        load(conn, "enrollments", {
-            "id": "enrolled", "student_id": "s0", "course_id": "c", "status": "active",
-            "enrolled_at": (T - timedelta(days=35)).isoformat(),
-        })
+        load(
+            conn,
+            "enrollments",
+            {
+                "id": "enrolled",
+                "student_id": "s0",
+                "course_id": "c",
+                "status": "active",
+                "enrolled_at": (T - timedelta(days=35)).isoformat(),
+            },
+        )
         state(conn, "evaluation_clock", T.isoformat())
         persist(conn, risk())
         alert_id = conn.execute("SELECT id FROM analytics.dropout_alerts").fetchone()["id"]
@@ -521,9 +534,13 @@ def test_policy_version_and_note_idempotency(conn, monkeypatch):
             assert client.get(policy_path, headers=outside).status_code == 403
             default = client.get(policy_path, headers=headers).json()
             assert default["version"] == 1
-            update = {"expected_version": 1, "parameters": {
-                **default["parameters"], "alert_threshold": 80,
-            }}
+            update = {
+                "expected_version": 1,
+                "parameters": {
+                    **default["parameters"],
+                    "alert_threshold": 80,
+                },
+            }
             assert client.put(policy_path, headers=headers, json=update).json()["version"] == 2
             assert client.put(policy_path, headers=headers, json=update).status_code == 409
             assert client.get(note_path, headers=outside).status_code == 403
@@ -533,9 +550,12 @@ def test_policy_version_and_note_idempotency(conn, monkeypatch):
             assert first.status_code == second.status_code == 201
             assert first.json() == second.json()
             assert first.json()["actor"] == "advisor"
-            assert client.post(
-                note_path, headers=headers, json=body | {"note": "Different note"}
-            ).status_code == 409
+            assert (
+                client.post(
+                    note_path, headers=headers, json=body | {"note": "Different note"}
+                ).status_code
+                == 409
+            )
             assert len(client.get(note_path, headers=headers).json()) == 1
 
         for boundary, version in ((T, 1), (T + timedelta(hours=1), 2)):
@@ -556,9 +576,12 @@ def test_risk_history_outbox_distinguishes_equal_score_observations(conn):
     }
     for observation in (result, corrected, corrected):
         persist(conn, observation)
-    rows = list(conn.execute(
-        "SELECT event_id,payload FROM analytics.domain_outbox WHERE topic='risk.learner_score.v1'"
-    ))
+    rows = list(
+        conn.execute(
+            "SELECT event_id,payload FROM analytics.domain_outbox "
+            "WHERE topic='risk.learner_score.v1'"
+        )
+    )
     assert len(rows) == 2
     assert rows[0]["event_id"] != rows[1]["event_id"]
     assert rows[0]["payload"]["score"] == rows[1]["payload"]["score"]
@@ -584,7 +607,8 @@ def test_risk_refresh_waits_for_matching_committed_sink(conn, monkeypatch):
 
     offsets = {cfg.activity_topic: {"0": 8}}
     idle = {
-        "batchId": 4, "numInputRows": 0,
+        "batchId": 4,
+        "numInputRows": 0,
         "sources": [{"startOffset": offsets, "endOffset": offsets}],
     }
     streaming.score_committed_batch(conn, idle, cfg)
@@ -607,8 +631,10 @@ def test_failed_generation_leaves_the_last_assessment_publication(conn):
     with pytest.raises(RuntimeError, match="lease was lost"), conn.transaction():
         conn.execute("DELETE FROM analytics.mart_question_pass_statistics WHERE course_id='c'")
         jobs.complete(
-            conn, claimed | {"lease_generation": claimed["lease_generation"] - 1},
-            "stale", "stale-publication",
+            conn,
+            claimed | {"lease_generation": claimed["lease_generation"] - 1},
+            "stale",
+            "stale-publication",
         )
     jobs.fail(conn, claimed, RuntimeError("injected publication failure"))
     after = conn.execute(

@@ -47,7 +47,11 @@ async def login(
     name = cookie(role)
     token = sessions.issue(account, request.cookies.get(name, ""))
     response.set_cookie(
-        name, token, max_age=SESSION_SECONDS, httponly=True, samesite="strict",
+        name,
+        token,
+        max_age=SESSION_SECONDS,
+        httponly=True,
+        samesite="strict",
         path="/api",
         secure=request.url.scheme == "https" or sessions.origin.startswith("https://"),
     )
@@ -71,7 +75,9 @@ async def logout(role: StaffRole, request: Request, response: Response) -> None:
     name = cookie(role)
     sessions.revoke(role, request.cookies.get(name, ""))
     response.delete_cookie(
-        name, httponly=True, samesite="strict",
+        name,
+        httponly=True,
+        samesite="strict",
         path="/api",
         secure=request.url.scheme == "https" or sessions.origin.startswith("https://"),
     )

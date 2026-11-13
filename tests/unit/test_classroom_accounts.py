@@ -56,9 +56,7 @@ async def test_classroom_sessions_enforce_ownership_and_revoke_on_logout(monkeyp
         assert (await client.get("/api/submissions/owned")).json() == {"id": "owned"}
         assert (await client.get("/api/submissions/other")).status_code == 404
         assert (await client.get("/api/learners/l-003/submissions")).status_code == 403
-        enrollment = await client.post(
-            "/api/learners/l-003/enroll", json={"course_id": "c-py-201"}
-        )
+        enrollment = await client.post("/api/learners/l-003/enroll", json={"course_id": "c-py-201"})
         assert enrollment.status_code == 403
         submission = await client.post(
             "/api/submissions",
@@ -70,7 +68,6 @@ async def test_classroom_sessions_enforce_ownership_and_revoke_on_logout(monkeyp
         assert (
             await client.get(session, headers={"Cookie": f"{classroom.COOKIE}={old_token}"})
         ).status_code == 401
-
 
     now = 0.0
     monkeypatch.setattr(classroom, "monotonic", lambda: now)

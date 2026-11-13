@@ -34,7 +34,6 @@ def spark():
     pytest.importorskip("delta")
     from pyspark.sql import SparkSession
 
-
     builder = (
         SparkSession.builder.master("local[2]")
         .appName("DE261 BR45 correctness")

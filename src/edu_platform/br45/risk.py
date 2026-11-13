@@ -195,7 +195,9 @@ def persist(conn: Db, result: dict[str, Any], cfg: AnalyticsSettings | None = No
         )
         if cfg.mode == "persistent" and not cfg.engine_benchmark:
             enqueue(
-                conn, "risk.learner_score.v1", sid + ":" + cid,
+                conn,
+                "risk.learner_score.v1",
+                sid + ":" + cid,
                 {
                     "event_id": identity("risk.learner_score.v1", history_id),
                     "learner_id": sid,
@@ -227,8 +229,14 @@ def persist(conn: Db, result: dict[str, Any], cfg: AnalyticsSettings | None = No
         conn.execute(
             "UPDATE analytics.dropout_alerts SET score=%s,level=%s,reasons=%s,"
             "evaluated_at=%s,policy_version=%s WHERE id=%s",
-            (result["score"], result["level"], Jsonb(result["reasons"]), evaluated,
-             cfg.policy_version, alert["id"]),
+            (
+                result["score"],
+                result["level"],
+                Jsonb(result["reasons"]),
+                evaluated,
+                cfg.policy_version,
+                alert["id"],
+            ),
         )
         return
     previous = conn.execute(
@@ -240,7 +248,8 @@ def persist(conn: Db, result: dict[str, Any], cfg: AnalyticsSettings | None = No
     ).fetchone()
     previous_threshold = (
         old["data"].get("policy", {}).get("alert_threshold", cfg.alert_threshold)
-        if old else cfg.alert_threshold
+        if old
+        else cfg.alert_threshold
     )
     crossing = not old or not old["eligible"] or old["score"] < previous_threshold
     worsening = old and result["score"] - old["score"] >= 20
@@ -252,8 +261,16 @@ def persist(conn: Db, result: dict[str, Any], cfg: AnalyticsSettings | None = No
             "INSERT INTO analytics.dropout_alerts(id,student_id,course_id,score,level,reasons,"
             "status,evaluated_at,policy_version) VALUES(%s,%s,%s,%s,%s,%s,'NEW',%s,%s) "
             "ON CONFLICT DO NOTHING RETURNING *",
-            (identity(sid, cid, result["evaluated_at"], "alert"), sid, cid, result["score"],
-             result["level"], Jsonb(result["reasons"]), evaluated, cfg.policy_version),
+            (
+                identity(sid, cid, result["evaluated_at"], "alert"),
+                sid,
+                cid,
+                result["score"],
+                result["level"],
+                Jsonb(result["reasons"]),
+                evaluated,
+                cfg.policy_version,
+            ),
         ).fetchone()
         if created:
             alert_transition(conn, cfg, created, "system:risk-policy")

@@ -34,7 +34,8 @@ def utc_window_rows(batch: Any) -> Any:
     from pyspark.sql import functions as sf
 
     return batch.select(
-        "student_id", "course_id",
+        "student_id",
+        "course_id",
         sf.unix_seconds("window.start").alias("start_seconds"),
         sf.unix_seconds("window.end").alias("end_seconds"),
         "activity_count",
@@ -149,7 +150,9 @@ def run() -> None:
                         "DO UPDATE SET activity_count=excluded.activity_count,computed_at=now()",
                         (
                             (
-                                cfg.benchmark_window_run, r.student_id, r.course_id,
+                                cfg.benchmark_window_run,
+                                r.student_id,
+                                r.course_id,
                                 datetime.fromtimestamp(r.start_seconds, UTC),
                                 datetime.fromtimestamp(r.end_seconds, UTC),
                                 r.activity_count,
