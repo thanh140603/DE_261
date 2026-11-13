@@ -95,13 +95,16 @@ def diagnostics(conn: DB, user: User) -> dict[str, Any]:
         "domain_outbox_pending": (
             conn.execute(
                 "SELECT count(*) n FROM analytics.domain_outbox WHERE published_at IS NULL"
-            ).fetchone() or {}
+            ).fetchone()
+            or {}
         )["n"],
         "failed_assessment_jobs": (
             conn.execute(
                 "SELECT count(*) n FROM analytics.assessment_jobs WHERE status='FAILED' "
-                "AND course_id=ANY(%s)", (user.courses,),
-            ).fetchone() or {}
+                "AND course_id=ANY(%s)",
+                (user.courses,),
+            ).fetchone()
+            or {}
         )["n"],
         "outbox_pending": (
             conn.execute(
@@ -623,10 +626,12 @@ def note_scope(conn: Db, user: Principal, alert_id: str) -> None:
 @router.get("/advisor/alerts/{alert_id}/notes", response_model=list[Note])
 def notes(alert_id: str, conn: DB, user: Advisor) -> list[dict[str, Any]]:
     note_scope(conn, user, alert_id)
-    return list(conn.execute(
-        "SELECT * FROM analytics.intervention_notes WHERE alert_id=%s ORDER BY created_at,id",
-        (alert_id,),
-    ))
+    return list(
+        conn.execute(
+            "SELECT * FROM analytics.intervention_notes WHERE alert_id=%s ORDER BY created_at,id",
+            (alert_id,),
+        )
+    )
 
 
 @router.post("/advisor/alerts/{alert_id}/notes", status_code=201, response_model=Note)

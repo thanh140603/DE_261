@@ -111,12 +111,14 @@ def main() -> None:
         spec["config"]["topic.prefix"] = cfg.topic_prefix.removesuffix(".br45.")
         if cfg.cdc_identity:
             spec["name"] = "br45-" + cfg.cdc_identity.replace("_", "-")
-            spec["config"].update({
-                "database.hostname": dsn.hostname,
-                "database.port": str(dsn.port or 5432),
-                "slot.name": "br45_" + cfg.cdc_identity + "_slot",
-                "publication.name": "br45_" + cfg.cdc_identity + "_pub",
-            })
+            spec["config"].update(
+                {
+                    "database.hostname": dsn.hostname,
+                    "database.port": str(dsn.port or 5432),
+                    "slot.name": "br45_" + cfg.cdc_identity + "_slot",
+                    "publication.name": "br45_" + cfg.cdc_identity + "_pub",
+                }
+            )
         if cfg.classroom:
             spec["name"] = "br45-classroom-cdc"
             spec["config"].update(

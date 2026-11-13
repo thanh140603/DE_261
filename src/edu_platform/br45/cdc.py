@@ -148,7 +148,8 @@ def ingest(
         images = [r for r in (old_data, data) if r is not None]
         for student, course in {
             (r["student_id"], r["course_id"])
-            for r in images if "student_id" in r and "course_id" in r
+            for r in images
+            if "student_id" in r and "course_id" in r
         }:
             conn.execute(
                 "INSERT INTO analytics.risk_dirty VALUES(%s,%s) ON CONFLICT DO NOTHING",

@@ -39,9 +39,12 @@ def main() -> None:
     root = root.parent / "v2"
     root.mkdir(exist_ok=True)
     contracts: dict[str, type[BaseModel]] = {
-        "assessment_page": AssessmentPage, "assessment_job": JobStatus,
-        "assessment_request": RefreshBody, "course_policy": CoursePolicy,
-        "course_policy_change": PolicyChange, "intervention_note": Note,
+        "assessment_page": AssessmentPage,
+        "assessment_job": JobStatus,
+        "assessment_request": RefreshBody,
+        "course_policy": CoursePolicy,
+        "course_policy_change": PolicyChange,
+        "intervention_note": Note,
         "intervention_note_request": NoteBody,
     }
     for name, contract in contracts.items():

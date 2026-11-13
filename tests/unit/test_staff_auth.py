@@ -37,16 +37,24 @@ def client(monkeypatch: pytest.MonkeyPatch) -> Iterator[TestClient]:
     ]
     monkeypatch.setenv("EDU_STAFF_ACCOUNTS", json.dumps(accounts))
     monkeypatch.setenv("EDU_BR45_MODE", "classroom")
-    monkeypatch.setenv("EDU_BR45_AUTH", json.dumps({
-        "script": {"id": "automation", "role": "advisor", "courses": ["c-py-201"]},
-    }))
+    monkeypatch.setenv(
+        "EDU_BR45_AUTH",
+        json.dumps(
+            {
+                "script": {"id": "automation", "role": "advisor", "courses": ["c-py-201"]},
+            }
+        ),
+    )
     settings.cache_clear()
     app = create_app()
     app.state.student_sessions = classroom.Sessions()
     monkeypatch.setattr(classroom, "authenticate", lambda *_: ("l-001", "Preset"))
-    app.dependency_overrides[platform] = lambda: SimpleNamespace(risk_alerts=[
-        {"course_id": "c-sql-101"}, {"course_id": "c-py-201"},
-    ])
+    app.dependency_overrides[platform] = lambda: SimpleNamespace(
+        risk_alerts=[
+            {"course_id": "c-sql-101"},
+            {"course_id": "c-py-201"},
+        ]
+    )
     app.dependency_overrides[mart_reader] = lambda: None
     yield TestClient(app, base_url="https://testserver")
     settings.cache_clear()
@@ -69,8 +77,11 @@ def test_independent_sessions_rotation_expiry_and_student_ownership(client, monk
     first = login(client, "instructor", "  InStRuCtOr ")
     assert first.status_code == 200
     assert first.json() == {
-        "id": "instructor-id", "name": "Instructor", "role": "instructor",
-        "courses": ["c-sql-101"], "organisations": [],
+        "id": "instructor-id",
+        "name": "Instructor",
+        "role": "instructor",
+        "courses": ["c-sql-101"],
+        "organisations": [],
     }
     for attr in ("HttpOnly", "SameSite=strict", "Secure", "Max-Age=28800"):
         assert attr in first.headers["set-cookie"]
@@ -83,9 +94,12 @@ def test_independent_sessions_rotation_expiry_and_student_ownership(client, monk
     assert login(client, "advisor").status_code == 200
     assert login(client, "admin").status_code == 200
     student = "/api/classroom/student/session"
-    assert client.post(
-        student, json={"username": "student", "password": PASSWORD}, headers=ORIGIN
-    ).status_code == 200
+    assert (
+        client.post(
+            student, json={"username": "student", "password": PASSWORD}, headers=ORIGIN
+        ).status_code
+        == 200
+    )
     assert client.delete(session("instructor"), headers=ORIGIN).status_code == 204
     assert client.get(session("instructor")).status_code == 401
     assert client.get(session("advisor")).status_code == 200
@@ -108,9 +122,9 @@ def test_role_scope_origin_and_bearer_priority(client):
     assert client.get(alerts, headers=instructor).status_code == 403
     assert client.get(alerts, headers=advisor).json() == [{"course_id": "c-py-201"}]
     assert client.get(alerts, headers={"Authorization": "Bearer script"}).status_code == 200
-    assert client.get(
-        alerts, headers=advisor | {"Authorization": "Basic invalid"}
-    ).status_code == 401
+    assert (
+        client.get(alerts, headers=advisor | {"Authorization": "Basic invalid"}).status_code == 401
+    )
     for path, headers in (
         ("/api/instructor/assessments?course_id=c-py-201", instructor),
         ("/api/admin/organisations/org-globex/progress", admin),
@@ -118,18 +132,23 @@ def test_role_scope_origin_and_bearer_priority(client):
     ):
         assert client.get(path, headers=headers).status_code == 403
     for origin in ({}, {"Origin": "https://unrelated.example"}):
-        assert client.post(
-            "/api/instructor/content/v-sql-joins",
-            headers=instructor | origin,
-            json={"body": "sample"},
-        ).status_code == 403
+        assert (
+            client.post(
+                "/api/instructor/content/v-sql-joins",
+                headers=instructor | origin,
+                json={"body": "sample"},
+            ).status_code
+            == 403
+        )
         assert client.delete(session("admin"), headers=origin).status_code == 403
 
 
 def test_invalid_credentials_are_uniform_and_rate_limited(client):
     replies = [
         client.post(
-            session("admin"), json={"username": username, "password": "wrong"}, headers=ORIGIN,
+            session("admin"),
+            json={"username": username, "password": "wrong"},
+            headers=ORIGIN,
         )
         for username in ["admin", "missing"] * 5
     ]
@@ -142,11 +161,16 @@ def test_invalid_credentials_are_uniform_and_rate_limited(client):
 def test_duplicate_normalized_usernames_are_rejected(monkeypatch):
     digest = PasswordHasher(time_cost=1, memory_cost=1024, parallelism=1).hash(PASSWORD)
     account = {
-        "username": "advisor", "id": "one", "name": "Advisor", "role": "advisor",
-        "password_hash": digest, "courses": ["c-py-201"],
+        "username": "advisor",
+        "id": "one",
+        "name": "Advisor",
+        "role": "advisor",
+        "password_hash": digest,
+        "courses": ["c-py-201"],
     }
     monkeypatch.setenv(
-        "EDU_STAFF_ACCOUNTS", json.dumps([account, account | {"username": " ADVISOR "}]),
+        "EDU_STAFF_ACCOUNTS",
+        json.dumps([account, account | {"username": " ADVISOR "}]),
     )
     with pytest.raises(ValueError, match="duplicate username"):
         auth.StaffSessions()

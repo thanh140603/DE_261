@@ -13,7 +13,8 @@ from .db import Db, connect, state
 def active_courses(conn: Db) -> list[str]:
     """Courses with graded source inputs eligible for automatic refresh."""
     return [
-        row["course_id"] for row in conn.execute(
+        row["course_id"]
+        for row in conn.execute(
             "SELECT DISTINCT data->>'course_id' AS course_id FROM analytics.clean_rows "
             "WHERE table_name='submissions' AND NOT deleted ORDER BY 1"
         )
@@ -84,8 +85,13 @@ def complete(
         "status=CASE WHEN requested_revision=%s THEN 'SUCCEEDED' ELSE 'PENDING' END "
         "WHERE id=%s AND status='RUNNING' AND lease_generation=%s AND engine=%s",
         (
-            revision, publication, version, revision, job["id"],
-            job["lease_generation"], job["engine"],
+            revision,
+            publication,
+            version,
+            revision,
+            job["id"],
+            job["lease_generation"],
+            job["engine"],
         ),
     )
     if updated.rowcount != 1:

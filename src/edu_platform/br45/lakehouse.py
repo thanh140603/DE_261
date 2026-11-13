@@ -111,9 +111,7 @@ def merge_batch(spark: Any, root: str, batch: Any) -> tuple[int, int] | None:
         ordered = Window.partitionBy("table_name", "row_key").orderBy(
             f.desc("lsn"), f.desc("sequence")
         )
-        latest = (
-            batch.withColumn("_rn", f.row_number().over(ordered)).filter("_rn=1").drop("_rn")
-        )
+        latest = batch.withColumn("_rn", f.row_number().over(ordered)).filter("_rn=1").drop("_rn")
         (
             DeltaTable.forPath(spark, current_path)
             .alias("t")
@@ -123,9 +121,7 @@ def merge_batch(spark: Any, root: str, batch: Any) -> tuple[int, int] | None:
             .execute()
         )
         sequence = batch.agg(f.max("sequence")).first()[0]
-        version = (
-            DeltaTable.forPath(spark, current_path).history(1).select("version").first()[0]
-        )
+        version = DeltaTable.forPath(spark, current_path).history(1).select("version").first()[0]
         return int(sequence), int(version)
     finally:
         batch.unpersist()
@@ -277,6 +273,7 @@ def bootstrap() -> int:
         at = state(conn, "evaluation_clock")
         if at:
             from .contracts import timestamp
+
             end = timestamp(at)
             for course_id in jobs.active_courses(conn):
                 jobs.request(conn, course_id, end - timedelta(days=30), end)
