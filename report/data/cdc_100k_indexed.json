@@ -1,0 +1,123 @@
+{
+  "source_rows": 100000,
+  "updates": 100,
+  "deletes": 10,
+  "operation_s": 0.02,
+  "polling": {
+    "engine": "polling",
+    "events": 100,
+    "updates": 100,
+    "deletes": 0,
+    "query_count": 16,
+    "query_ms": {
+      "n": 16,
+      "min": 13.561,
+      "p50": 14.286,
+      "p95": 16.986,
+      "max": 16.986,
+      "mean": 14.531
+    },
+    "latency_ms": {
+      "n": 100,
+      "min": 445.62,
+      "p50": 446.635,
+      "p95": 447.562,
+      "max": 447.769,
+      "mean": 446.667
+    },
+    "sample": [
+      {
+        "id": "f_00000000000000000000004b",
+        "observed_at": 1794498366.6291826,
+        "source_updated_at": 1794498366.181422,
+        "latency_ms": 447.7691650390625
+      },
+      {
+        "id": "f_00000000000000000000001f",
+        "observed_at": 1794498366.6291945,
+        "source_updated_at": 1794498366.181515,
+        "latency_ms": 447.6804733276367
+      },
+      {
+        "id": "f_000000000000000000000019",
+        "observed_at": 1794498366.6291976,
+        "source_updated_at": 1794498366.181586,
+        "latency_ms": 447.6122856140137
+      },
+      {
+        "id": "f_000000000000000000000048",
+        "observed_at": 1794498366.6292002,
+        "source_updated_at": 1794498366.181606,
+        "latency_ms": 447.59464263916016
+      },
+      {
+        "id": "f_00000000000000000000000a",
+        "observed_at": 1794498366.6292017,
+        "source_updated_at": 1794498366.181623,
+        "latency_ms": 447.57938385009766
+      }
+    ]
+  },
+  "debezium": {
+    "engine": "debezium",
+    "events": 110,
+    "updates": 100,
+    "deletes": 10,
+    "latency_ms": {
+      "n": 110,
+      "min": 17.015,
+      "p50": 28.907,
+      "p95": 512.248,
+      "max": 513.216,
+      "mean": 101.852
+    },
+    "sample": [
+      {
+        "id": "f_00000000000000000000004b",
+        "op": "u",
+        "observed_at": 1794498366.5157993,
+        "latency_ms": 32.791748046875
+      },
+      {
+        "id": "f_00000000000000000000001f",
+        "op": "u",
+        "observed_at": 1794498366.515844,
+        "latency_ms": 31.84326171875
+      },
+      {
+        "id": "f_000000000000000000000019",
+        "op": "u",
+        "observed_at": 1794498366.5186634,
+        "latency_ms": 34.658203125
+      },
+      {
+        "id": "f_000000000000000000000048",
+        "op": "u",
+        "observed_at": 1794498366.5186975,
+        "latency_ms": 34.696533203125
+      },
+      {
+        "id": "f_00000000000000000000000a",
+        "op": "u",
+        "observed_at": 1794498366.5187192,
+        "latency_ms": 34.718505859375
+      }
+    ]
+  },
+  "db_counters": {
+    "before": {
+      "xact_commit": 2642,
+      "tup_returned": 61354026
+    },
+    "after": {
+      "xact_commit": 2693,
+      "tup_returned": 61358363
+    }
+  },
+  "correctness": {
+    "debezium_updates": 100,
+    "polling_updates": 100,
+    "debezium_deletes": 10,
+    "polling_deletes": 0
+  }
+}

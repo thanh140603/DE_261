@@ -74,6 +74,22 @@ No UI kit or chart library: charts are SVG with a hover tooltip and a "View as t
 Chart colours use a validated palette (categorical slots and one blue sequential ramp); status colours
 are reserved for state and always carry an icon and a label.
 
+## BR1–BR3 browser acceptance checks
+
+```bash
+# service-mode stack first (repo root)
+docker compose -f docker-compose.yml -f docker-compose.br13.yml up -d --build
+
+npm ci
+npx playwright install chromium
+npx playwright test tests/br123.spec.ts
+```
+
+Evidence is written to `docs/evidence/br123/` (`browser-results.json`, screenshots).
+On a minimal Linux host, Chromium may need `libnspr4`, `libnss3` and
+`libasound2`; install them or point `PLAYWRIGHT_BROWSERS_PATH` at a provisioned
+browser directory.
+
 ## BR4/BR5 browser acceptance checks
 
 ```bash

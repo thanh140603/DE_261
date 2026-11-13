@@ -9,6 +9,10 @@ from __future__ import annotations
 
 from typing import Any
 
+from edu_platform.contexts.grading.infrastructure.redis_repository import (
+    RedisCodeStore,
+    RedisSubmissionRepository,
+)
 from edu_platform.demo import seed
 from edu_platform.demo.sandbox import DemoSandboxWorker
 from edu_platform.platform.config import get_settings
@@ -16,9 +20,15 @@ from edu_platform.platform.messaging.kafka_consumer import KafkaConsumerLoop, Ka
 from edu_platform.platform.messaging.kafka_producer import KafkaEventPublisher
 from edu_platform.platform.messaging.topics import Topic
 from edu_platform.platform.storage.redis_client import create_redis_client, key
+from edu_platform.shared_kernel.domain.ids import SubmissionId
 
 
-def _handler(publisher: KafkaEventPublisher, client: Any, code_store: Any) -> Any:
+def _handler(
+    publisher: KafkaEventPublisher,
+    client: Any,
+    code_store: Any,
+    repo: RedisSubmissionRepository,
+) -> Any:
     def handle(message: KafkaMessage) -> None:
         payload = message.payload
         submission_id = str(payload["submission_id"])
@@ -26,10 +36,15 @@ def _handler(publisher: KafkaEventPublisher, client: Any, code_store: Any) -> An
         if not client.set(claim, "1", nx=True, ex=300):
             return  # another worker is running this submission
         try:
+            submission = repo.get(SubmissionId(submission_id))
+            if submission is not None:
+                submission.mark_running()
+                repo.save(submission)
             code = code_store.get(payload["code_ref"])
             assignment = seed.assignment(payload["assignment_id"])
             log = DemoSandboxWorker().run(submission_id, assignment, code)
             publisher.publish_raw(Topic.SANDBOX_RESULT_RAW.value, key=submission_id, payload=log)
+            publisher.flush()
         except Exception:
             client.delete(claim)
             raise
@@ -40,9 +55,8 @@ def _handler(publisher: KafkaEventPublisher, client: Any, code_store: Any) -> An
 def main() -> None:
     settings = get_settings()
     client = create_redis_client(settings.redis_url)
-    from edu_platform.contexts.grading.infrastructure.redis_repository import RedisCodeStore
-
     code_store = RedisCodeStore(client)
+    repo = RedisSubmissionRepository(client)
     publisher = KafkaEventPublisher(
         settings.kafka.bootstrap_servers, client_id="edu-grading-worker"
     )
@@ -53,8 +67,9 @@ def main() -> None:
         dlq_publisher=lambda topic, payload: publisher.publish_raw(
             topic, key=None, payload=payload
         ),
+        resilient=True,
     )
-    loop.run(_handler(publisher, client, code_store))
+    loop.run(_handler(publisher, client, code_store, repo))
 
 
 if __name__ == "__main__":

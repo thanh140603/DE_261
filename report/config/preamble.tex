@@ -1,7 +1,8 @@
 % =====================================================================
 %  Preamble — biên dịch bằng XeLaTeX (tectonic, latexmk -xelatex, Overleaf: XeLaTeX)
 % =====================================================================
-\usepackage[a4paper,top=2.5cm,bottom=2.5cm,left=3cm,right=2cm,headheight=15pt]{geometry}
+\usepackage[a4paper,top=2.9cm,bottom=2.5cm,left=3cm,right=2cm,
+  headheight=40pt,headsep=13pt,footskip=27pt]{geometry}
 % Extra stretch so long English terms and code names in Vietnamese text never push past the margin
 \setlength{\emergencystretch}{1.5em}
 
@@ -10,6 +11,7 @@
 % ---- Phông chữ và tiếng Việt ----
 \usepackage{fontspec}
 \usepackage[vietnamese]{babel}
+\addto\captionsvietnamese{\renewcommand{\refname}{Tài liệu tham khảo}}
 \setmainfont{texgyretermes}[
   Extension=.otf, UprightFont=*-regular, BoldFont=*-bold,
   ItalicFont=*-italic, BoldItalicFont=*-bolditalic]
@@ -47,31 +49,33 @@
 \definecolor{silver}{HTML}{8D99A6}
 \definecolor{gold}{HTML}{C9A227}
 
-% ---- Tiêu đề chương / mục ----
+% ---- Tiêu đề mục ----
 \usepackage{titlesec}
-\titleformat{\chapter}[display]
-  {\normalfont\bfseries\color{ink}}
-  {\large\color{brand}\MakeUppercase{\chaptertitlename}\ \thechapter}
-  {6pt}
-  {\LARGE\MakeUppercase}
-  [\vspace{4pt}{\color{brand}\titlerule[1.2pt]}]
-\titlespacing*{\chapter}{0pt}{-10pt}{18pt}
-\titleformat{\section}{\normalfont\large\bfseries\color{ink}}{\thesection}{0.8em}{}
-\titleformat{\subsection}{\normalfont\normalsize\bfseries\color{ink}}{\thesubsection}{0.8em}{}
-\titleformat{\subsubsection}{\normalfont\normalsize\bfseries\itshape\color{ink}}{\thesubsubsection}{0.8em}{}
+\titleformat{\section}{\normalfont\Large\bfseries}{\thesection}{0.8em}{}
+\titleformat{\subsection}{\normalfont\large\bfseries}{\thesubsection}{0.8em}{}
+\titleformat{\subsubsection}{\normalfont\normalsize\bfseries}{\thesubsubsection}{0.8em}{}
+\titleformat{\paragraph}[block]{\normalfont\normalsize\bfseries\itshape}{}{0em}{}
+\titlespacing*{\paragraph}{0pt}{1.25ex plus 0.3ex minus 0.2ex}{0.5ex}
 \setcounter{secnumdepth}{3}
-\setcounter{tocdepth}{2}
+\setcounter{tocdepth}{3}
 
 % ---- Đầu trang / chân trang ----
 \usepackage{fancyhdr}
+\usepackage{lastpage}
+\newcommand{\hcmutlogo}{figures/hcmut-logo.png}
 \pagestyle{fancy}
 \fancyhf{}
-\fancyhead[L]{\small\color{muted}\coursenameEn{} --- \projectcode}
-\fancyhead[R]{\small\color{muted}\nouppercase{\leftmark}}
-\fancyfoot[C]{\small\thepage}
-\renewcommand{\headrulewidth}{0.4pt}
-\renewcommand{\headrule}{{\color{rulegray}\hrule width\headwidth height\headrulewidth}}
-\fancypagestyle{plain}{\fancyhf{}\fancyfoot[C]{\small\thepage}\renewcommand{\headrulewidth}{0pt}}
+\fancyhead[L]{%
+  \raisebox{-0.5\height}{\includegraphics[width=8mm]{\hcmutlogo}}%
+  \hspace{0.75em}%
+  \raisebox{-0.5\height}{\small\bfseries
+    \shortstack[l]{Trường Đại học Bách khoa TP. Hồ Chí Minh\\
+      Khoa Khoa học và Kỹ thuật Máy tính}}%
+}
+\fancyfoot[L]{\footnotesize Kỹ thuật dữ liệu (\coursecode) -- \semester}
+\fancyfoot[R]{\footnotesize Trang \thepage/\pageref*{LastPage}}
+\renewcommand{\headrulewidth}{0.3pt}
+\renewcommand{\footrulewidth}{0.3pt}
 
 % ---- Bảng, hình, mã nguồn ----
 \usepackage{graphicx}
@@ -140,6 +144,6 @@
 % ---- Liên kết ----
 \usepackage[hidelinks,unicode]{hyperref}
 \usepackage{bookmark}
-\hypersetup{pdftitle={Báo cáo DE\_261 --- Nền tảng kỹ thuật dữ liệu cho giáo dục trực tuyến}}
+\hypersetup{pdftitle={Báo cáo Project --- Nền tảng kỹ thuật dữ liệu cho giáo dục trực tuyến}}
 \usepackage{xurl}
 \DeclareUrlCommand\code{\def\UrlFont{\small\ttfamily}}  % ngắt dòng được tại . _ /

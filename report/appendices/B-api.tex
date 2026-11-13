@@ -1,7 +1,7 @@
 \chapter{Tóm tắt API}
 \label{app:api}
 
-Tất cả endpoint có tiền tố \code{/api}. Tài liệu OpenAPI đầy đủ ở \code{http://localhost:8000/docs}; hợp đồng chi tiết ở \code{docs/api.md}. Các endpoint phân tích yêu cầu token Bearer; sai hoặc thiếu token trả 401, sai vai trò hoặc ngoài phạm vi trả 403, dữ liệu không có trả 404, truy vấn sai trả 422, kho không sẵn sàng trả 503.
+Mọi endpoint có tiền tố \code{/api}; tài liệu OpenAPI ở \code{http://localhost:8000/docs} mô tả hợp đồng chi tiết. Endpoint phân tích yêu cầu token Bearer: thiếu hoặc sai token trả 401, sai vai trò hoặc ngoài phạm vi trả 403, không có dữ liệu trả 404, truy vấn sai trả 422, kho chưa sẵn sàng trả 503.
 
 {\small
 \begin{longtable}{@{}L{1.0cm}L{1.6cm}L{7.6cm}L{4.4cm}@{}}

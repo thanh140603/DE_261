@@ -1,0 +1,41 @@
+\chapter{Hạn chế, hướng phát triển và kết luận}
+\label{chap:limits}
+
+Chương này nêu các hạn chế còn lại, hướng phát triển và kết luận, nhằm phân biệt phần đã hiện thực với phần còn là giới hạn hoặc thiết kế.
+
+\section{Hạn chế hiện tại}
+
+\begin{enumerate}
+  \item \textbf{Độ trễ streaming ở mức giây.} Cảnh báo BR5 sau khoảng 10 giây và lớp phủ sau khoảng 7 giây, cao hơn mức dưới một giây của Flink. Đây là đánh đổi có chủ đích (ADR 0009, 0014).
+  \item \textbf{Embedding mang tính từ vựng.} Bộ nhúng băm không hiểu ngữ nghĩa (``join'' không khớp ``merge''); cổng \code{Embedder} và đường reindex cho phép thay bằng mô hình thật.
+  \item \textbf{Lớp phủ không mang phiên bản nội dung.} Khi video được quay lại, lớp phủ trộn hai phiên bản nên chỉ hiển thị cho phiên bản mới nhất.
+  \item \textbf{Lịch sử BR5 trong kho dữ liệu đến từ dữ liệu tổng hợp.} Runtime BR4--BR5 lưu điểm và cảnh báo trong PostgreSQL; cần phát lên \code{risk.learner_score.v1} và \code{risk.dropout_alert.v1} (hoặc thêm bảng vào connector CDC) để kho nhận từ đường thật.
+  \item \textbf{Hiệu năng BR4.} Mỗi lần sửa làm mới toàn bộ bản tổng hợp bị ảnh hưởng và dùng phép nối JSONB; với 100.000 lượt chấm, một lần sửa tốn khoảng 4 giây.
+  \item \textbf{Vận hành đơn nút, bảo mật cục bộ.} Trino, OpenSearch và Kafka chạy một nút; plugin bảo mật OpenSearch tắt; token tĩnh thay cho định danh của trường; chưa có giám sát độ trễ consumer, thời gian checkpoint hay SLA độ tươi.
+  \item \textbf{Dữ liệu tổng hợp, không nhãn thật.} Thiếu nhãn bỏ học nên chưa đánh giá được độ chính xác cảnh báo; các số đo hiệu năng chỉ là quan sát trên một máy.
+  \item \textbf{Lệch dữ liệu mẫu.} Seed lakehouse khai báo khoảng 18 khoá học và video không có trong LMS mẫu, nên job reindex báo lỗi.
+\end{enumerate}
+
+\section{Hướng phát triển}
+
+\begin{itemize}
+  \item Đưa stack đầy đủ thành mặc định khi triển khai; bổ sung retry và circuit breaker cho gửi thông báo.
+  \item Chuyển job cần độ trễ dưới một giây sang Flink khi nền tảng lên Flink 2.x và connector Delta Kernel ổn định.
+  \item Thay bộ nhúng băm bằng sentence-embedding và chạy một lần reindex.
+  \item Chuyển bảng snapshot (\code{fct_enrollment}, \code{fct_lesson_progress}) sang MERGE dựa trên Change Data Feed khi khối lượng đủ lớn; với dashboard dưới giây ở quy mô lớn, gắn StarRocks vào Hive Metastore.
+  \item Triển khai trên Kubernetes nhiều nút với TLS và xác thực tập trung; giám sát bằng Prometheus/Grafana; bổ sung quy trình xoay khoá bút danh.
+  \item Thu thập nhãn kết quả thật để hiệu chỉnh và đánh giá điểm rủi ro BR5.
+\end{itemize}
+
+\section{Kết luận}
+\label{chap:conclusion}
+
+Báo cáo đã trình bày Project, nền tảng kỹ thuật dữ liệu biến bốn nguồn dữ liệu rời rạc của hệ thống giáo dục trực tuyến thành kho dữ liệu phục vụ tám yêu cầu nghiệp vụ.
+
+Về kiến trúc, nền tảng bám sát kiến trúc tham chiếu: Kafka và Debezium cho tiếp nhận, Spark cho xử lý, Delta Lake cho lakehouse, Redis cho phục vụ độ trễ thấp; lớp gold là kho dữ liệu Kimball phục vụ qua Trino. Các điều chỉnh --- đáng kể nhất là dùng Spark Structured Streaming thay Flink cho BR5 và lớp phủ --- đều được ghi bằng ADR kèm lý do và hệ quả. Cách tổ chức DDD và kiến trúc lục giác cho phép cùng một logic nghiệp vụ chạy trên nhiều engine và kiểm thử độc lập.
+
+Về hiện thực, BR4--BR8 chạy trên hạ tầng thật với các tính chất cốt lõi: xử lý theo thời gian sự kiện, chịu được dữ liệu trễ, trùng lặp và sai thứ tự, chạy lại idempotent, khử định danh ở silver, k-anonymity cho báo cáo tổ chức và cổng chất lượng sau mỗi lớp. BR1--BR3 chạy end-to-end trên Kafka, Redis, PostgreSQL, Delta và Spark: sự kiện đi qua dịch vụ độc lập, kết quả đến giao diện qua SSE, mọi đường ghi đều idempotent; BR2 có đủ hai nhánh feature. Giao diện web mới đưa kết quả đến từng nhóm người dùng.
+
+Về đánh giá, hệ thống có 353 test đơn vị, 1 test tích hợp end-to-end, 9 test trình duyệt và các kịch bản kiểm chứng nghiệp vụ quan sát đến giao diện. Số đo cho thấy độ trễ phù hợp từng yêu cầu: cảnh báo bỏ học khoảng 10 giây sau thay đổi nguồn, nội dung mới được lập chỉ mục sau khoảng nửa giây, mart phục vụ trong vài mili-giây khi có cache.
+
+Bài học lớn nhất là giá trị của kiểm chứng bằng dữ liệu và số đo: nhiều lỗi quan trọng chỉ lộ ra khi chạy hệ thống thật. Việc ghi rõ phần đã hiện thực và phần còn là thiết kế giúp đánh giá đúng mức độ hoàn thiện và định hướng phát triển.

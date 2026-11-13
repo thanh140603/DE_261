@@ -1,70 +1,58 @@
-% =====================================================================
-%  Trang bìa kiểu Trường ĐH Bách Khoa — ĐHQG TP.HCM
-%  Logo: đặt file figures/hcmut-logo.png (hoặc .pdf) để thay ô giữ chỗ.
-% =====================================================================
+% Trang bìa theo mẫu HCMUT, dùng thông tin trong config/info.tex.
 \newcommand{\member}[3]{#1 & #2 & #3 \\}
 
 \begin{titlepage}
 \thispagestyle{empty}
-\begin{tikzpicture}[remember picture, overlay]
-  \draw[line width=1.6pt, color=ink]
-    ($(current page.north west)+(2.2cm,-1.6cm)$) rectangle ($(current page.south east)+(-1.4cm,1.6cm)$);
-  \draw[line width=0.5pt, color=ink]
-    ($(current page.north west)+(2.35cm,-1.75cm)$) rectangle ($(current page.south east)+(-1.55cm,1.75cm)$);
-\end{tikzpicture}
+\centering
+\setstretch{1.1}
+\vspace*{0.2cm}
 
-\begin{center}
-\setstretch{1.05}
-\vspace*{-1.2cm}
-{\large \university}\\[2pt]
-{\large\bfseries \school}\\[2pt]
-{\large\bfseries \faculty}\\[4pt]
-\rule{0.35\textwidth}{0.6pt}
+{\large \university\par}
+{\large\bfseries \school\par}
+{\large\bfseries \faculty\par}
 
-\vspace{0.5cm}
-\IfFileExists{figures/hcmut-logo.png}{%
-  \includegraphics[width=3cm]{figures/hcmut-logo.png}%
-}{\IfFileExists{figures/hcmut-logo.pdf}{%
-  \includegraphics[width=3cm]{figures/hcmut-logo.pdf}%
-}{%
-  \begin{tikzpicture}
-    \draw[rulegray, dashed, rounded corners=4pt] (0,0) rectangle (3,3);
-    \node[align=center, font=\footnotesize\color{muted}] at (1.5,1.5) {Logo HCMUT\\\scriptsize figures/hcmut-logo.png};
-  \end{tikzpicture}%
-}}
+\vspace{0.55cm}
+\includegraphics[width=2.8cm]{\hcmutlogo}\par
+\vspace{0.55cm}
 
-\vspace{0.6cm}
-{\Large\bfseries \coursename}\\[2pt]
-{\large \coursenameEn{} --- \coursecode}
+{\large\bfseries \reporttype\par}
+\vspace{3pt}
+{\large\bfseries \coursename{} (\coursecode)\par}
+{\small \coursenameEn\par}
 
-\vspace{0.6cm}
-{\large\bfseries \reporttype}
+\vspace{0.35cm}
+\begin{minipage}{0.94\textwidth}
+  \centering
+  \rule{\linewidth}{0.5pt}\par
+  \vspace{0.3cm}
+  {\large\bfseries Đề tài: \projectcode\par}
+  \vspace{0.2cm}
+  {\LARGE\bfseries \reporttitle\par}
+  \vspace{0.2cm}
+  {\normalsize\itshape \reportsubtitle\par}
+  \vspace{0.25cm}
+  \rule{\linewidth}{0.5pt}
+\end{minipage}\par
 
-\vspace{0.3cm}
-\begin{tcolorbox}[colback=white, colframe=ink, boxrule=0.8pt, arc=0pt, width=0.92\textwidth,
-  halign=center, top=8pt, bottom=8pt]
-  {\large\bfseries \reporttitle}\\[6pt]
-  {\normalsize\itshape \reportsubtitle}
-\end{tcolorbox}
+\vspace{0.45cm}
+\begin{tabular}{@{}ll@{}}
+  \textbf{Giảng viên hướng dẫn} & \lecturer \\
+  \textbf{Lớp / Nhóm} & \classname{} / \groupname \\
+  \textbf{Học kỳ} & \semester \\
+\end{tabular}\par
 
-\vspace{0.5cm}
-\begin{tabular}{@{}l l@{}}
-  \textbf{Giảng viên hướng dẫn:} & \lecturer \\
-  \textbf{Lớp / Nhóm:} & \classname{} / \groupname \\
-  \textbf{Học kỳ:} & \semester \\
-\end{tabular}
-
-\vspace{0.4cm}
-\textbf{Học viên thực hiện}\\[4pt]
-{\small\renewcommand{\arraystretch}{1.1}
-\begin{tabular}{|L{5.6cm}|c|L{5.0cm}|}
-  \hline
-  \rowcolor{panel}\textbf{Họ và tên} & \textbf{MSHV} & \textbf{Phần việc chính} \\ \hline
+\vspace{0.35cm}
+{\normalsize\bfseries Học viên thực hiện\par}
+\vspace{0.1cm}
+{\small\renewcommand{\arraystretch}{1.15}
+\begin{tabularx}{0.94\textwidth}{@{}Y l Y@{}}
+  \toprule
+  \textbf{Họ và tên} & \textbf{MSHV} & \textbf{Phần việc chính} \\
+  \midrule
   \memberlist
-  \hline
-\end{tabular}}
+  \bottomrule
+\end{tabularx}\par}
 
 \vfill
-{\bfseries \placeanddate}
-\end{center}
+{\small \placeanddate\par}
 \end{titlepage}

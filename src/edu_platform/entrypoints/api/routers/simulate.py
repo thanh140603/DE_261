@@ -37,6 +37,7 @@ class LmsEventBody(BaseModel):
     event_type: Literal["assignment_created", "deadline_approaching", "course_updated"]
     course_id: str
     assignment_id: str | None = None
+    learner_id: str | None = None
     hours_to_deadline: float | None = None
     title: str | None = None
 
@@ -104,7 +105,10 @@ async def burst(body: BurstBody, sim: Simulator = Depends(simulator)) -> dict[st
 @router.post("/lms-event")
 async def lms_event(body: LmsEventBody, sim: Simulator = Depends(simulator)) -> dict[str, Any]:
     course = seed.course(body.course_id)
-    fields: dict[str, Any] = {"assignment_id": body.assignment_id}
+    fields: dict[str, Any] = {
+        "assignment_id": body.assignment_id,
+        "learner_id": body.learner_id,
+    }
     if body.assignment_id:
         fields["title"] = body.title or seed.assignment(body.assignment_id).title
     else:
@@ -122,6 +126,7 @@ async def lms_event(body: LmsEventBody, sim: Simulator = Depends(simulator)) -> 
     sim.p.broadcaster.publish("stats", sim.stats())
     return {
         "event_id": result["event_id"],
+        "queued": bool(result.get("queued", False)),
         "notifications": {"created": result["created"], "suppressed": result["suppressed"]},
     }
 

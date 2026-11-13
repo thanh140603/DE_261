@@ -21,6 +21,9 @@ from edu_platform.contexts.grading.infrastructure.kafka_queue import (
     KafkaSubmissionQueue,
     NullPublisher,
 )
+from edu_platform.contexts.grading.infrastructure.postgres_grading_store import (
+    PostgresGradingStore,
+)
 from edu_platform.contexts.grading.infrastructure.redis_repository import (
     RedisCodeStore,
     RedisSubmissionRepository,
@@ -28,9 +31,12 @@ from edu_platform.contexts.grading.infrastructure.redis_repository import (
 from edu_platform.demo import seed
 from edu_platform.demo.serializers import submission_dict
 from edu_platform.platform.config import Settings
+from edu_platform.platform.logging import get_logger
 from edu_platform.platform.messaging.kafka_producer import KafkaEventPublisher
 from edu_platform.platform.storage.redis_client import create_redis_client
 from edu_platform.shared_kernel.domain.ids import LearnerId, SubmissionId
+
+log = get_logger(__name__)
 
 
 class SubmissionBody(BaseModel):
@@ -48,6 +54,7 @@ def build_app(settings: Settings) -> FastAPI:
     )
     queue = KafkaSubmissionQueue(publisher)
     enqueue = EnqueueSubmission(repo, queue, code_store, NullPublisher())
+    projection = PostgresGradingStore(settings.postgres_dsn.get_secret_value())
 
     app = FastAPI(title="Grading Ingestion Service (BR3)")
 
@@ -74,6 +81,16 @@ def build_app(settings: Settings) -> FastAPI:
                 submitted_at=datetime.now(tz=UTC),
             )
         )
+        # Do not return 202 until the broker acknowledged the queue message;
+        # otherwise a container stop right after the response loses the work.
+        try:
+            publisher.flush()
+        except TimeoutError as exc:
+            raise HTTPException(503, "grading queue is unavailable; retry") from exc
+        try:
+            projection.record_queued(submission)
+        except Exception as exc:  # Redis/Kafka already accepted it; keep the hot path alive
+            log.warning("submission projection failed", submission_id=submission.id, error=str(exc))
         return {"submission_id": submission.id, "status": "queued"}
 
     @app.get("/submissions/{submission_id}")

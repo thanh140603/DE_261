@@ -6,8 +6,8 @@ Nhóm liệt kê các hạn chế một cách trung thực, để người đọ
 \section{Hạn chế hiện tại}
 
 \begin{enumerate}
-  \item \textbf{BR1--BR3 vẫn chạy trong runtime demo.} Rule engine thông báo, chính sách chấm bài và luật gợi ý đã hoàn chỉnh và có test, nhưng các dịch vụ tiêu thụ Kafka và adapter Redis cho môi trường production vẫn là stub. Sandbox demo là tiến trình con và SQLite cục bộ, không phải ranh giới bảo mật.
-  \item \textbf{BR2 chưa có nhánh đặc trưng phiên và mô hình học máy.} Đề bài yêu cầu kết hợp đặc trưng lô và đặc trưng phiên qua feature store. Hiện mới có bảng đặc trưng lô trong lakehouse; việc đẩy bảng này lên Redis và nhánh streaming chưa được hiện thực.
+  \item \textbf{BR1--BR3 đã có đường dịch vụ, nhưng sandbox và provider vẫn là mức demo.} Dịch vụ thông báo và dịch vụ chấm bài chạy Kafka/Redis, API đọc mô hình Redis và chuyển bài nộp qua BFF; BR3 ghi schema riêng \code{grading.*}, còn projector sang LMS \code{public.*} là tùy chọn. Sandbox vẫn là tiến trình con và SQLite cục bộ, không phải ranh giới bảo mật; email/push cần thông tin xác thực provider thật để dùng ngoài local.
+  \item \textbf{BR2 chưa có mô hình học máy.} Cả hai nhánh đặc trưng đã được hiện thực và phục vụ qua Redis (bảng lô được materialise, phiên chạy streaming), nhưng thứ hạng vẫn do luật quyết định; chưa có mô hình học từ dữ liệu hay bộ nhãn thật để so sánh.
   \item \textbf{Độ trễ streaming ở mức giây.} Spark Structured Streaming cho cảnh báo BR5 sau khoảng 10 giây và lớp phủ sau khoảng 7 giây, cao hơn mức dưới một giây mà Flink có thể đạt. Đây là đánh đổi có chủ đích (ADR 0009, 0014).
   \item \textbf{Embedding mang tính từ vựng.} Bộ nhúng băm không hiểu ngữ nghĩa (``join'' không khớp ``merge''). Đã có cổng \code{Embedder} và đường reindex để thay bằng mô hình thật.
   \item \textbf{Lớp phủ không mang phiên bản nội dung.} Vào ngày một video được quay lại, lớp phủ trộn hai phiên bản; vì vậy nó chỉ được hiển thị cho phiên bản mới nhất.
@@ -21,8 +21,8 @@ Nhóm liệt kê các hạn chế một cách trung thực, để người đọ
 \section{Hướng phát triển}
 
 \begin{itemize}
-  \item Hoàn thiện các dịch vụ Kafka cho BR1 và BR3, và adapter Redis cho dedup và giới hạn tần suất.
-  \item Bổ sung nhánh đặc trưng phiên cho BR2 (cửa sổ phiên 30 phút), đẩy \code{features.learner_longterm} lên Redis, và thử một mô hình gợi ý học từ dữ liệu, so sánh với luật hiện tại.
+  \item Đưa projector BR3 vào CI/e2e và thử bật đồng bộ LMS trên một bản sao dữ liệu, kèm quy trình re-baseline báo cáo.
+  \item Thử một mô hình gợi ý học từ dữ liệu cho BR2, so sánh với luật hiện tại; hai nhánh đặc trưng đã có trong Redis.
   \item Chuyển các job cần độ trễ dưới một giây sang Flink khi nền tảng lên Flink 2.x và connector Delta Kernel ổn định.
   \item Thay bộ nhúng băm bằng mô hình sentence-embedding, chạy một lần reindex bắt buộc.
   \item Chuyển các bảng snapshot (\code{fct_enrollment}, \code{fct_lesson_progress}) sang MERGE dựa trên Change Data Feed khi khối lượng đủ lớn; với dashboard dưới giây ở quy mô lớn, gắn StarRocks vào cùng Hive Metastore.

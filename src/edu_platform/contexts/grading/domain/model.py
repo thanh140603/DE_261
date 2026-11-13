@@ -108,6 +108,12 @@ class Submission(AggregateRoot[SubmissionId]):
         sub.record(SubmissionReceived(aggregate_id=submission_id, learner_id=learner_id))
         return sub
 
+    def mark_running(self) -> None:
+        """Claimed by a worker. Re-delivery of a running submission is harmless."""
+        if self.status is SubmissionStatus.GRADED:
+            return
+        self.status = SubmissionStatus.RUNNING
+
     def grade(self, result: ExecutionResult, feedback: Feedback) -> None:
         if self.status is SubmissionStatus.GRADED:
             raise InvariantViolation("submission already graded")
@@ -120,5 +126,9 @@ class Submission(AggregateRoot[SubmissionId]):
                 learner_id=self.learner_id,
                 assignment_id=self.assignment_id,
                 pass_rate=result.pass_rate,
+                language=self.language.value,
+                code_ref=self.code_ref,
+                attempt_number=self.attempt_number,
+                submitted_at=self.submitted_at,
             )
         )

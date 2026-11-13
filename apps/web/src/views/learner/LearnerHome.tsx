@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { api } from "../../api";
 import { Icon } from "../../components/Icon";
-import { Badge, Btn, Callout, Card, PageHead, Seg, SelectField, Status, useToast, type Tone } from "../../components/ui";
+import { Badge, Btn, Callout, Card, Chip, PageHead, Seg, SelectField, Status, useToast, type Tone } from "../../components/ui";
 import { relTime, useAction, useFetch, type Fetched } from "../../hooks";
 import { notificationIcon, notificationKind, useNotifications, type NotificationKind } from "../../notifications";
 import { useStore } from "../../store";
@@ -121,6 +121,9 @@ function Recommended({ learnerId, recs, courseById }: { learnerId: string; recs:
     toast(`Enrolled in ${title}`);
   });
   const next = recs.data?.next_step ?? null;
+  const features = recs.data?.features;
+  const session = features?.session;
+  const longterm = features?.longterm;
   const lessonStep = !!next && "lesson_id" in next && !!(next as { lesson_id?: string }).lesson_id; // older servers recommend a lesson
   const others = (recs.data?.courses ?? []).filter((c) => c.course_id !== next?.course_id);
   const cards = [...(next ? [{ ...next, top: true }] : []), ...others.map((c) => ({ ...c, top: false }))];
@@ -128,7 +131,7 @@ function Recommended({ learnerId, recs, courseById }: { learnerId: string; recs:
     <section aria-labelledby="recommended">
       <div className="section-head">
         <h2 id="recommended">Recommended courses <span className="br">BR2</span></h2>
-        <span className="small muted">Based on the courses you have finished, their difficulty and track</span>
+        <span className="small muted">Based on finished courses, difficulty, track and recent session/pass-rate signals</span>
       </div>
       {enroll.error && <Callout tone="bad">{enroll.error}</Callout>}
       <Status loading={recs.loading && !recs.data} error={recs.error} empty={recs.data && cards.length === 0 ? "You have explored every course in the catalogue." : false}>
@@ -147,6 +150,12 @@ function Recommended({ learnerId, recs, courseById }: { learnerId: string; recs:
                   <p className="ccard-code">{courseCode(c.course_id)}{c.category ? ` · ${cap(c.category)}` : ""}</p>
                   <p className="ccard-meta">{course ? `${course.lessons.length} lessons · ${minutes(course)} min` : ""}{c.difficulty ? `${course ? " · " : ""}${cap(c.difficulty)}` : ""}</p>
                   <p className="ccard-why">{c.top && <b>Why: </b>}{c.reason}</p>
+                  {c.top && (session || longterm) && (
+                    <div className="chips" style={{ marginTop: 4 }}>
+                      {session && <Chip>Live session · {session.events_in_session} events</Chip>}
+                      {longterm && <Chip>{Math.round(longterm.avg_pass_rate_30d * 100)}% recent pass</Chip>}
+                    </div>
+                  )}
                 </div>
                 <div className="ccard-foot">
                   {locked
@@ -250,6 +259,7 @@ function SimulateEvents() {
     const assignment = overview?.assignments.find((a) => a.course_id === courseId);
     const r = await api.simulate.lmsEvent({
       event_type, course_id: courseId, assignment_id: assignment?.id,
+      learner_id: event_type === "deadline_approaching" ? learnerId : undefined,
       hours_to_deadline: event_type === "deadline_approaching" ? 12 : undefined,
       title: event_type === "assignment_created" ? "Week 3 practice set" : undefined,
     });
@@ -272,7 +282,9 @@ function SimulateEvents() {
       {last && (
         <div className="mt">
           <Callout tone={mine.length ? "warn" : "good"}>
-            {last.notifications.created} notification{last.notifications.created === 1 ? "" : "s"} created
+            {last.queued
+              ? "Event queued to the notification service; it will appear here when processed"
+              : <>{last.notifications.created} notification{last.notifications.created === 1 ? "" : "s"} created</>}
             {last.notifications.suppressed.length > 0 && `, ${last.notifications.suppressed.length} suppressed`}
             {mine.length > 0 && <> · for this learner: {mine.map((s) => s.reason).join(", ")}</>}.
           </Callout>

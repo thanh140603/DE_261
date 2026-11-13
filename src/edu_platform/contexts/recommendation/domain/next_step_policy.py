@@ -14,7 +14,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from .model import Recommendation
+from .model import LongTermFeatures, Recommendation, SessionFeatures
 
 DIFFICULTY_ORDER = {"easy": 0, "medium": 1, "hard": 2}
 
@@ -48,6 +48,22 @@ class CourseRef:
     title: str
     difficulty: str
     category: str
+
+
+@dataclass(frozen=True)
+class FeatureContext:
+    """Optional online features. An empty context keeps the original rule order."""
+
+    longterm: LongTermFeatures | None = None
+    session: SessionFeatures | None = None
+
+    @property
+    def low_recent_pass_rate(self) -> bool:
+        return self.longterm is not None and self.longterm.avg_pass_rate_30d < 0.5
+
+    @property
+    def struggling(self) -> bool:
+        return self.session is not None and self.session.struggle_score >= 0.6
 
 
 class NextStepPolicy:
@@ -99,9 +115,12 @@ class NextStepPolicy:
         catalogue: list[CourseRef],
         enrolled_course_ids: list[str],
         completed_course_ids: list[str],
+        context: FeatureContext | None = None,
     ) -> Recommendation | None:
         """The single best unenrolled course to take next, or None."""
-        suggestions = self.suggest_courses(catalogue, enrolled_course_ids, completed_course_ids)
+        suggestions = self.suggest_courses(
+            catalogue, enrolled_course_ids, completed_course_ids, context
+        )
         return suggestions[0] if suggestions else None
 
     def suggest_courses(
@@ -109,10 +128,12 @@ class NextStepPolicy:
         catalogue: list[CourseRef],
         enrolled_course_ids: list[str],
         completed_course_ids: list[str],
+        context: FeatureContext | None = None,
     ) -> list[Recommendation]:
         """Rank unenrolled courses by per-family readiness, then affinity, then title."""
         enrolled = set(enrolled_course_ids)
         completed = set(completed_course_ids)
+        by_id = {course.course_id: course for course in catalogue}
         last_category = self._last_category(catalogue, completed_course_ids)
         last_family = _family(last_category) if last_category is not None else None
         frontiers = self._family_frontiers(catalogue, completed_course_ids)
@@ -145,14 +166,37 @@ class NextStepPolicy:
             # actionable now (next step / broaden) beats backfill beats too-advanced
             return 0 if t <= 1 else (1 if t == 2 else 2)
 
+        session_family = (
+            _family(by_id[context.session.current_course_id].category)
+            if context
+            and context.session
+            and context.session.current_course_id
+            and context.session.current_course_id in by_id
+            else None
+        )
+
+        def readiness(t: int) -> int:
+            # After poor recent results, broadening at the current level is safer
+            # than jumping to the next difficulty in the same track.
+            return 1 if context and context.low_recent_pass_rate and t == 0 else 0
+
+        def session_related(course: CourseRef) -> int:
+            return (
+                0
+                if session_family is not None and _family(course.category) == session_family
+                else 1
+            )
+
         unenrolled = [course for course in catalogue if course.course_id not in enrolled]
         unenrolled.sort(
             key=lambda course: (
                 group(tier(course)),
+                readiness(tier(course)),
                 relatedness(course),
                 tier(course),
                 affinity(course),
                 breadth(course),
+                session_related(course),
                 course.title,
             )
         )
@@ -212,6 +256,13 @@ class NextStepPolicy:
                 )
             else:
                 reason = f"Too advanced — finish the intermediate {course.category} course first."
+
+            if context and context.low_recent_pass_rate and t == 0:
+                reason += " Recent results suggest consolidating before the next difficulty."
+            elif context and context.struggling and t == 2:
+                reason += " You are struggling in the current session; this fills a gap first."
+            elif context and session_related(course) == 0:
+                reason += " You are active in this track right now."
 
             suggestions.append(
                 Recommendation(

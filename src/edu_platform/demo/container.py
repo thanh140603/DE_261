@@ -57,16 +57,31 @@ from edu_platform.contexts.notification.application.route_event import RouteEven
 from edu_platform.contexts.notification.domain.model import Channel, RateLimitPolicy
 from edu_platform.contexts.notification.domain.rule_engine import RuleEngine
 from edu_platform.contexts.notification.infrastructure.in_memory import (
+    CallableAudienceResolver,
     FormatTemplateRenderer,
     InMemoryNotificationRepository,
     InMemoryNotificationState,
     RecordingSender,
-    StaticAudienceResolver,
 )
 from edu_platform.contexts.notification.infrastructure.yaml_rule_repository import (
     YamlRuleRepository,
 )
+from edu_platform.contexts.recommendation.application.compute_batch_features import (
+    ComputeBatchFeatures,
+    ComputeBatchFeaturesCommand,
+    GradedFact,
+)
+from edu_platform.contexts.recommendation.application.compute_session_features import (
+    SessionFeaturePolicy,
+)
+from edu_platform.contexts.recommendation.application.load_learner_features import (
+    LoadLearnerFeatures,
+)
 from edu_platform.contexts.recommendation.domain.next_step_policy import NextStepPolicy
+from edu_platform.contexts.recommendation.infrastructure.in_memory import InMemoryOnlineFeatureStore
+from edu_platform.contexts.recommendation.infrastructure.redis_online_store import (
+    RedisOnlineFeatureStore,
+)
 from edu_platform.contexts.risk.application.score_learner_risk import ScoreLearnerRisk
 from edu_platform.contexts.risk.domain.model import SlidingWindowPolicy
 from edu_platform.contexts.risk.domain.scoring_policy import RiskScoringPolicy
@@ -92,18 +107,41 @@ from edu_platform.demo.event_bus import InMemoryEventBus
 from edu_platform.demo.sandbox import DemoSandboxWorker
 from edu_platform.demo.sse import Broadcaster
 from edu_platform.platform.clock import SystemClock
+from edu_platform.platform.logging import get_logger
+from edu_platform.platform.messaging.kafka_producer import KafkaEventPublisher
 from edu_platform.platform.messaging.topics import Topic
+from edu_platform.platform.storage.redis_client import create_redis_client
 from edu_platform.shared_kernel.domain.ids import ContentId, CourseId
+
+log = get_logger(__name__)
 
 
 class DemoPlatform:
-    """Holds every adapter and use case for the single-process demo."""
+    """Holds every adapter and use case for the single-process demo.
 
-    def __init__(self, rules_path: Path, pii_secret: bytes = b"demo-secret") -> None:
+    ``service_mode`` keeps the in-process adapters for the pipeline UI but adds a
+    Kafka publisher so simulator events can drive the real BR1/BR2/BR3 services.
+    """
+
+    def __init__(
+        self,
+        rules_path: Path,
+        pii_secret: bytes = b"demo-secret",
+        *,
+        service_mode: bool = False,
+        kafka_bootstrap: str = "localhost:9092",
+        redis_url: str = "redis://localhost:6379/0",
+    ) -> None:
         self.clock = SystemClock()
         self.bus = InMemoryEventBus()
         self.broadcaster = Broadcaster()
         self.started_at = datetime.now(tz=UTC)
+        self.service_mode = service_mode
+        self.publisher = (
+            KafkaEventPublisher(kafka_bootstrap, client_id="edu-demo-simulator")
+            if service_mode
+            else None
+        )
 
         # telemetry (BR6 medallion)
         self.bronze = InMemoryBronze()
@@ -143,21 +181,36 @@ class DemoPlatform:
         )
         self.risk_alerts: list[dict[str, Any]] = []
 
-        # recommendation (BR2: rule-based, course granularity)
+        # recommendation (BR2: rules + optional two-branch feature context)
         self.next_step = NextStepPolicy()
         self.enrollments: dict[str, list[str]] = {
             it.id: list(it.course_ids) for it in seed.LEARNERS
         }
         self.completed_courses: dict[str, list[str]] = {it.id: [] for it in seed.LEARNERS}
+        self.feature_store = (
+            RedisOnlineFeatureStore(create_redis_client(redis_url))
+            if service_mode
+            else InMemoryOnlineFeatureStore()
+        )
+        self.load_features = LoadLearnerFeatures(self.feature_store)
+        self.compute_batch = ComputeBatchFeatures(self.feature_store)
+        self.session_policy = SessionFeaturePolicy()
 
         # notification (BR1)
         rules = YamlRuleRepository(rules_path).all()
         self.notifications = InMemoryNotificationRepository()
         self.notification_state = InMemoryNotificationState(self.clock.now)
         self.senders: dict[Channel, NotificationSender] = {c: RecordingSender(c) for c in Channel}
-        audience = StaticAudienceResolver(
-            {c.id: [it.id for it in seed.LEARNERS if c.id in it.course_ids] for c in seed.COURSES},
-            {it.id: it.advisor_id for it in seed.LEARNERS},
+        audience = CallableAudienceResolver(
+            # Live view: enrolling through the UI must affect the next notification.
+            lambda course_id: [
+                learner.id
+                for learner in seed.LEARNERS
+                if course_id in self.enrollments.get(learner.id, [])
+            ],
+            lambda learner_id: next(
+                (it.advisor_id for it in seed.LEARNERS if it.id == learner_id), None
+            ),
         )
         self.route_event = RouteEvent(
             RuleEngine(rules),
@@ -200,6 +253,65 @@ class DemoPlatform:
         self.org_report = BuildOrgProgressReport(MinCohortPolicy(5))
         self.engagement = ComputeEngagementTrend(EngagementPolicy(EngagementWeights()))
 
+    # -- feature branches (BR2) --------------------------------------------------
+    def refresh_features(self) -> None:
+        """Demo mode: compute both branches in-process so the UI has real features.
+
+        Service mode is fed by the batch materialisation job and the session
+        streaming job; recomputing here would create a second writer.
+        """
+        if self.service_mode:
+            return
+        self._refresh_longterm()
+        for pseudonym in {event.learner_pseudonym for event in self.silver.all()}:
+            self.update_session(pseudonym)
+
+    def _refresh_longterm(self) -> None:
+        if self.service_mode:
+            return
+        graded = [
+            GradedFact(
+                learner_pseudonym=self.pseudonym(str(s.learner_id)),
+                course_id=seed.assignment(s.assignment_id).course_id,
+                pass_rate=s.result.pass_rate,
+                at=s.submitted_at,
+            )
+            for s in self.submissions.all()
+            if s.result is not None
+        ]
+        self.compute_batch.execute(
+            ComputeBatchFeaturesCommand(
+                as_of=datetime.now(tz=UTC),
+                events=self.silver.all(),
+                graded=graded,
+                lessons_per_course={c.id: len(c.lessons) for c in seed.COURSES},
+                course_skill={c.id: c.skill for c in seed.COURSES},
+            )
+        )
+
+    def update_session(self, learner_pseudonym: str) -> None:
+        if self.service_mode:
+            return
+        events = [
+            event for event in self.silver.all() if event.learner_pseudonym == learner_pseudonym
+        ]
+        features = self.session_policy.compute(events)
+        if features is not None:
+            self.feature_store.put_session(features)
+
+    # -- Kafka bridge used by the simulator (service mode only) -----------------
+    def publish_raw(self, topic: str, *, key: str | None, payload: dict[str, Any]) -> None:
+        if self.publisher is None:
+            return
+        try:
+            self.publisher.publish_raw(topic, key=key, payload=payload)
+        except Exception as exc:  # a broker outage must not break the demo UI
+            log.warning("demo kafka publish failed", topic=topic, error=str(exc))
+
+    def close(self) -> None:
+        if self.publisher is not None:
+            self.publisher.close()
+
     # -- grading queue consumer ------------------------------------------------
     def _run_sandbox(self, submission: Submission) -> None:
         """Run the worker (or replay a synthetic log) and grade the submission."""
@@ -217,6 +329,7 @@ class DemoPlatform:
         self.grade_submission.execute(
             NormalizeExecutionLogCommand(submission.id, str(log["worker_run_id"]), log)
         )
+        self._refresh_longterm()
 
     # -- helpers used by handlers and the API ---------------------------------
     def pseudonym(self, learner_id: str) -> str:

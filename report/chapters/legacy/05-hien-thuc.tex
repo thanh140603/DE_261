@@ -1,7 +1,7 @@
 \chapter{Thiết kế và hiện thực theo từng yêu cầu}
 \label{chap:impl}
 
-Chương này đi qua tám yêu cầu nghiệp vụ. Với mỗi BR, báo cáo trình bày luồng dữ liệu, các quy tắc nghiệp vụ quan trọng và mức độ hoàn thiện. BR4--BR8 chạy trên hạ tầng thật (PostgreSQL, Debezium, Kafka, Spark, Delta, Trino, Redis, OpenSearch). BR1--BR3 có logic nghiệp vụ hoàn chỉnh và được trình diễn qua runtime trong tiến trình (ADR 0008), dùng cùng các cổng mà adapter production sẽ dùng.
+Chương này đi qua tám yêu cầu nghiệp vụ. Với mỗi BR, báo cáo trình bày luồng dữ liệu, các quy tắc nghiệp vụ quan trọng và mức độ hoàn thiện. BR4--BR8 chạy trên hạ tầng thật (PostgreSQL, Debezium, Kafka, Spark, Delta, Trino, Redis, OpenSearch). BR1--BR3 có logic nghiệp vụ hoàn chỉnh và chạy được ở hai chế độ: runtime trong tiến trình cho demo (ADR 0008) và chế độ dịch vụ dùng Kafka/Redis/PostgreSQL, với API đóng vai trò BFF.
 
 % =====================================================================
 \section{BR1 --- Pipeline thông báo hướng sự kiện}
@@ -21,7 +21,7 @@ rules:
     template_id: deadline_soon
   - rule_id: dropout-risk-advisor
     event_type: risk.dropout_risk_detected.v1
-    channels: [email]      # người nhận = cố vấn của học viên
+    channels: [email]      # recipient = the learner's advisor
     priority: high
 \end{lstlisting}
 \caption{Trích tập luật thông báo (\texttt{infra/notification/rules.yaml})}
@@ -30,15 +30,15 @@ rules:
 
 \textbf{Chống làm phiền.} Mỗi thông báo có một khoá khử trùng lặp, lưu trong Redis với TTL 24 giờ, nên cùng một sự kiện không bao giờ gửi hai lần. Chính sách giới hạn tần suất mặc định là tối đa 5 thông báo mỗi giờ cho mỗi người học. Thông báo ưu tiên cao (ví dụ còn dưới 24 giờ đến hạn) được bỏ qua giới hạn này. Thông báo bị chặn được ghi lại kèm lý do để giao diện hiển thị.
 
-\textbf{Mức hoàn thiện.} Rule engine, chính sách và use case đã hoàn chỉnh và có test. Adapter tiêu thụ Kafka và Redis cho môi trường production là phần việc tiếp theo.
+\textbf{Mức hoàn thiện.} Rule engine, chính sách và use case đã hoàn chỉnh và có test. Dịch vụ tiêu thụ Kafka ghi thông báo vào Redis (item, inbox, dedup, rate limit) và API của giao diện đọc lại mô hình này khi chạy ở chế độ dịch vụ; một cầu SSE chuyển sự kiện \code{notification.dispatched.v1} tới trình duyệt. Kênh email dùng SMTP và kênh push dùng webhook/provider sau cùng một cổng \code{NotificationSender}; khi chưa cấu hình provider, kênh tương ứng chỉ ghi log. Phần còn lại là ranh giới sandbox thật và thông tin xác thực provider production.
 
 % =====================================================================
 \section{BR2 --- Gợi ý khoá học và bước học tiếp theo}
 \label{sec:br2}
 
-Đề bài mô tả một pipeline đặc trưng hai nhánh: đặc trưng dài hạn tính theo lô bằng Spark, kết hợp đặc trưng phiên tính theo luồng, qua feature store. Nhóm đã hiện thực nhánh lô: bảng \code{features.learner_longterm} gồm tỷ lệ hoàn thành 30 ngày, tỷ lệ đạt trung bình, số ngày hoạt động, nền tảng ưa dùng và mức thành thạo theo kỹ năng. Bảng có một phân vùng cho mỗi ngày tính, để huấn luyện mô hình sau này không bị rò rỉ dữ liệu tương lai.
+Đề bài mô tả một pipeline đặc trưng hai nhánh: đặc trưng dài hạn tính theo lô bằng Spark, kết hợp đặc trưng phiên tính theo luồng, qua feature store. Nhóm đã hiện thực cả hai nhánh. Nhánh lô ghi bảng \code{features.learner_longterm} gồm tỷ lệ hoàn thành 30 ngày, tỷ lệ đạt trung bình, số ngày hoạt động, nền tảng ưa dùng và mức thành thạo theo kỹ năng, mỗi ngày một phân vùng để tránh rò rỉ dữ liệu tương lai; job \code{features-online} đẩy phân vùng mới nhất lên Redis. Nhánh phiên chạy bằng Spark Structured Streaming trên \code{telemetry.learning_events.v1}, chia phiên theo khoảng nghỉ 30 phút, tính số phút hoạt động, số sự kiện, các động từ gần nhất, khoá hiện tại và điểm lúng túng; trạng thái phiên nhỏ được giữ trong Redis và mỗi sự kiện được đánh dấu bằng \code{SET NX} để replay không đếm hai lần. Job cũng phát \code{features.session.v1} cho kho dữ liệu.
 
-Bộ gợi ý hiện tại được rút gọn thành \textbf{gợi ý dựa trên luật}, tính tại thời điểm truy vấn từ danh mục khoá học và các khoá học viên đã hoàn thành. Luật xếp các khoá chưa ghi danh theo \emph{tầng}, sau đó theo mức liên quan, độ khó và độ ưa thích (Bảng~\ref{tab:br2}). Mỗi gợi ý luôn kèm một câu giải thích để người học hiểu vì sao.
+Bộ gợi ý vẫn là \textbf{gợi ý dựa trên luật}, tính tại thời điểm truy vấn từ danh mục khoá học và các khoá học viên đã hoàn thành. Luật xếp các khoá chưa ghi danh theo \emph{tầng}, sau đó theo mức liên quan, độ khó và độ ưa thích (Bảng~\ref{tab:br2}). Hai nhánh đặc trưng được dùng làm ngữ cảnh có kiểm soát: nếu tỷ lệ đạt gần đây thấp, bước nhảy độ khó bị hạ sau bước mở rộng cùng mức; phiên đang lúng túng ưu tiên bù kiến thức; phiên đang hoạt động cùng lộ trình được ưu tiên khi hoà. Mỗi gợi ý luôn kèm một câu giải thích để người học hiểu vì sao. Mô hình học máy vẫn nằm ngoài phạm vi.
 
 \begin{table}[H]
 \centering\small
@@ -59,6 +59,8 @@ Bộ gợi ý hiện tại được rút gọn thành \textbf{gợi ý dựa tr�
 \section{BR3 --- Tiếp nhận bài nộp và phản hồi chi tiết}
 
 \textbf{Luồng tách rời.} Bài nộp được đưa vào hàng đợi \code{grading.submission_received.v1} thay vì chấm ngay trong request, nên lượng nộp tăng đột biến trước hạn không làm nghẽn hệ thống. Worker sandbox chạy bài, ghi nhật ký thô lên \code{grading.sandbox_result.raw.v1}. Dịch vụ chấm bài chuẩn hoá kết quả và phát \code{grading.submission_graded.v1}, sự kiện này kích hoạt cả thông báo BR1.
+
+\textbf{Sở hữu dữ liệu.} Kết quả bền của BR3 nằm trong schema \code{grading} (\code{grading.submissions}, \code{grading.grades}), không ghi trực tiếp vào bảng LMS \code{public.*}. Một projector tùy chọn nghe \code{grading.submission_received.v1} và \code{grading.submission_graded.v1} để đồng bộ sang \code{public.submissions}/\code{public.grades} cho CDC và kho dữ liệu. Mặc định projector tắt để BR4--BR8 giữ nguyên baseline; khi bật, đây là tích hợp có chủ đích và phải tính lại số liệu báo cáo.
 
 \textbf{Sandbox.} Bài Python chạy trong tiến trình con có giới hạn thời gian 3 giây. Bài SQL chạy trên SQLite trong bộ nhớ ở chế độ chỉ đọc, có hàm ngắt khi quá hạn. Lỗi hạ tầng được tách khỏi lỗi trong mã của người học: lỗi và timeout của mã người học tính là trượt, còn lỗi hạ tầng không tính vào tỷ lệ đạt.
 

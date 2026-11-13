@@ -32,8 +32,10 @@ Live updates: `GET /api/events` is Server-Sent Events; each message is
   -> `{event_id, outcome:"silver"|"dlq", reason?}`
 - `POST /api/simulate/burst` body `{count:number}` -> `{generated, silver, dlq}`
 - `POST /api/simulate/lms-event` body
-  `{event_type:"assignment_created"|"deadline_approaching"|"course_updated", course_id, assignment_id?, hours_to_deadline?, title?}`
-  -> `{event_id, notifications:{created, suppressed:[{learner_id, reason}]}}`
+  `{event_type:"assignment_created"|"deadline_approaching"|"course_updated", course_id, learner_id?, assignment_id?, hours_to_deadline?, title?}`
+  -> `{event_id, queued?:bool, notifications:{created, suppressed:[{learner_id, reason}]}}`
+  In service mode the event is published to Kafka; `queued:true` means the
+  notification service owns routing and the count is not known synchronously.
 - `POST /api/simulate/cdc` body
   `{table:"lesson_progress"|"enrollments"|"grades", learner_id, course_id, lesson_id?, percent_done?, status?, score?}`
   -> `{applied:true, risk?:{learner_id, course_id, score, alerted:bool}}`
@@ -57,12 +59,15 @@ Live updates: `GET /api/events` is Server-Sent Events; each message is
 - `GET /api/learners/{id}/notifications` -> `[{id, title, body, channels:[], priority, created_at, source_event_type, deep_link}]` newest first
 - `GET /api/learners/{id}/recommendations` ->
   ```
-  { next_step:{course_id, lesson_id, title, reason} | null,
-    courses:[{course_id, title, score, reason}],
+  { next_step:{course_id, title, difficulty, category, score, reason} | null,
+    enrolled:[{course_id, title, difficulty, category, completed}],
+    courses:[{course_id, title, difficulty, category, score, reason}],
     features:{longterm:{completion_rate_30d, avg_pass_rate_30d, active_days_30d, preferred_platform, skill_mastery:{[skill]:number}} | null,
-              session:{session_id, active_minutes, events_in_session, last_verbs:[], current_course_id, struggle_score, updated_at} | null } }
+              session:{session_id, active_minutes, events_in_session, last_verbs:[], current_course_id, struggle_score, updated_at, started_at} | null } }
   ```
 - `POST /api/submissions` body `{learner_id, assignment_id, code}` -> `{submission_id, status:"queued"}` (202)
+  In service mode the API proxies to `grading-ingest`; the rest of this contract
+  is unchanged. `EDU_BR13_MODE=demo` keeps the in-process grader.
 - `GET /api/submissions/{id}` ->
   ```
   { id, learner_id, assignment_id, language, status:"queued"|"running"|"graded"|"failed", attempt_number, submitted_at,

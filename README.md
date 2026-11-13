@@ -10,8 +10,8 @@ recommendation and early drop-out detection. Requirements: `docs/DE_261.pdf`.
 | BR | Stakeholder | Need | Bounded context | Runtime |
 |----|-------------|------|-----------------|---------|
 | BR1 | Learner | Real-time course notifications | `notification` | Kafka consumer service + Redis |
-| BR2 | Learner | Next-step / next-course recommendation | `recommendation` | Rule-based, request-time from the course catalogue + completed lessons (no ML) |
-| BR3 | Learner | Detailed feedback on code/SQL submissions | `grading` | Kafka-buffered ingestion service |
+| BR2 | Learner | Next-step / next-course recommendation | `recommendation` | Rule-based ranking + two-branch online feature context (Spark batch long-term, streaming session) in Redis; no ML |
+| BR3 | Learner | Detailed feedback on code/SQL submissions | `grading` | Kafka-buffered ingestion service + worker + normalizer, `grading.*` store, optional LMS projector |
 | BR4 | Instructor | Abnormal fail-rate questions / test cases | `analytics` + `br45` | CDC -> SQL -> PostgreSQL marts (serving); history in lakehouse `mart.assessment_item_stats` |
 | BR5 | Advisor | Early drop-out warning | `risk` + `br45` | Debezium CDC -> Spark event-time windows -> alerts; history in `gold.fct_risk_score_daily` / `fct_dropout_alert` |
 | BR6 | Admin / B2B | Org skill progress & completion | `telemetry` + `analytics` | Medallion (bronze/silver/gold), PII pseudonymisation, `mart.org_progress` with min-cohort k=5 |
@@ -94,6 +94,36 @@ docker compose exec demo edu telemetry simulate --sessions 50   # synthetic live
 Design in [ADR 0014](docs/adr/0014-spark-streaming-telemetry-live-overlays.md).
 `content-init` uploads the transcripts, creates the OpenSearch indices and registers the
 Debezium LMS connector; design in [ADR 0013](docs/adr/0013-br8-content-sync-cdc-opensearch.md).
+
+## BR1, BR2 and BR3: service mode
+
+```bash
+# one-shot kafka-init creates the catalogue, then demo + notification + grading services
+docker compose -f docker-compose.yml -f docker-compose.br13.yml up -d --build
+# open http://localhost:8000: notifications and CodeLab now use Kafka/Redis
+```
+
+The overlay sets `EDU_BR13_MODE=service` on the demo API and points it at
+`grading-ingest`. It also runs a one-shot `kafka-init` because consumers cannot
+auto-create topics on subscribe, and `br13-init` to create the BR3-owned
+`grading.*` schema. Session features are computed by
+`edu stream telemetry-live` (or `edu stream session-features` separately); the
+offline branch is materialised with `edu batch features-online`.
+
+BR3 writes `grading.submissions`/`grading.grades`, not the LMS `public.*` tables.
+To copy grading outcomes to the LMS (and therefore CDC/BR4/BR6), start the
+opt-in projector; this will change downstream data and requires a report
+re-baseline:
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.br13.yml \
+  --profile br13-project up -d grading-projector
+```
+
+The default overlay also starts two local delivery sinks for the demo:
+
+- Mailpit UI/API: `http://localhost:8025` (SMTP `localhost:1025`)
+- push sink: `http://localhost:8010/events` (POST target `http://localhost:8010/push`)
 
 ## Layout
 
@@ -217,12 +247,16 @@ Kafka landing into bronze, bronze -> silver (streaming and batch), the gold star
 schema, the BR4/BR6/BR7/BR8 marts, the `features.learner_longterm` offline
 feature table, quality gates, maintenance and the Airflow DAGs.
 
-BR1, BR2 and BR3 are currently demo-only: in-process adapters behind the same
-API the production entrypoints will use. BR2 is being reduced to a rule-based,
-request-time next-lesson recommendation — no session stream, no Flink job, no
-online feature store, no training data. BR6's admin endpoint is already
-decoupled from BR2's feature code.
+BR1, BR2 and BR3 run in two modes. `EDU_BR13_MODE=demo` keeps the in-process
+adapters used by the original demo; `EDU_BR13_MODE=service` makes the UI API a
+BFF: notifications are read from Redis (written by the notification service),
+submissions are proxied to `grading-ingest`, and the SSE bridge forwards Kafka
+outcomes to the browser. BR2 has an online feature store with both branches
+(batch `features.learner_longterm` materialised to Redis; streaming session
+features written by `edu stream session-features`). The ranking stays
+rule-based and uses those features only as context/gates; there is no trained
+ML model yet.
 
-Still documented `TODO` stubs: the remaining Flink jobs (telemetry normalisation
-fast path, BR7/BR8 live overlays), the BR1/BR3 Kafka consumer services, the
-Redis adapters, corpus chunking/embedding and OpenSearch.
+Remaining documented gaps: a real sandbox boundary, production push/email
+credentials, the ML ranker, and the Flink-based low-latency fast path (the
+current fast path and session job use Spark Structured Streaming).

@@ -1,0 +1,31 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://edu-platform/schemas/features/v1/features.session.v1.schema.json",
+  "title": "features.session.v1",
+  "type": "object",
+  "required": [
+    "event_type",
+    "learner_pseudonym",
+    "session_id",
+    "active_minutes",
+    "events_in_session",
+    "last_verbs",
+    "struggle_score",
+    "updated_at"
+  ],
+  "properties": {
+    "event_type": { "const": "features.session.v1" },
+    "learner_pseudonym": { "type": "string" },
+    "session_id": { "type": "string" },
+    "active_minutes": { "type": "number", "minimum": 0 },
+    "events_in_session": { "type": "integer", "minimum": 1 },
+    "last_verbs": {
+      "type": "array",
+      "items": { "type": "string" },
+      "maxItems": 8
+    },
+    "current_course_id": { "type": ["string", "null"] },
+    "struggle_score": { "type": "number", "minimum": 0, "maximum": 1 },
+    "updated_at": { "type": "string", "format": "date-time" }
+  }
+}

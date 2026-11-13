@@ -26,6 +26,7 @@ RUN pip install --no-deps --no-build-isolation -e ".[demo]"
 
 # Runtime assets the server reads from the repo layout (rules, contracts, docs).
 COPY infra/notification ./infra/notification
+COPY infra/kafka ./infra/kafka
 COPY infra/postgres/br45.sql ./infra/postgres/br45.sql
 COPY infra/debezium/br45-connector.json ./infra/debezium/br45-connector.json
 COPY infra/debezium/postgres-connector.json ./infra/debezium/postgres-connector.json

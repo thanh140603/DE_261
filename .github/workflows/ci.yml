@@ -20,3 +20,36 @@ jobs:
 
   # TODO: integration job that boots docker-compose.yml
   # (kafka, redis, postgres, minio) and runs tests/integration.
+
+  br13-integration:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v3
+      - run: uv python install 3.11
+      - run: uv sync --all-extras
+      - name: Start BR1/BR3 service stack
+        run: |
+          docker compose -f docker-compose.yml -f docker-compose.br13.yml \
+            up -d --build kafka-init br13-init grading-ingest grading-worker \
+            grading-normalizer notification demo
+      - name: Wait for the demo API
+        run: |
+          for i in $(seq 1 60); do
+            if curl -fsS http://localhost:8000/api/health >/dev/null; then exit 0; fi
+            sleep 2
+          done
+          docker compose -f docker-compose.yml -f docker-compose.br13.yml ps
+          docker compose -f docker-compose.yml -f docker-compose.br13.yml logs --tail=200
+          exit 1
+      - name: Run BR1/BR3 integration test
+        env:
+          EDU_BR13_BASE_URL: http://localhost:8000
+        run: uv run pytest -m integration tests/integration/test_br13_services.py -q
+      - name: Dump logs on failure
+        if: failure()
+        run: docker compose -f docker-compose.yml -f docker-compose.br13.yml logs --tail=300
+      - name: Stop stack
+        if: always()
+        run: docker compose -f docker-compose.yml -f docker-compose.br13.yml down -v

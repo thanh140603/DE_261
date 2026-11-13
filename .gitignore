@@ -45,3 +45,23 @@ apps/web/node_modules/
 apps/web/test-results/
 apps/web/playwright-report/
 docs/BR1_BR3_EXECUTION_PLAN.md
+
+# Local Playwright browser/runtime deps and npm cache
+.playwright-browsers/
+.playwright-deps/
+.npm-cache/
+
+# Local LaTeX engine/cache
+.tectonic/
+
+# Local-only execution plans
+docs/ALTERNATIVE_STACK_BENCHMARK_PLAN.md
+
+# Local benchmark data (5 GiB files are not committed)
+benchmarks/cdc/data/
+docs/REPORT_6PART_REWRITE_PLAN.md
+
+# Local benchmark/build scratch
+.buildlogs/
+.docker-tmp/
+.measure-backup/

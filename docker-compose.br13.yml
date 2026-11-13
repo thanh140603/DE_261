@@ -9,8 +9,72 @@ x-br13-environment: &br13-environment
   EDU_KAFKA_BOOTSTRAP_SERVERS: kafka:29092
   EDU_REDIS_URL: redis://redis:6379/0
   EDU_POSTGRES_DSN: postgresql://lms:lms@postgres:5432/lms
+  EDU_EMAIL_SMTP_URL: ${EDU_EMAIL_SMTP_URL:-}
+  EDU_EMAIL_FROM: ${EDU_EMAIL_FROM:-no-reply@edu.local}
+  EDU_PUSH_WEBHOOK_URL: ${EDU_PUSH_WEBHOOK_URL:-}
 
 services:
+  # The UI API becomes a BFF in this overlay: notifications are read from Redis
+  # and submissions are proxied to grading-ingest.
+  demo:
+    environment:
+      EDU_BR13_MODE: service
+      EDU_GRADING_SERVICE_URL: http://grading-ingest:8001
+    depends_on:
+      kafka-init: { condition: service_completed_successfully }
+      grading-ingest: { condition: service_healthy }
+
+  # One-shot catalogue apply. Consumers cannot auto-create topics on subscribe,
+  # so this must run before the four long-running services start.
+  kafka-init:
+    build: { context: ., dockerfile: Dockerfile }
+    image: de261/demo:local
+    container_name: de261-kafka-init
+    environment: *br13-environment
+    command:
+      ["python", "-m", "edu_platform.entrypoints.cli", "infra", "create-topics", "/app/infra/kafka/topics.yaml"]
+    depends_on:
+      kafka: { condition: service_healthy }
+    restart: "no"
+
+  # One-shot BR3 schema. The grading services own grading.*; public.* stays
+  # untouched unless the optional projector profile is enabled.
+  br13-init:
+    image: postgres:16-alpine
+    container_name: de261-br13-init
+    environment:
+      PGPASSWORD: lms
+    volumes:
+      - ./infra/postgres/br13.sql:/br13.sql:ro
+    command: ["psql", "-h", "postgres", "-U", "lms", "-d", "lms", "-f", "/br13.sql"]
+    depends_on:
+      postgres: { condition: service_healthy }
+    restart: "no"
+
+  # Local observability for the BR1 email/push channels.
+  mailpit:
+    image: axllent/mailpit:latest
+    container_name: de261-mailpit
+    ports: ["8025:8025", "1025:1025"]
+    restart: unless-stopped
+
+  push-sink:
+    build: { context: ., dockerfile: Dockerfile }
+    image: de261/demo:local
+    container_name: de261-push-sink
+    ports: ["8010:8080"]
+    environment:
+      PUSH_SINK_PORT: "8080"
+    command: ["python", "-m", "edu_platform.demo.push_sink"]
+    healthcheck:
+      test:
+        ["CMD", "python", "-c", "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8080/health', timeout=2).status == 200 else 1)"]
+      interval: 10s
+      timeout: 3s
+      start_period: 5s
+      retries: 5
+    restart: unless-stopped
+
   grading-ingest:
     build: { context: ., dockerfile: Dockerfile }
     image: de261/demo:local
@@ -20,8 +84,17 @@ services:
       <<: *br13-environment
       EDU_GRADING_PORT: "8001"
     command: ["python", "-m", "edu_platform.entrypoints.services.grading_ingestion.main"]
+    healthcheck:
+      test:
+        ["CMD", "python", "-c", "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8001/healthz', timeout=2).status == 200 else 1)"]
+      interval: 10s
+      timeout: 3s
+      start_period: 10s
+      retries: 5
     depends_on:
       kafka: { condition: service_healthy }
+      kafka-init: { condition: service_completed_successfully }
+      br13-init: { condition: service_completed_successfully }
       redis: { condition: service_started }
     restart: unless-stopped
 
@@ -31,8 +104,11 @@ services:
     container_name: de261-grading-worker
     environment: *br13-environment
     command: ["python", "-m", "edu_platform.entrypoints.services.grading_worker.main"]
+    healthcheck: { disable: true }  # long-running consumer; the image healthcheck targets the demo HTTP port
     depends_on:
       kafka: { condition: service_healthy }
+      kafka-init: { condition: service_completed_successfully }
+      br13-init: { condition: service_completed_successfully }
       redis: { condition: service_started }
     restart: unless-stopped
 
@@ -42,19 +118,50 @@ services:
     container_name: de261-grading-normalizer
     environment: *br13-environment
     command: ["python", "-m", "edu_platform.entrypoints.services.grading_normalizer.main"]
+    healthcheck: { disable: true }  # long-running consumer; the image healthcheck targets the demo HTTP port
     depends_on:
       kafka: { condition: service_healthy }
+      kafka-init: { condition: service_completed_successfully }
+      br13-init: { condition: service_completed_successfully }
       redis: { condition: service_started }
+    restart: unless-stopped
+
+  # Opt-in: explicitly copies grading.* outcomes into LMS public.*.
+  # Enable with: docker compose ... --profile br13-project up -d grading-projector
+  grading-projector:
+    build: { context: ., dockerfile: Dockerfile }
+    image: de261/demo:local
+    container_name: de261-grading-projector
+    profiles: ["br13-project"]
+    environment:
+      <<: *br13-environment
+      EDU_GRADING_PROJECT_TO_LMS: "true"
+    command: ["python", "-m", "edu_platform.entrypoints.services.grading_projector.main"]
+    healthcheck: { disable: true }
+    depends_on:
+      kafka: { condition: service_healthy }
+      kafka-init: { condition: service_completed_successfully }
+      br13-init: { condition: service_completed_successfully }
+      redis: { condition: service_started }
+      postgres: { condition: service_healthy }
     restart: unless-stopped
 
   notification:
     build: { context: ., dockerfile: Dockerfile }
     image: de261/demo:local
     container_name: de261-notification
-    environment: *br13-environment
+    environment:
+      <<: *br13-environment
+      EDU_EMAIL_SMTP_URL: smtp://mailpit:1025
+      EDU_PUSH_WEBHOOK_URL: http://push-sink:8080/push
     command: ["python", "-m", "edu_platform.entrypoints.services.notification_service.main"]
+    healthcheck: { disable: true }  # long-running consumer; the image healthcheck targets the demo HTTP port
     depends_on:
       kafka: { condition: service_healthy }
+      kafka-init: { condition: service_completed_successfully }
+      br13-init: { condition: service_completed_successfully }
       redis: { condition: service_started }
       postgres: { condition: service_healthy }
+      mailpit: { condition: service_started }
+      push-sink: { condition: service_healthy }
     restart: unless-stopped

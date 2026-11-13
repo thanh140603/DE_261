@@ -56,6 +56,10 @@ def test_grade_transitions_and_emits() -> None:
     (event,) = sub.pull_events()
     assert isinstance(event, SubmissionGraded)
     assert event.pass_rate == pytest.approx(0.5)
+    assert event.attempt_number == 1
+    assert event.language == "python"
+    assert event.code_ref.startswith("s3://code/")
+    assert event.submitted_at.tzinfo is not None
 
 
 def test_cannot_grade_twice() -> None:

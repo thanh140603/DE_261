@@ -152,6 +152,24 @@ def test_notification_repository_round_trip_and_inbox() -> None:
     assert repo.count() == 1
 
 
+def test_notification_repository_save_is_idempotent_and_updates_dispatch() -> None:
+    """RouteEvent saves, then DispatchNotification saves again to persist delivery."""
+    client = FakeRedis()
+    repo = RedisNotificationRepository(client)
+    notification = _notification()
+
+    repo.save(notification)
+    notification.mark_dispatched(Channel.IN_APP, datetime(2026, 1, 1, tzinfo=UTC))
+    repo.save(notification)
+
+    assert [n.id for n in repo.for_recipient("l-002")] == ["n1"]
+    assert client.lists["edu:notif:inbox:l-002"] == ["n1"]
+    assert client.strings["edu:notif:count"] == "1"
+    restored = repo.get("n1")
+    assert restored is not None
+    assert Channel.IN_APP in restored.dispatched
+
+
 def test_submission_repository_round_trip_and_grading() -> None:
     repo = RedisSubmissionRepository(FakeRedis())
     submission = Submission.receive(

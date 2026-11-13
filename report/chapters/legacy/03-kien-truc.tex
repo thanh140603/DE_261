@@ -1,0 +1,171 @@
+\chapter{Kiến trúc giải pháp}
+\label{chap:architecture}
+
+\section{Tổng quan kiến trúc}
+
+Hình~\ref{fig:arch} trình bày kiến trúc đầu cuối của nền tảng, theo sáu tầng từ trên xuống. Tầng nguồn gồm bốn nguồn dữ liệu. Tầng tiếp nhận dùng Kafka làm event bus duy nhất, với Debezium bắt thay đổi từ WAL của PostgreSQL. Tầng xử lý dùng Spark cho cả luồng và lô, cùng các dịch vụ tiêu thụ sự kiện. Tầng lưu trữ gồm lakehouse Delta Lake, PostgreSQL cho các mart thời gian thực của BR4/BR5, Redis và OpenSearch. Tầng phục vụ gồm Trino (SQL) và một API FastAPI. Trên cùng là ứng dụng web cho năm nhóm người dùng.
+
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[node distance=5mm and 3mm, font=\footnotesize]
+  % ---- source layer ----
+  \node[box, text width=3.0cm] (cli) {\textbf{Client web / mobile}\\\scriptsize telemetry JSON (xAPI)};
+  \node[box, text width=3.0cm, right=of cli] (pg) {\textbf{LMS PostgreSQL}\\\scriptsize OLTP, WAL};
+  \node[box, text width=3.0cm, right=of pg] (obj) {\textbf{MinIO}\\\scriptsize học liệu theo phiên bản\\(content-sync đọc khi có CDC)};
+  \node[box, text width=3.0cm, right=of obj] (sb) {\textbf{Sandbox}\\\scriptsize nhật ký chấm bài};
+  % ---- ingestion layer ----
+  \node[stage, below=4mm of pg, text width=3.0cm] (dbz) {Debezium (pgoutput)};
+  \coordinate (kc) at ($(cli.west)!0.5!(sb.east)$);
+  \node[hl, anchor=north, text width=12.9cm] (kafka) at (kc |- {$(dbz.south)+(0,-0.45)$}) {\textbf{Apache Kafka} --- event bus, 26 topic: telemetry, \texttt{cdc.lms.*}, \texttt{lms.*}, \texttt{grading.*}, \texttt{risk.*}, \texttt{content.*}, \texttt{notification.*}};
+  % ---- processing layer ----
+  \node[stage, anchor=north west, text width=4.0cm, minimum height=17mm] (sss) at ($(kafka.south west)+(0,-0.55)$) {\textbf{Spark Structured}\\\textbf{Streaming}\\\scriptsize landing bronze/silver (1--5 phút)\\ telemetry-live, lớp phủ BR7/BR8\\ cửa sổ rủi ro BR5};
+  \node[stage, right=3mm of sss, text width=4.0cm, minimum height=17mm] (batch) {\textbf{Spark batch + Airflow}\\\scriptsize gold, mart, features\\ bảo trì OPTIMIZE / VACUUM\\ reindex học liệu};
+  \node[stage, right=3mm of batch, text width=4.0cm, minimum height=17mm] (svc) {\textbf{Dịch vụ sự kiện}\\\scriptsize notification (BR1), grading (BR3)\\ content-sync (BR8)\\ br45 CDC worker (BR4/BR5)};
+  % ---- storage layer ----
+  \node[box, anchor=north west, text width=5.5cm, minimum height=14mm, draw=gold!80!black, fill=gold!8] (delta) at ($(sss.south west)+(0,-0.55)$) {\textbf{Delta Lake trên MinIO + Hive Metastore}\\\scriptsize bronze $\rightarrow$ silver $\rightarrow$ gold (Kimball) $\rightarrow$ mart / features};
+  \node[box, right=3mm of delta, text width=2.0cm, minimum height=14mm] (pga) {\textbf{PostgreSQL}\\\scriptsize \texttt{analytics}\\ BR4/BR5};
+  \node[box, right=3mm of pga, text width=1.7cm, minimum height=14mm] (redis) {\textbf{Redis}\\\scriptsize cache, lớp phủ, dedup};
+  \node[box, right=3mm of redis, text width=1.9cm, minimum height=14mm] (os) {\textbf{OpenSearch}\\\scriptsize BM25 + kNN};
+  % ---- serving layer ----
+  \node[stage, below=5mm of delta, text width=5.5cm] (trino) {\textbf{Trino} --- SQL warehouse, phân quyền theo vai trò};
+  \node[stage, anchor=north west, text width=7.0cm] (api) at ($(pga.south west)+(0,-0.5)$) {\textbf{FastAPI} --- API có xác thực, phạm vi theo khoá học / tổ chức};
+  % ---- users ----
+  \node[hl, anchor=north, text width=12.9cm] (web) at (kc |- {$(api.south)+(0,-0.5)$}) {\textbf{Ứng dụng web (React)} --- Learner \textbullet{} Instructor \textbullet{} Advisor \textbullet{} Org admin \textbullet{} Data platform};
+  % ---- arrows ----
+  \draw[arr] (cli.south) -- (cli.south |- kafka.north);
+  \draw[arr] (pg) -- (dbz);
+  \draw[arr] (dbz) -- (dbz.south |- kafka.north);
+  \draw[arr] (sb.south) -- (sb.south |- kafka.north);
+  \draw[arr] (sss.north |- kafka.south) -- (sss.north);
+  \draw[arr] (svc.north |- kafka.south) -- ($(svc.north)$);
+  \draw[arr] (sss.south -| delta.north) -- (delta.north -| sss.south);
+  \draw[arr, <->] (batch.south) -- (batch.south |- delta.north);
+  \draw[arr] (svc.south) -- (svc.south |- redis.north);
+  \draw[arr] (delta) -- (trino);
+  \draw[arr] (trino.east) -- (trino.east -| api.west);
+  \draw[arr] (pga.south) -- (pga.south |- api.north);
+  \draw[arr] (redis.south) -- (redis.south |- api.north);
+  \draw[arr] (os.south) -- (os.south |- api.north);
+  \draw[arr] (api.south) -- (api.south |- web.north);
+  % ---- layer labels ----
+  \node[grplabel, rotate=90, anchor=south] at ($(cli.west)+(-0.25,0)$) {NGUỒN};
+  \node[grplabel, rotate=90, anchor=south] at ($(kafka.west)+(-0.25,0)$) {TIẾP NHẬN};
+  \node[grplabel, rotate=90, anchor=south] at ($(sss.west)+(-0.25,0)$) {XỬ LÝ};
+  \node[grplabel, rotate=90, anchor=south] at ($(delta.west)+(-0.25,0)$) {LƯU TRỮ};
+  \node[grplabel, rotate=90, anchor=south] at ($(trino.west)+(-0.25,0)$) {PHỤC VỤ};
+\end{tikzpicture}
+\caption{Kiến trúc tổng thể của nền tảng DE\_261}
+\label{fig:arch}
+\end{figure}
+
+Ba nguyên tắc xuyên suốt kiến trúc:
+\begin{itemize}
+  \item \textbf{Kafka là ranh giới giữa các context.} Các bounded context chỉ giao tiếp qua topic Kafka và bảng lakehouse, không dùng chung cơ sở dữ liệu. Nhờ đó mỗi context có thể triển khai và thay đổi độc lập.
+  \item \textbf{Spark là bên ghi duy nhất của lakehouse} (ADR 0011). Các job thời gian thực chỉ ghi ra Kafka và Redis. Điều này tránh xung đột commit khi nhiều engine cùng ghi một bảng Delta, và giữ logic idempotent ở một nơi.
+  \item \textbf{Lakehouse là nguồn sự thật cho phân tích.} Redis và các mart phục vụ đều dựng lại được từ lakehouse hoặc từ dữ liệu thô (ADR 0006).
+\end{itemize}
+
+\section{Lựa chọn công nghệ}
+
+Bảng~\ref{tab:tech} liệt kê công nghệ cho từng vai trò. Các thành phần chính gồm Kafka~\cite{kreps2011kafka}, Debezium~\cite{debezium}, Spark~\cite{zaharia2016spark} với Structured Streaming~\cite{armbrust2018structured}, Delta Lake~\cite{armbrust2020delta}, Trino (hậu duệ của Presto~\cite{sethi2019presto}), Redis~\cite{redis} và OpenSearch~\cite{opensearch}. Nhóm giữ các lựa chọn của đề bài khi chúng chạy được trên máy cá nhân. Khi phải thay thế, nhóm chọn thành phần đóng cùng vai trò và ghi lại bằng ADR.
+
+{\small
+\begin{longtable}{@{}L{3.2cm}L{3.4cm}L{7.9cm}@{}}
+\caption{Công nghệ theo vai trò}\label{tab:tech}\\
+\toprule
+\textbf{Vai trò} & \textbf{Công nghệ} & \textbf{Lý do chọn} \\
+\midrule
+\endfirsthead
+\toprule
+\textbf{Vai trò} & \textbf{Công nghệ} & \textbf{Lý do chọn} \\
+\midrule
+\endhead
+Tiếp nhận, event bus & Apache Kafka & Bộ đệm cho telemetry tốc độ cao, giữ thứ tự theo khoá, phát lại được; dùng chung làm event bus cho các sự kiện LMS (ADR 0003) \\
+CDC & Debezium (pgoutput) & Đọc replication slot nên không tạo tải truy vấn lên production; giữ LSN để sắp thứ tự \\
+Xử lý luồng & Spark Structured Streaming & Watermark theo event time, checkpoint, sink giao dịch Delta; dùng chung engine với batch (ADR 0009, 0014) \\
+Xử lý lô & Apache Spark 3.5 & Hệ sinh thái Delta, xử lý song song cho model SQL và chia đoạn học liệu (ADR 0004) \\
+Lakehouse & Delta Lake 3.3 trên MinIO & ACID MERGE, time travel, Change Data Feed; tương thích Databricks (ADR 0005) \\
+Catalog & Hive Metastore 3.1.3 & Danh mục chung cho Spark và Trino; bản 3.1 tương thích Spark 3.5 (ADR 0010) \\
+SQL warehouse & Trino & Truy vấn trực tiếp bảng Delta, ANSI SQL, phân quyền theo schema, không cần bản sao thứ hai (ADR 0010) \\
+Phục vụ độ trễ thấp & Redis & Tra cứu theo khoá dưới mili-giây, TTL; dùng cho cache, lớp phủ thời gian thực, dedup thông báo (ADR 0006) \\
+Mart thời gian thực BR4/BR5 & PostgreSQL 16 & Phục vụ giao dịch, cập nhật đúng ngay khi nguồn sửa (ADR 0009) \\
+Tìm kiếm & OpenSearch 2.17 & BM25 kết hợp vector HNSW; xếp hạng lai bằng reciprocal rank fusion (ADR 0013) \\
+Điều phối & Apache Airflow & DAG theo lịch và theo dataset; mọi task idempotent theo ngày chạy \\
+API, giao diện & FastAPI, React 18 + TypeScript & Một API chung cho mọi BR; giao diện không dùng thư viện UI hay biểu đồ ngoài \\
+\bottomrule
+\end{longtable}}
+
+\section{Kiến trúc phần mềm: DDD và kiến trúc lục giác}
+
+Toàn bộ mã nằm trong một gói Python \code{edu_platform} (monorepo, ADR 0002), chia thành bảy bounded context theo Domain-Driven Design~\cite{evans2003}: \code{telemetry}, \code{notification}, \code{recommendation}, \code{grading}, \code{risk}, \code{analytics} và \code{content}. Mỗi context có bốn lớp theo kiến trúc lục giác~\cite{cockburn2005} như Bảng~\ref{tab:layers}. Một test kiến trúc (\code{tests/unit/test_architecture.py}) kiểm tra quy tắc phụ thuộc giữa các lớp.
+
+\begin{table}[H]
+\centering\small
+\caption{Các lớp trong một bounded context}\label{tab:layers}
+\begin{tabularx}{\textwidth}{@{}L{2.8cm}YL{4.0cm}@{}}
+\toprule
+\textbf{Lớp} & \textbf{Chứa gì} & \textbf{Được phụ thuộc vào} \\
+\midrule
+\code{domain/} & Thực thể, value object, aggregate, sự kiện miền, \en{policy} (ví dụ \code{EngagementPolicy}, \code{MinCohortPolicy}) & Chỉ \code{shared_kernel.domain} \\
+\code{application/} & Use case (mỗi lớp một hàm \code{execute}), các cổng \code{Protocol} & domain \\
+\code{infrastructure/} & Adapter: Kafka, Redis, Delta, S3, Trino, OpenSearch, YAML & Mọi thứ \\
+\code{entrypoints/} & Điểm ghép nối cho job Spark, dịch vụ, API & Mọi thứ \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+Lợi ích lớn nhất của cách tổ chức này là \textbf{một logic, nhiều engine}. Ví dụ, use case \code{NormalizeEvents} (kiểm tra hợp lệ, chuyển schema, khử định danh, gắn cờ trễ) chạy trong job streaming thời gian thực, trong job silver của lakehouse, và trong runtime demo. Kết quả luôn giống nhau, kể cả bút danh và quyết định đưa vào DLQ. Các ngưỡng nghiệp vụ dùng trong SQL của mart cũng được lấy từ value object của domain, và có test đơn vị giữ hai phía đồng bộ.
+
+\section{Ngữ nghĩa xử lý luồng}
+
+\begin{itemize}
+  \item \textbf{Thời gian sự kiện ở mọi nơi} theo mô hình Dataflow~\cite{akidau2015dataflow}. Watermark cho phép sự kiện đến muộn tối đa 5 phút với telemetry và 10 giây với CDC. Riêng cửa sổ rủi ro BR5 dùng watermark 21 ngày, vì dữ liệu học tập có thể được đồng bộ muộn.
+  \item \textbf{Dữ liệu trễ không bị mất.} Sự kiện trễ hơn watermark vẫn được lưu và gắn cờ. Các model gold tự mở rộng cửa sổ tính toán về ngày của sự kiện trễ nhất (cơ chế \code{late_data}, Mục~\ref{sec:late}).
+  \item \textbf{Đúng một lần.} Landing dùng checkpoint của Structured Streaming kết hợp sink giao dịch Delta. Lớp silver dùng MERGE idempotent theo khoá nghiệp vụ. Lớp phủ Redis ghi giá trị tuyệt đối thay vì cộng dồn, nên phát lại không đếm hai lần.
+  \item \textbf{Thứ tự CDC.} Thay đổi được sắp theo \code{source.lsn} cho từng khoá. Thay đổi có LSN cũ hơn không thể ghi đè bản ghi mới hơn.
+  \item \textbf{Đồng hồ thiết bị lệch.} Sự kiện có thời gian sau thời điểm tiếp nhận quá 2 phút được ghim về thời điểm tiếp nhận (\code{ClockSkewPolicy}). Nếu không, một thiết bị có đồng hồ chạy nhanh sẽ đẩy watermark lên và làm rơi sự kiện đúng hạn của mọi người khác.
+\end{itemize}
+
+\section{Các quyết định kiến trúc}
+
+Nhóm ghi mỗi quyết định quan trọng thành một ADR~\cite{nygard2011adr} trong \code{docs/adr/}. ADR đã chấp nhận thì không sửa; quyết định mới thay thế quyết định cũ bằng một ADR mới. Bảng~\ref{tab:adr} tóm tắt mười bốn ADR.
+
+{\small
+\begin{longtable}{@{}L{0.9cm}L{4.6cm}L{9.0cm}@{}}
+\caption{Tóm tắt các quyết định kiến trúc (ADR)}\label{tab:adr}\\
+\toprule
+\textbf{ADR} & \textbf{Quyết định} & \textbf{Lý do và hệ quả chính} \\
+\midrule
+\endfirsthead
+\toprule
+\textbf{ADR} & \textbf{Quyết định} & \textbf{Lý do và hệ quả chính} \\
+\midrule
+\endhead
+0001 & Ghi quyết định bằng ADR & Tránh tranh luận lại; lưu lý do, không chỉ kết quả \\
+0002 & Monorepo Python, DDD + hexagonal & Use case độc lập engine; một chi phí nhỏ cho các lớp gián tiếp \\
+0003 & Kafka + Debezium cho tiếp nhận và CDC & Giữ thứ tự theo thực thể; phải giám sát replication slot \\
+0004 & Flink cho luồng, Spark cho lô & Lựa chọn ban đầu theo đề bài; được điều chỉnh bởi ADR 0009 và 0014 \\
+0005 & Lakehouse Delta Lake medallion & ACID upsert, time travel, ranh giới PII; cần job bảo trì chống file nhỏ \\
+0006 & Redis cho tầng phục vụ & Dưới mili-giây, TTL; Redis không phải nguồn sự thật \\
+0007 & Khử định danh ở ranh giới silver & HMAC-SHA256 có phiên bản khoá; báo cáo tổ chức áp dụng $k = 5$ \\
+0008 & Runtime demo trong tiến trình & Trình diễn đầu cuối trên laptop bằng adapter trong bộ nhớ, cùng các cổng như production \\
+0009 & PostgreSQL mart + Spark Structured Streaming cho BR4/BR5 & Một driver Spark thay vì hoàn thiện cả hai engine; độ trễ CDC đến cảnh báo khoảng 10 giây \\
+0010 & Trino + Hive Metastore làm SQL warehouse & Đóng vai ``Databricks SQL + catalog'' trên chính các bảng Delta, không có bản sao thứ hai \\
+0011 & Spark là bên ghi duy nhất của Delta & Connector Flink cho Delta đã lỗi thời; tránh xung đột commit \\
+0012 & Gold là lược đồ hình sao Kimball, khoá tất định & \code{xxhash64} của khoá tự nhiên; dựng lại tái tạo đúng khoá; thành viên suy luận cho chiều đến muộn \\
+0013 & Đồng bộ nội dung BR8 bằng CDC vào OpenSearch & Một đường đồng bộ cho mọi bên ghi; idempotent theo phiên bản đã chỉ mục \\
+0014 & Spark Structured Streaming cho telemetry nhanh và lớp phủ BR7/BR8 & Các job Flink chưa tồn tại; độ trễ đo được khoảng 7 giây đủ cho lớp phủ \\
+\bottomrule
+\end{longtable}}
+
+\section{Điều chỉnh so với kiến trúc tham chiếu của đề bài}
+\label{sec:deviations}
+
+Nhóm giữ nguyên các vai trò trong kiến trúc của đề bài, nhưng có bốn điểm điều chỉnh có chủ đích:
+
+\begin{enumerate}
+  \item \textbf{Spark Structured Streaming thay Flink cho BR5 và các lớp phủ BR7/BR8} (ADR 0009, 0014). Đề bài đề xuất Flink~\cite{carbone2015flink} cho xử lý luồng có trạng thái. Khi hiện thực, các job Flink chỉ là stub, trong khi Spark Structured Streaming đã chạy cho landing lakehouse. Dùng một engine giúp giảm hạ tầng phải vận hành, và cho phép chạy lại đúng code chuẩn hoá của lớp silver. Đổi lại, độ trễ khoảng 7--10 giây, cao hơn mức dưới một giây mà Flink có thể đạt. Với mục đích cảnh báo cho cố vấn và lớp phủ trên mart theo ngày, mức này là chấp nhận được. Các dịch vụ Flink vẫn có trong Compose để chuyển đổi khi cần.
+  \item \textbf{Trino + Hive Metastore cho vai trò ``Databricks''} (ADR 0010). Delta Lake chỉ là định dạng bảng. Vai trò danh mục và SQL warehouse của Databricks được lấp bằng Hive Metastore và Trino, chạy được cục bộ. Trên cloud có thể thay bằng Databricks SQL và Unity Catalog mà không đổi mô hình dữ liệu.
+  \item \textbf{Redis thay Cassandra} cho tầng phục vụ (ADR 0006). Đề bài cho phép chọn một trong hai. Redis đủ cho khối lượng hiện tại; adapter nằm sau cổng nên có thể thay khi dữ liệu vượt bộ nhớ.
+  \item \textbf{BR2 dùng luật làm trục, feature store làm ngữ cảnh.} Đề bài mô tả pipeline đặc trưng hai nhánh qua feature store. Nhóm đã hiện thực nhánh lô (\code{features.learner_longterm}) và nhánh phiên streaming, cả hai phục vụ qua Redis; gợi ý vẫn do luật xếp hạng, dùng đặc trưng để cổng/ưu tiên và giải thích (Mục~\ref{sec:br2}). Mô hình học máy chưa nằm trong phạm vi.
+\end{enumerate}
