@@ -85,20 +85,20 @@ Bộ xếp hạng dựa trên \textbf{luật nghiệp vụ}, tính tại thời 
 % =====================================================================
 \subsection{BR4 --- Phát hiện câu hỏi và test case bất thường}
 
-\textbf{Luồng CDC thật} (ADR 0009). Dữ liệu vận hành nằm trong schema \code{br45} của PostgreSQL: khoá học, bài tập, câu hỏi và test case có phiên bản, bài nộp và kết quả chấm. Connector Debezium riêng bắt WAL vào các topic \code{br45.cdc.br45.<table>}. Worker CDC lưu phong bì gốc vào \code{analytics.raw_changes}, kiểm tra hợp đồng (sai thì vào \code{quarantine}), khử trùng lặp theo định danh ổn định (bảng, LSN, giao dịch, thao tác, ảnh dòng) rồi ghi \code{clean_rows}. Thay đổi có LSN cũ không thể ghi đè bản ghi mới hơn.
+\textbf{Luồng CDC thật} (ADR 0009). Dữ liệu vận hành nằm trong schema \code{br45} của PostgreSQL: khoá học, bài tập, câu hỏi và test case có phiên bản, bài nộp và kết quả chấm. Connector Debezium riêng bắt WAL vào các topic \code{br45.cdc.br45.<table>}. Worker CDC lưu phong bì gốc vào \code{analytics.raw_changes}, kiểm tra hợp đồng (sai thì vào \code{quarantine}), khử trùng lặp theo định danh ổn định (bảng, LSN, giao dịch, thao tác, ảnh dòng) rồi ghi \code{clean_rows}. Thay đổi có LSN cũ không thể ghi đè bản ghi mới hơn. Trong cùng giao dịch, mỗi dòng được chấp nhận còn được ghi vào outbox \code{analytics.domain_outbox} để worker phát lên topic \code{br45.clean.v2}.
 
 \begin{figure}[H]
 \centering
 \begin{tikzpicture}[font=\footnotesize, node distance=4mm]
   \node[box, text width=2.2cm] (pg) {PostgreSQL \texttt{br45.*}};
-  \node[box, right=of pg, text width=1.9cm] (dbz) {Debezium};
-  \node[box, right=of dbz, text width=1.6cm] (k) {Kafka};
+  \node[box, right=of pg, text width=1.6cm] (dbz) {Debezium};
+  \node[box, right=of dbz, text width=1.3cm] (k) {Kafka};
   \node[stage, right=of k, text width=2.6cm] (w) {CDC worker\\\scriptsize raw $\rightarrow$ clean, outbox};
-  \node[hl, right=of w, text width=2.6cm] (m) {SQL aggregation\\\scriptsize mart câu hỏi, test};
-  \node[box, below=6mm of m, text width=2.6cm] (api) {API giảng viên};
+  \node[hl, right=25mm of w, text width=2.8cm] (m) {Job Spark SQL\\\scriptsize ảnh chụp Delta (BR4)};
+  \node[box, below=6mm of m, text width=2.8cm] (api) {Mart PostgreSQL\\\scriptsize API giảng viên};
   \node[hl, below=6mm of w, text width=2.6cm] (sp) {Spark Streaming\\\scriptsize cửa sổ 7 ngày (BR5)};
   \node[box, left=of sp, text width=2.9cm] (risk) {Rủi ro, lịch sử, cảnh báo};
-  \draw[arr] (pg) -- (dbz); \draw[arr] (dbz) -- (k); \draw[arr] (k) -- (w); \draw[arr] (w) -- (m); \draw[arr] (m) -- (api);
+  \draw[arr] (pg) -- (dbz); \draw[arr] (dbz) -- (k); \draw[arr] (k) -- (w); \draw[arr] (w) -- node[above, font=\scriptsize]{\texttt{br45.clean.v2}} (m); \draw[arr] (m) -- node[right, font=\scriptsize]{\texttt{publish()}} (api);
   \draw[arr] (w) -- node[right, font=\scriptsize]{\texttt{br45.activity.v1}} (sp); \draw[arr] (sp) -- (risk);
 \end{tikzpicture}
 \caption{Đường CDC thật của BR4 và BR5}
@@ -127,7 +127,7 @@ Giảm so với cửa sổ liền trước cùng độ dài & $\ge 30$ điểm \
 \end{tabularx}
 \end{table}
 
-Kết quả lưu trong ba mart (\code{mart_question_pass_statistics}, \code{mart_test_case_pass_statistics}, \code{mart_question_anomalies}) kèm định danh, phiên bản, cửa sổ, số đếm, lý do và ngưỡng. Mỗi thay đổi CDC làm mới bản tổng hợp 30 ngày bằng cách thay giá trị tuyệt đối theo khoá ổn định thay vì cộng dồn, nên sửa điểm hay xoá bản ghi được phản ánh đúng mà không cần chạy lại seed. Một cờ bất thường chỉ yêu cầu giảng viên xem xét, không kết luận đề bị lỗi.
+Kết quả lưu trong ba mart của PostgreSQL (\code{mart_question_pass_statistics}, \code{mart_test_case_pass_statistics}, \code{mart_question_anomalies}) kèm định danh, phiên bản, cửa sổ, số đếm, lý do và ngưỡng. Việc tổng hợp chạy bất đồng bộ (Hình~\ref{fig:br45}). Khi một thay đổi CDC của dữ liệu chấm bài được chấp nhận, hoặc khi mốc đánh giá tiến lên, worker CDC ghi một job bền vào \code{analytics.assessment_jobs} cho cửa sổ 30 ngày của từng khoá học có bài nộp. Job br45-stream nạp các dòng từ \code{br45.clean.v2} vào một bảng Delta bằng MERGE theo khoá, chỉ nhận dòng có LSN mới hơn. Khi bảng này đã chứa thay đổi mà job yêu cầu, br45-stream tổng hợp bằng Spark SQL trên một ảnh chụp có phiên bản của bảng, rồi gọi \code{publish()}: sau một cổng chất lượng, toàn bộ dòng mart của khoá học và cửa sổ đó được thay trong một giao dịch PostgreSQL. Vì mart được thay bằng giá trị tuyệt đối theo khoá ổn định thay vì cộng dồn, sửa điểm hay xoá bản ghi được phản ánh đúng mà không cần chạy lại seed. API chỉ đọc mart và báo trạng thái của job, không tự chạy phép tổng hợp. Phép tổng hợp bằng SQL của PostgreSQL trên \code{clean_rows} vẫn được giữ làm engine đối chứng, chọn bằng \code{EDU_BR45_ASSESSMENT_ENGINE=postgres}. Một cờ bất thường chỉ yêu cầu giảng viên xem xét, không kết luận đề bị lỗi.
 
 % =====================================================================
 \subsection{BR5 --- Cảnh báo sớm nguy cơ bỏ học}
@@ -181,7 +181,7 @@ Hoạt động giảm & Hoạt động giảm ít nhất 50\%, với ít nhất 
 
 BR6 là ví dụ đầy đủ nhất của pipeline medallion. Telemetry và CDC đi qua silver (chuyển schema, khử định danh), lên gold (\code{fct_enrollment}, \code{fct_lesson_progress}, \code{fct_submission}) và tổng hợp thành \code{mart.org_progress} theo tổ chức × khoá học. Tỷ lệ hoàn thành là trung bình tỷ lệ bài học đã xong của khoá; mức thành thạo là tỷ lệ đạt test trung bình của các bài nộp đã chấm, học viên chưa có bài chấm tính là 0.
 
-\textbf{k-anonymity được bảo vệ ở ba lớp.} (1) Mart chỉ công bố quy mô cho nhóm dưới $k = 5$ người; các tỷ lệ để trống. (2) Cổng chất lượng mức \code{error} \code{mart_org_progress_k_anonymity} làm hỏng lần build nếu vi phạm. (3) Bộ đọc API xoá tỷ lệ của dòng bị ẩn, kể cả khi mart lỗi vẫn mang giá trị. Token quản trị viên chỉ đọc được tổ chức trong phạm vi của mình; truy cập ngoài phạm vi trả 403.
+\textbf{k-anonymity được bảo vệ ở ba lớp.} (1) Mart chỉ công bố quy mô cho nhóm dưới $k = 5$ người; các tỷ lệ để trống. (2) Cổng chất lượng mức \code{error} \code{mart_org_progress_k_anonymity} làm hỏng lần build nếu vi phạm. (3) Bộ đọc API xoá tỷ lệ của dòng bị ẩn, kể cả khi mart lỗi vẫn mang giá trị. Quản trị viên chỉ đọc được tổ chức trong phạm vi tài khoản của mình; truy cập ngoài phạm vi trả 403.
 
 % =====================================================================
 \subsection{BR7 --- Heatmap tương tác video}
@@ -333,7 +333,7 @@ Data platform & \code{/pipeline} & Bộ đếm luồng, thông lượng, topic, 
 \bottomrule
 \end{longtable}}
 
-Workspace Instructor, Advisor và Org admin được bảo vệ bằng thẻ đăng nhập nhận token vai trò. Token giữ trong phiên tab và dùng chung cho mọi trang; máy chủ ánh xạ token sang danh tính, vai trò và phạm vi khoá học/tổ chức, giao diện không tự khai báo quyền. Các điều khiển thử nghiệm (giả lập sự kiện LMS, bộ sinh telemetry) được tách vào khối ``Demo controls'' viền nét đứt. Biểu đồ vẽ bằng SVG thuần theo chiều rộng thật của phần tử, nên chữ không bị co giãn.
+Workspace Instructor, Advisor và Org admin được bảo vệ bằng thẻ đăng nhập bằng tên người dùng và mật khẩu, mỗi workspace một phiên riêng. Máy chủ đối chiếu mật khẩu với mã băm Argon2id của các tài khoản cấu hình sẵn (\code{EDU_STAFF_ACCOUNTS}) rồi cấp cookie phiên HttpOnly theo vai trò, có hạn tám giờ; các yêu cầu sau đó gửi cookie này kèm header \code{X-Staff-Role}. Danh tính, vai trò và phạm vi khoá học/tổ chức lấy từ tài khoản phía máy chủ, giao diện không tự khai báo quyền. Các điều khiển thử nghiệm (giả lập sự kiện LMS, bộ sinh telemetry) được tách vào khối ``Demo controls'' viền nét đứt. Biểu đồ vẽ bằng SVG thuần theo chiều rộng thật của phần tử, nên chữ không bị co giãn.
 
 \subsection{Các màn hình chính}
 
@@ -408,5 +408,5 @@ Giao diện được kiểm chứng theo ba cách:
 \begin{itemize}
   \item \textbf{Biên dịch nghiêm ngặt}: TypeScript \code{strict}; bản build production thành công.
   \item \textbf{Kiểm tra thủ công trên trình duyệt} với dữ liệu thật ở chế độ sáng/tối, desktop và điện thoại: một bài nộp đi qua sandbox sinh thông báo mới; các trang BR6--BR8 đọc mart thật từ Trino.
-  \item \textbf{Kiểm thử chấp nhận bằng Playwright} trên stack thật, gồm ba bộ: 2 test BR1--BR3, 3 test BR4/BR5 và 4 test BR6--BR8. Cả 9 test đạt; kết quả JSON và ảnh chụp được lưu kèm.
+  \item \textbf{Kiểm thử chấp nhận bằng Playwright} trên stack thật, gồm 12 test trong năm tệp spec: 2 test BR1--BR3, 3 test BR4/BR5, 4 test BR6--BR8, 2 test cho hai chế độ classroom và replay của BR4/BR5 và 1 test phiên đăng nhập nhân sự. Chín test của ba bộ đầu đã đạt ở các lần chạy trước khi gộp nhánh BR4/BR5; kết quả JSON và ảnh chụp được lưu kèm. Trên mã đã gộp, các test này đăng nhập bằng tài khoản nhân sự và cả bộ 12 test chưa được chạy lại.
 \end{itemize}

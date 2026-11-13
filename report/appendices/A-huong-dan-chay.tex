@@ -30,24 +30,73 @@ docker compose run --rm spark-jobs edu warehouse run --run-date 2026-10-17 --sta
 docker compose exec trino trino --user analyst --catalog lakehouse
 \end{lstlisting}
 
-Mở ứng dụng tại \code{http://localhost:8000}. Overlay \code{br13} dựng các dịch vụ notification và grading trên Kafka, Redis, PostgreSQL. Token cục bộ: \code{instructor-demo}, \code{advisor-demo}, \code{admin-demo} (cả hai tổ chức), \code{acme-admin-demo} (chỉ Acme).
+Mở ứng dụng tại \code{http://localhost:8000}. Overlay \code{br13} dựng các dịch vụ notification và grading trên Kafka, Redis, PostgreSQL.
+
+Ba workspace Instructor, Advisor và Org admin yêu cầu đăng nhập bằng tài khoản nhân sự (\code{docs/STAFF_AUTH.md}). Compose mặc định không khai báo tài khoản nào (\code{EDU_STAFF_ACCOUNTS} rỗng) và chỉ khai báo một token Bearer của người học (\code{learner-demo}). Vì vậy cần tạo tài khoản và khai báo token cho script trong shell \emph{trước khi} chạy các lệnh \code{docker compose ... up} ở trên; nếu \code{demo} đang chạy thì chạy lại lệnh \code{up} đó để tạo lại container với hai biến này.
+
+\begin{lstlisting}[language=bash]
+# Staff accounts: each command asks for a password (12-128 characters)
+# and prints one account with its Argon2id hash
+umask 077; accounts_dir=$(mktemp -d)
+.venv/bin/python -m edu_platform.br45.auth instructor instructor.demo \
+  instructor-local "Demo Instructor" --course c-py-201 --course c-sql-101 \
+  --course c-de-301 > "$accounts_dir/instructor.json"
+.venv/bin/python -m edu_platform.br45.auth advisor advisor.demo \
+  advisor-local "Demo Advisor" --course c-py-201 \
+  > "$accounts_dir/advisor.json"
+.venv/bin/python -m edu_platform.br45.auth admin admin.demo admin-local \
+  "Demo Admin" --organisation org-acme --organisation org-globex \
+  > "$accounts_dir/admin.json"
+.venv/bin/python -m edu_platform.br45.auth admin acme-admin.demo \
+  acme-admin-local "Acme Admin" --organisation org-acme \
+  > "$accounts_dir/acme-admin.json"
+export EDU_STAFF_ACCOUNTS="$(jq -cs 'add' "$accounts_dir"/*.json)"
+
+# Bearer tokens for scripts (e2e check, BR6-BR8 benchmarks, Playwright API
+# checks). Local demonstration values only: token -> identity and scope.
+export EDU_BR45_AUTH='{
+  "instructor-demo": {"id": "instructor-local", "role": "instructor",
+    "courses": ["c-py-201", "c-sql-101", "c-de-301"]},
+  "advisor-demo": {"id": "advisor-local", "role": "advisor",
+    "courses": ["c-py-201"]},
+  "admin-demo": {"id": "admin-local", "role": "admin",
+    "organisations": ["org-acme", "org-globex"]},
+  "acme-admin-demo": {"id": "acme-admin-local", "role": "admin",
+    "organisations": ["org-acme"]},
+  "learner-demo": {"id": "br45-demo-at-risk", "role": "learner",
+    "courses": ["c-py-201"]}}'
+\end{lstlisting}
+
+Đăng nhập trên giao diện bằng tên người dùng vừa tạo (\code{instructor.demo}, \code{advisor.demo}, \code{admin.demo} cho cả hai tổ chức, \code{acme-admin.demo} chỉ cho Acme) và mật khẩu đã nhập; phiên có hạn tám giờ và mất khi API khởi động lại.
 
 \section{Kiểm thử}
 
 \begin{lstlisting}[language=bash]
 .venv/bin/ruff check src tests && .venv/bin/mypy
-.venv/bin/python -m pytest tests/unit                       # 353 unit tests, 3 skipped
+.venv/bin/python -m pytest tests/unit                       # 379 unit tests
 EDU_BR13_BASE_URL=http://localhost:8000 .venv/bin/python -m pytest -m integration tests/integration/test_br13_services.py
-.venv/bin/python -m pytest -m spark tests/integration       # requires JDK
-EDU_BR45_E2E=1 .venv/bin/python -m pytest tests/e2e/test_br45.py
+# 11 Spark tests; require JDK, pyspark and delta-spark (the two BR4/BR5 ones
+# are skipped unless EDU_BR45_RUN_SPARK_TESTS=1)
+.venv/bin/python -m pytest -m spark tests/integration
+# BR4/BR5 e2e: both tokens must be in EDU_BR45_AUTH of the demo service
+BR45_VERIFY_INSTRUCTOR_TOKEN=instructor-demo \
+  BR45_VERIFY_ADVISOR_TOKEN=advisor-demo \
+  EDU_BR45_E2E=1 .venv/bin/python -m pytest tests/e2e/test_br45.py
 cd apps/web && npm ci && npm run build && npx playwright install chromium
 BR45_BASE_URL=http://localhost:8000 npx playwright test tests/br123.spec.ts   # BR1--BR3
-BR45_BASE_URL=http://localhost:8000 npx playwright test                       # all 9 tests
+# All 12 tests: staff sign-in uses the password chosen above, the API
+# checks use the Bearer tokens; the classroom, replay and staff-session
+# tests are skipped unless their own BR45_BROWSER_* variables are set
+BR45_BROWSER_STAFF_PASSWORD='<staff password>' \
+  BR45_VERIFY_INSTRUCTOR_TOKEN=instructor-demo \
+  BR45_VERIFY_ADVISOR_TOKEN=advisor-demo BR45_VERIFY_ADMIN_TOKEN=admin-demo \
+  BR45_VERIFY_ACME_ADMIN_TOKEN=acme-admin-demo \
+  BR45_BASE_URL=http://localhost:8000 npx playwright test
 \end{lstlisting}
 
 \section{Đo hiệu năng}
 
-Các phép đo dùng stack như mục khởi động: hai tệp Compose với các profile \code{br45}, \code{br678}, \code{airflow} và \code{pipelines}, đúng như cấu hình mô tả ở Chương~\ref{chap:architecture}. Với Docker 8 GB, stack đầy đủ không chạy ổn định; trước mỗi phép đo cần tạm dừng (\code{docker compose stop}) các dịch vụ mà phép đo không dùng, theo đúng cấu hình ở Bảng~\ref{tab:env-services}, và kiểm tra không có container nào khởi động lại trong lúc đo. Năm lượt BR1--BR3 được gộp thành \code{report/data/br123_latency.csv}; các tệp kết quả còn lại được sao chép vào \code{report/data/}.
+Các phép đo dùng stack như mục khởi động: hai tệp Compose với các profile \code{br45}, \code{br678}, \code{airflow} và \code{pipelines}, đúng như cấu hình mô tả ở Chương~\ref{chap:architecture}. Với Docker 8 GB, stack đầy đủ không chạy ổn định; trước mỗi phép đo cần tạm dừng (\code{docker compose stop}) các dịch vụ mà phép đo không dùng, theo đúng cấu hình ở Bảng~\ref{tab:env-services}, và kiểm tra không có container nào khởi động lại trong lúc đo. Năm lượt BR1--BR3 được gộp thành \code{report/data/br123_latency.csv}; các tệp kết quả còn lại được sao chép vào \code{report/data/}. Trên mã đã gộp nhánh BR4/BR5, ba lệnh \code{edu benchmark serving}, \code{content} và \code{live} gọi API bằng hai token Bearer cố định trong mã (\code{admin-demo}, \code{instructor-demo}), nên dịch vụ \code{demo} phải chạy với \code{EDU_BR45_AUTH} như ở mục khởi động.
 
 \begin{lstlisting}[language=bash]
 for i in 1 2 3 4 5; do                                  # BR1--BR3, 5 runs

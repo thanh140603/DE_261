@@ -12,7 +12,7 @@ Chương này trình bày lakehouse~\cite{armbrust2021lakehouse} Delta Lake, t�
 \begin{tikzpicture}[font=\footnotesize, node distance=10mm]
   \node[box, text width=1.8cm, minimum height=18mm] (src) {\textbf{Kafka}\\\scriptsize telemetry, CDC, sự kiện miền};
   \node[box, right=of src, text width=2.05cm, minimum height=18mm, draw=bronze, fill=bronze!10] (b) {\textbf{BRONZE}\\\scriptsize 4 bảng\\thô, append-only\\còn PII};
-  \node[box, right=of b, text width=2.05cm, minimum height=18mm, draw=silver, fill=silver!12] (s) {\textbf{SILVER}\\\scriptsize 19 bảng\\sạch, khử trùng lặp\\bút danh, CDF};
+  \node[box, right=of b, text width=2.05cm, minimum height=18mm, draw=silver, fill=silver!12] (s) {\textbf{SILVER}\\\scriptsize 20 bảng\\sạch, khử trùng lặp\\bút danh, CDF};
   \node[box, right=of s, text width=2.05cm, minimum height=18mm, draw=gold!80!black, fill=gold!10] (g) {\textbf{GOLD}\\\scriptsize 9 chiều + 11 sự kiện\\hình sao Kimball};
   \node[box, right=of g, text width=2.05cm, minimum height=18mm, draw=brand, fill=brandsoft] (m) {\textbf{MART}\\\textbf{FEATURES}\\\scriptsize 4 mart + 1 bảng\\theo BR, $k = 5$};
   \draw[arr] (src) -- node[above, font=\scriptsize]{1 phút} (b);

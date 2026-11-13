@@ -1,0 +1,79 @@
+BR4 / BR5 re-measurement after merge 05bb5af (Merge remote-tracking branch 'origin/Benchmark_BR45')
+Machine: Apple M1 Pro, Docker Desktop 10 CPU / 8 GB (same as the earlier session). Date: 2026-11-13 (+07).
+Source of every line below: logs captured while measuring (container snapshots, benchmark stdout).
+
+== images rebuilt from the merged tree (21:11:56-21:12:34 +07)
+de261/demo:local  57af541bb10f   (demo, br45-init, br45-cdc and the BR1/BR3 services)
+de261/spark:local 94d1a93f9c2e   (spark, spark-worker, br45-stream)
+
+== br45-stream runtime (docker inspect / in-container checks)
+command: python -m edu_platform.br45.streaming; pyspark 3.5.5, delta-spark 3.3.2, python 3.11.17, JVM -Xmx1g, spark.master=local[2]
+limits: mem_limit 2304m, cpus 2; EDU_BR45_CHECKPOINT=/checkpoints/br45-v2 (compose default, no override file)
+effective checkpoint written by the job: /checkpoints/br45-v2-ff4b0f4a118a (fingerprint appended by streaming.py)
+EDU_BR45_ASSESSMENT_ENGINE=spark, EDU_BR45_CLOCK_MODE=wall, EDU_BR45_LAKEHOUSE_ROOT=/checkpoints/lakehouse
+topic br45.activity.v1 before start: earliest offset 3394, end offset 1012614; the fresh checkpoint replayed it and was caught up by 21:16:28
+
+== migrations (br45-init, 21:14:24 +07): analytics.schema_migrations before -> after
+schema_migrations | 1 | 2026-10-20 16:11:48.228641+00
+br45-init-1  | Applied BR4/BR5 migrations
+br45-init-1  | {"connector": "br45-postgres-cdc", "status": 200}
+schema_migrations | 1 | 2026-10-20 16:11:48.228641+00
+schema_migrations | 2 | 2026-11-13 14:14:25.310705+00
+schema_migrations | 3 | 2026-11-13 14:14:25.310705+00
+{"name":"br45-postgres-cdc","connector":{"state":"RUNNING","worker_id":"172.20.0.16:8083"},"tasks":[{"id":0,"state":"RUNNING","worker_id":"172.20.0.16:8083"}],"type":"source"}
+
+== seed (runbook 4.2), 21:16:35 +07
+CMD: docker compose ... exec -T br45-cdc python -m edu_platform.br45.cli seed
+  "evaluated_at": "2026-11-13T14:00:00+00:00",
+rc=0
+settled (stream caught up, outbox empty, 2 Spark assessment jobs SUCCEEDED) at 21:17:09
+
+== BR4 (kept run)
+CMD: .venv/bin/python -m edu_platform.br45.cli benchmark   (cwd=<repo root>, host Python 3.13.15, EDU_* env vars set on host: 0)
+git HEAD: 05bb5af  branch: docs/br45-benchmark-refresh
+start 2026-11-13 21:17:34 +0700
+BR4 1000 evaluations repetition 1: SQL 29.5ms; Python 12.3ms
+BR4 1000 evaluations repetition 2: SQL 28.8ms; Python 12.8ms
+BR4 1000 evaluations repetition 3: SQL 25.5ms; Python 15.0ms
+BR4 10000 evaluations repetition 1: SQL 267.5ms; Python 116.9ms
+BR4 10000 evaluations repetition 2: SQL 269.4ms; Python 121.6ms
+BR4 10000 evaluations repetition 3: SQL 263.2ms; Python 119.1ms
+BR4 100000 evaluations repetition 1: SQL 2868.1ms; Python 1418.6ms
+BR4 100000 evaluations repetition 2: SQL 2816.6ms; Python 1790.9ms
+BR4 100000 evaluations repetition 3: SQL 2611.9ms; Python 1383.6ms
+rc=0 end 2026-11-13 21:18:13 +0700
+window: 2026-11-13 21:17:33 +0700  ->  2026-11-13 21:18:13 +0700
+running at start: 23/30; paused: airflow-scheduler, airflow-webserver, flink-jobmanager, flink-taskmanager, kafka-ui, lakehouse-streaming, telemetry-live
+running set unchanged: True 
+restart counts / StartedAt / status unchanged for all containers: True
+oom flags: none
+mem start: Mem: 7934 6955 92 41 887 740 | Swap: 1024 1024 0
+mem end:   Mem: 7934 6999 80 137 855 600 | Swap: 1024 1024 0
+VERDICT: CLEAN
+
+== BR5 (kept run)
+CMD: .venv/bin/python -m edu_platform.br45.stream_benchmark   (cwd=<repo root>, host Python 3.13.15, EDU_* env vars set on host: 0)
+git HEAD: 05bb5af  branch: docs/br45-benchmark-refresh
+start 2026-11-13 21:19:24 +0700
+BR5 1000 unique events repetition 1: 8223.1 ms, 121.6 events/s; batch=1.61ms
+BR5 1000 unique events repetition 2: 5125.3 ms, 195.1 events/s; batch=1.53ms
+BR5 1000 unique events repetition 3: 5135.9 ms, 194.7 events/s; batch=2.24ms
+BR5 10000 unique events repetition 1: 4148.0 ms, 2410.8 events/s; batch=18.01ms
+BR5 10000 unique events repetition 2: 5223.1 ms, 1914.6 events/s; batch=15.24ms
+BR5 10000 unique events repetition 3: 5157.4 ms, 1938.9 events/s; batch=22.08ms
+BR5 100000 unique events repetition 1: 14793.2 ms, 6759.9 events/s; batch=149.89ms
+BR5 100000 unique events repetition 2: 14730.0 ms, 6788.8 events/s; batch=149.15ms
+BR5 100000 unique events repetition 3: 14597.0 ms, 6850.7 events/s; batch=151.47ms
+rc=0 end 2026-11-13 21:20:42 +0700
+window: 2026-11-13 21:19:23 +0700  ->  2026-11-13 21:20:42 +0700
+running at start: 23/30; paused: airflow-scheduler, airflow-webserver, flink-jobmanager, flink-taskmanager, kafka-ui, lakehouse-streaming, telemetry-live
+running set unchanged: True 
+restart counts / StartedAt / status unchanged for all containers: True
+oom flags: none
+mem start: Mem: 7934 7009 151 137 774 590 | Swap: 1024 1024 0
+mem end:   Mem: 7934 6999 85 136 850 600 | Swap: 1024 1024 0
+VERDICT: CLEAN
+
+== running set during both windows (23 of 30 long-running containers)
+running (23): de261-airflow-db de261-br45-cdc-1 de261-br45-stream-1 de261-connect de261-content-sync de261-demo de261-grading-ingest de261-grading-normalizer de261-grading-worker de261-hive-metastore de261-kafka de261-mailpit de261-metastore-db de261-minio de261-notification de261-opensearch de261-postgres de261-push-sink de261-redis de261-schema-registry de261-spark de261-spark-worker de261-trino 
+mem lines above: total used free shared buff/cache available (MiB, 'free -m' inside the Docker VM)
