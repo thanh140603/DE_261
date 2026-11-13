@@ -151,12 +151,12 @@ Mỗi quyết định quan trọng được ghi thành một ADR~\cite{nygard201
 0006 & Redis cho tầng phục vụ & Dưới mili-giây, TTL; Redis không phải nguồn sự thật \\
 0007 & Khử định danh ở ranh giới silver & HMAC-SHA256 có phiên bản khoá; báo cáo tổ chức áp dụng $k = 5$ \\
 0008 & Runtime ban đầu trong tiến trình & Trình diễn đầu cuối trên laptop bằng adapter trong bộ nhớ; BR1--BR3 sau đó chuyển sang runtime thật (ADR 0016) \\
-0009 & PostgreSQL mart + Spark Structured Streaming cho BR4/BR5 & Một driver Spark thay vì hoàn thiện cả hai engine; độ trễ CDC đến cảnh báo khoảng 10 giây \\
+0009 & PostgreSQL mart + Spark Structured Streaming cho BR4/BR5 & Một driver Spark thay vì hoàn thiện cả hai engine; độ trễ CDC đến cảnh báo khoảng 10 giây (không đo lại) \\
 0010 & Trino + Hive Metastore làm SQL warehouse & Đóng vai ``Databricks SQL + catalog'' trên chính các bảng Delta, không có bản sao thứ hai \\
 0011 & Spark là bên ghi duy nhất của Delta & Connector Flink cho Delta đã lỗi thời; tránh xung đột commit \\
 0012 & Gold là lược đồ hình sao Kimball, khoá tất định & \code{xxhash64} của khoá tự nhiên; dựng lại tái tạo đúng khoá; thành viên suy luận cho chiều đến muộn \\
 0013 & Đồng bộ nội dung BR8 bằng CDC vào OpenSearch & Một đường đồng bộ cho mọi bên ghi; idempotent theo phiên bản đã chỉ mục \\
-0014 & Spark Structured Streaming cho telemetry nhanh và lớp phủ BR7/BR8 & Các job Flink chưa tồn tại; độ trễ đo được khoảng 7 giây đủ cho lớp phủ \\
+0014 & Spark Structured Streaming cho telemetry nhanh và lớp phủ BR7/BR8 & Các job Flink chưa tồn tại; độ trễ đo được khoảng 6 giây đủ cho lớp phủ \\
 0015 & Phiên đặc trưng BR2 trên Spark Structured Streaming + Redis & Spark 3.5 không hỗ trợ \code{update} cho \code{session_window}; state phiên nằm trong Redis, \code{SET NX} chống đếm lại \\
 0016 & Runtime thật cho BR1--BR3 & Kafka, Redis, PostgreSQL thật; kết quả đến UI qua SSE; projector BR3 đồng bộ \code{public.*} \\
 \bottomrule
@@ -168,7 +168,7 @@ Mỗi quyết định quan trọng được ghi thành một ADR~\cite{nygard201
 Nhóm giữ nguyên vai trò của kiến trúc tham chiếu nhưng điều chỉnh bốn điểm:
 
 \begin{enumerate}
-  \item \textbf{Spark Structured Streaming thay Flink cho BR5 và lớp phủ BR7--BR8} (ADR 0009, 0014). Kiến trúc tham chiếu dùng Flink~\cite{carbone2015flink} cho xử lý luồng có trạng thái; khi hiện thực, job Flink mới ở mức khung còn Spark Structured Streaming đã chạy cho landing lakehouse. Một engine giảm hạ tầng vận hành và cho phép tái dùng code chuẩn hoá silver. Đổi lại, độ trễ 7--10 giây, cao hơn mức dưới một giây của Flink, nhưng phù hợp với cảnh báo cho cố vấn và lớp phủ trên mart theo ngày. Các dịch vụ Flink vẫn có trong Compose để chuyển đổi khi cần.
+  \item \textbf{Spark Structured Streaming thay Flink cho BR5 và lớp phủ BR7--BR8} (ADR 0009, 0014). Kiến trúc tham chiếu dùng Flink~\cite{carbone2015flink} cho xử lý luồng có trạng thái; khi hiện thực, job Flink mới ở mức khung còn Spark Structured Streaming đã chạy cho landing lakehouse. Một engine giảm hạ tầng vận hành và cho phép tái dùng code chuẩn hoá silver. Đổi lại, độ trễ khoảng 6 giây cho lớp phủ và khoảng 10 giây cho cảnh báo BR5 (số BR5 không đo lại), cao hơn mức dưới một giây của Flink, nhưng phù hợp với cảnh báo cho cố vấn và lớp phủ trên mart theo ngày. Các dịch vụ Flink vẫn có trong Compose để chuyển đổi khi cần.
   \item \textbf{Trino + Hive Metastore cho vai trò ``Databricks''} (ADR 0010). Delta Lake chỉ là định dạng bảng; Hive Metastore và Trino đảm nhận vai trò catalog và SQL warehouse của Databricks, chạy được cục bộ. Trên cloud có thể thay bằng Databricks SQL và Unity Catalog mà không đổi mô hình dữ liệu.
   \item \textbf{Redis thay Cassandra} cho tầng phục vụ (ADR 0006). Nhóm cân nhắc Redis và Cassandra; Redis đủ cho khối lượng hiện tại, còn adapter sau cổng cho phép thay khi dữ liệu vượt bộ nhớ.
   \item \textbf{BR2 dùng feature store hai nhánh.} Yêu cầu BR2 mô tả pipeline đặc trưng hai nhánh qua feature store; nhóm hiện thực cả hai: batch ghi \code{features.learner_longterm}, streaming giữ state phiên trong Redis. Gợi ý dùng feature làm ngữ cảnh và xếp hạng bằng luật nghiệp vụ (Mục~\ref{sec:br2}).

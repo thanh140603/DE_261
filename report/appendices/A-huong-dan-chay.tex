@@ -3,7 +3,7 @@
 
 \section{Yêu cầu}
 
-Docker (khuyến nghị 8 GB RAM cho VM), Python 3.11+, Node.js 20+. PostgreSQL mặc định ở cổng 5433 để tránh xung đột.
+Docker (8 GB RAM cho VM đủ để chạy từng nhóm BR; chạy đồng thời cả bốn profile thì 8 GB không đủ, xem Mục~\ref{sec:env}), Python 3.11+, Node.js 20+. PostgreSQL mặc định ở cổng 5433 để tránh xung đột.
 
 \section{Khởi động}
 
@@ -47,15 +47,25 @@ BR45_BASE_URL=http://localhost:8000 npx playwright test                       # 
 
 \section{Đo hiệu năng}
 
-Các phép đo BR1--BR3 chạy trên stack đầy đủ như mục khởi động: bật thêm \code{--profile br678} và \code{--profile airflow} để Kafka, Debezium, Spark, Trino, OpenSearch, Airflow và các dịch vụ cùng chạy trong lúc đo, đúng như cấu hình mô tả ở Chương~\ref{chap:architecture}.
+Các phép đo dùng stack như mục khởi động: hai tệp Compose với các profile \code{br45}, \code{br678}, \code{airflow} và \code{pipelines}, đúng như cấu hình mô tả ở Chương~\ref{chap:architecture}. Với Docker 8 GB, stack đầy đủ không chạy ổn định; trước mỗi phép đo cần tạm dừng (\code{docker compose stop}) các dịch vụ mà phép đo không dùng, theo đúng cấu hình ở Bảng~\ref{tab:env-services}, và kiểm tra không có container nào khởi động lại trong lúc đo. Năm lượt BR1--BR3 được gộp thành \code{report/data/br123_latency.csv}; các tệp kết quả còn lại được sao chép vào \code{report/data/}.
 
 \begin{lstlisting}[language=bash]
-.venv/bin/python benchmarks/br123_latency.py --samples 20 --br2-samples 30   # BR1--BR3
+for i in 1 2 3 4 5; do                                  # BR1--BR3, 5 runs
+  .venv/bin/python benchmarks/br123_latency.py \
+    --samples 20 --br2-samples 30 \
+    --out report/data/br123_latency_run$i.csv
+done
 .venv/bin/python -m edu_platform.br45.cli benchmark          # BR4
 .venv/bin/python -m edu_platform.br45.stream_benchmark       # BR5
-uv run edu benchmark serving --out docs/evidence/br678/serving_latency.csv
-uv run edu benchmark content --out docs/evidence/br678/content_sync_latency.csv
-uv run edu benchmark live    --out docs/evidence/br678/live_overlay.csv
+.venv/bin/edu benchmark serving --requests 30 \
+  --out docs/evidence/br678/serving_latency.csv
+.venv/bin/edu benchmark content \
+  --out docs/evidence/br678/content_sync_latency.csv
+.venv/bin/edu benchmark live --out docs/evidence/br678/live_overlay.csv
+# Warehouse build: one process per (days, repeat) inside spark-jobs
+docker compose run --rm -v "$PWD/docs/evidence/br678:/out" spark-jobs \
+  edu benchmark marts --days 35 --repeat 1 --first-repeat 1 \
+  --out /out/mart_build.csv     # repeat for 35/70/140 days, repeats 1-2
 \end{lstlisting}
 
 
@@ -64,9 +74,16 @@ uv run edu benchmark live    --out docs/evidence/br678/live_overlay.csv
 Negative-control benchmark dùng bảng nguồn 100.000 dòng:
 
 \begin{lstlisting}[language=bash]
-# Create source table + updated_at index
+# Generate the facts CSV if missing (deterministic, seed 42)
+.venv/bin/python benchmarks/cdc/generate_facts.py \
+  --rows 1000000 --output benchmarks/cdc/data/org-facts-1m.csv
+
+# Create the source table, then the updated_at index
+# (setup_source does not create the index)
 .venv/bin/python -m benchmarks.cdc.setup_source \
   benchmarks/cdc/data/org-facts-1m.csv --rows 100000
+docker compose exec postgres psql -U lms -d lms -c \
+  "CREATE INDEX cdc_source_updated_at_idx ON bench.cdc_source (updated_at)"
 
 # Register the Debezium connector (once)
 curl -sS -X DELETE http://localhost:8083/connectors/bench-cdc >/dev/null 2>&1 || true

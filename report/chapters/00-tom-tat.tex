@@ -7,12 +7,12 @@ Kiến trúc dùng Kafka và Debezium làm tầng tiếp nhận và event bus; S
 
 Về kết quả đo trên máy cá nhân với dữ liệu tổng hợp:
 \begin{itemize}
-  \item \textbf{BR1--BR3}: trung vị 15{,}9 ms từ sự kiện đến thông báo, 4{,}2 ms cho API gợi ý, 27{,}6 ms để nhận 202 và 172{,}9 ms từ nộp bài đến khi chấm xong.
-  \item \textbf{BR5}: từ thay đổi CDC đến cảnh báo bỏ học mất khoảng 10{,}2 giây.
-  \item \textbf{BR8}: nội dung xuất bản được lập chỉ mục sau trung vị 535 ms.
-  \item \textbf{BR7--BR8}: lớp phủ hiển thị sau khoảng 7 giây, ổn định khi tải tăng 15 lần.
-  \item \textbf{BR6--BR8}: mart qua Trino 42--92 ms; qua API có cache 1{,}4--2{,}5 ms.
-  \item \textbf{Kho dữ liệu}: 43 model xây trong 2--2{,}5 phút, đạt mọi cổng chất lượng.
+  \item \textbf{BR1--BR3}: trung vị 12{,}4 ms từ sự kiện đến thông báo, 2{,}2 ms cho API gợi ý, 14{,}2 ms để nhận 202 và 71{,}0 ms từ nộp bài đến khi chấm xong.
+  \item \textbf{BR5}: từ thay đổi CDC đến cảnh báo bỏ học mất khoảng 10{,}2 giây (kịch bản chấp nhận, không đo lại).
+  \item \textbf{BR8}: nội dung xuất bản được lập chỉ mục sau trung vị 501 ms.
+  \item \textbf{BR7--BR8}: lớp phủ hiển thị sau khoảng 6 giây, ổn định khi tải tăng 15 lần.
+  \item \textbf{BR6--BR8}: mart qua Trino 81--172 ms; qua API có cache 2{,}6--6{,}0 ms.
+  \item \textbf{Kho dữ liệu}: 43 model xây trong khoảng 2 phút (121--130 giây), đạt mọi cổng chất lượng.
 \end{itemize}
 Hệ thống có 353 test đơn vị (3 skip), 1 test tích hợp end-to-end, 9 test trình duyệt cùng các kịch bản chấp nhận; báo cáo cũng trình bày giao diện web, các giới hạn còn lại và hướng phát triển.
 

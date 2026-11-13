@@ -1,0 +1,28 @@
+26/11/13 11:50:27 WARN ProcessingTimeExecutor: Current batch is falling behind. The trigger interval is 1000 milliseconds, but spent 3177 milliseconds
+26/11/13 11:50:27 WARN ProcessingTimeExecutor: Current batch is falling behind. The trigger interval is 1000 milliseconds, but spent 3236 milliseconds
+26/11/13 11:50:34 WARN ProcessingTimeExecutor: Current batch is falling behind. The trigger interval is 1000 milliseconds, but spent 5617 milliseconds
+26/11/13 11:50:34 WARN ProcessingTimeExecutor: Current batch is falling behind. The trigger interval is 1000 milliseconds, but spent 5652 milliseconds
+26/11/13 11:50:40 WARN ProcessingTimeExecutor: Current batch is falling behind. The trigger interval is 1000 milliseconds, but spent 3410 milliseconds
+26/11/13 11:50:40 WARN ProcessingTimeExecutor: Current batch is falling behind. The trigger interval is 1000 milliseconds, but spent 3709 milliseconds
+26/11/13 11:50:45 WARN ProcessingTimeExecutor: Current batch is falling behind. The trigger interval is 1000 milliseconds, but spent 3965 milliseconds
+26/11/13 11:50:46 WARN ProcessingTimeExecutor: Current batch is falling behind. The trigger interval is 1000 milliseconds, but spent 4259 milliseconds
+26/11/13 11:50:51 WARN ProcessingTimeExecutor: Current batch is falling behind. The trigger interval is 1000 milliseconds, but spent 3981 milliseconds
+2026-11-13T11:50:52.034792Z [info     ] stream progress                batch=13 duration_ms={'addBatch': 3900, 'commitOffsets': 28, 'getBatch': 0, 'latestOffset': 2, 'queryPlanning': 18, 'triggerExecution': 3981, 'walCommit': 32} query=br7-live-heatmap rows=901 state_rows=3239
+2026-11-13T11:50:52.035685Z [info     ] stream progress                batch=7 duration_ms={'addBatch': 652, 'commitOffsets': 54, 'getBatch': 0, 'latestOffset': 3, 'queryPlanning': 6, 'triggerExecution': 759, 'walCommit': 44} query=telemetry-normalize rows=921 state_rows=0
+2026-11-13T11:50:52.036266Z [info     ] stream progress                batch=3 duration_ms={'addBatch': 5084, 'commitOffsets': 43, 'getBatch': 0, 'latestOffset': 8, 'queryPlanning': 7, 'triggerExecution': 5196, 'walCommit': 53} query=session-features rows=469 state_rows=0
+26/11/13 11:50:52 WARN ProcessingTimeExecutor: Current batch is falling behind. The trigger interval is 1000 milliseconds, but spent 4230 milliseconds
+26/11/13 11:50:58 WARN ProcessingTimeExecutor: Current batch is falling behind. The trigger interval is 1000 milliseconds, but spent 4695 milliseconds
+26/11/13 11:50:58 WARN ProcessingTimeExecutor: Current batch is falling behind. The trigger interval is 1000 milliseconds, but spent 4914 milliseconds
+26/11/13 11:51:04 WARN ProcessingTimeExecutor: Current batch is falling behind. The trigger interval is 1000 milliseconds, but spent 4911 milliseconds
+26/11/13 11:51:05 WARN ProcessingTimeExecutor: Current batch is falling behind. The trigger interval is 1000 milliseconds, but spent 5762 milliseconds
+26/11/13 11:51:06 WARN ProcessingTimeExecutor: Current batch is falling behind. The trigger interval is 1000 milliseconds, but spent 1859 milliseconds
+26/11/13 11:51:07 WARN ProcessingTimeExecutor: Current batch is falling behind. The trigger interval is 1000 milliseconds, but spent 1191 milliseconds
+26/11/13 11:51:07 WARN ProcessingTimeExecutor: Current batch is falling behind. The trigger interval is 1000 milliseconds, but spent 1742 milliseconds
+26/11/13 11:51:09 WARN ProcessingTimeExecutor: Current batch is falling behind. The trigger interval is 1000 milliseconds, but spent 3264 milliseconds
+26/11/13 11:51:11 WARN ProcessingTimeExecutor: Current batch is falling behind. The trigger interval is 1000 milliseconds, but spent 3493 milliseconds
+26/11/13 11:51:11 WARN ProcessingTimeExecutor: Current batch is falling behind. The trigger interval is 1000 milliseconds, but spent 1655 milliseconds
+26/11/13 11:51:17 WARN ProcessingTimeExecutor: Current batch is falling behind. The trigger interval is 1000 milliseconds, but spent 4098 milliseconds
+26/11/13 11:51:17 WARN ProcessingTimeExecutor: Current batch is falling behind. The trigger interval is 1000 milliseconds, but spent 4336 milliseconds
+2026-11-13T11:51:22.031157Z [info     ] stream progress                batch=11 duration_ms={'addBatch': 695, 'commitOffsets': 32, 'getBatch': 0, 'latestOffset': 1, 'queryPlanning': 7, 'triggerExecution': 768, 'walCommit': 31} query=telemetry-normalize rows=3681 state_rows=0
+2026-11-13T11:51:22.031970Z [info     ] stream progress                batch=4 duration_ms={'addBatch': 6284, 'commitOffsets': 100, 'getBatch': 0, 'latestOffset': 2, 'queryPlanning': 5, 'triggerExecution': 6431, 'walCommit': 40} query=session-features rows=6445 state_rows=0
+2026-11-13T11:51:52.034472Z [info     ] stream progress                batch=5 duration_ms={'addBatch': 6293, 'commitOffsets': 37, 'getBatch': 0, 'latestOffset': 3, 'queryPlanning': 9, 'triggerExecution': 6391, 'walCommit': 48} query=session-features rows=7134 state_rows=0
