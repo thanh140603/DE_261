@@ -5,7 +5,7 @@
 
 \subsection{Sáu tầng của kiến trúc}
 
-Hình~\ref{fig:arch} mô tả kiến trúc end-to-end gồm sáu tầng. Tầng nguồn gồm bốn nguồn dữ liệu; tầng ingestion dùng Kafka làm event bus duy nhất, với Debezium bắt thay đổi từ WAL của PostgreSQL; tầng xử lý dùng Spark cho cả streaming và batch, bên cạnh các dịch vụ tiêu thụ sự kiện; tầng lưu trữ gồm Delta Lake, PostgreSQL cho mart thời gian thực BR4--BR5, Redis và OpenSearch; tầng serving gồm Trino và API FastAPI; trên cùng là ứng dụng web cho năm nhóm người dùng.
+Hình~\ref{fig:arch} mô tả kiến trúc end-to-end gồm sáu tầng. Tầng nguồn tiếp nhận dữ liệu từ bốn nguồn; tầng ingestion sử dụng Kafka làm event bus duy nhất, với Debezium đọc các thay đổi từ WAL của PostgreSQL. Ở tầng xử lý, Spark đảm nhiệm cả streaming lẫn batch, cùng với các dịch vụ tiêu thụ sự kiện. Tầng lưu trữ gồm Delta Lake, PostgreSQL cho mart thời gian thực BR4--BR5, Redis và OpenSearch. Tầng serving sử dụng Trino cho truy vấn SQL và FastAPI để cung cấp API; phía trên là ứng dụng web dành cho năm nhóm người dùng.
 
 \begin{figure}[H]
 \centering
@@ -60,16 +60,16 @@ Hình~\ref{fig:arch} mô tả kiến trúc end-to-end gồm sáu tầng. Tầng 
 \label{fig:arch}
 \end{figure}
 
-Ba nguyên tắc xuyên suốt kiến trúc:
+Ba nguyên tắc định hướng xuyên suốt kiến trúc:
 \begin{itemize}
-  \item \textbf{Kafka là ranh giới giữa các bounded context.} Các context chỉ giao tiếp qua topic Kafka và bảng lakehouse, không dùng chung cơ sở dữ liệu; nhờ đó mỗi context có thể deploy và thay đổi độc lập.
-  \item \textbf{Spark là writer duy nhất của lakehouse} (ADR 0011). Các job thời gian thực chỉ ghi ra Kafka và Redis. Nguyên tắc này tránh xung đột commit khi nhiều engine cùng ghi một bảng Delta, đồng thời giữ logic idempotent ở một nơi.
-  \item \textbf{Lakehouse là source of truth cho phân tích.} Redis và các mart phục vụ đều có thể rebuild từ lakehouse hoặc từ dữ liệu thô (ADR 0006).
+  \item \textbf{Kafka là ranh giới giữa các bounded context.} Các context chỉ giao tiếp qua topic Kafka và bảng lakehouse, không dùng chung cơ sở dữ liệu. Nhờ vậy, từng context có thể deploy và thay đổi độc lập.
+  \item \textbf{Spark là writer duy nhất của lakehouse} (ADR 0011). Spark Structured Streaming và Spark batch là các thành phần duy nhất ghi vào Delta. Các dịch vụ sự kiện khác không ghi trực tiếp vào lakehouse mà ghi vào Kafka, Redis hoặc PostgreSQL tuỳ use case. Cách tổ chức này tránh xung đột commit khi nhiều engine cùng ghi một bảng Delta, đồng thời tập trung logic ghi Delta và cơ chế idempotency liên quan trong Spark.
+  \item \textbf{Lakehouse là source of truth cho phân tích.} Redis và các mart phục vụ đều có thể được rebuild từ lakehouse hoặc dữ liệu thô (ADR 0006).
 \end{itemize}
 
 \subsection{Lựa chọn công nghệ}
 
-Bảng~\ref{tab:tech} liệt kê công nghệ theo vai trò. Các thành phần chính gồm Kafka~\cite{kreps2011kafka}, Debezium~\cite{debezium}, Spark~\cite{zaharia2016spark} với Structured Streaming~\cite{armbrust2018structured}, Delta Lake~\cite{armbrust2020delta}, Trino~\cite{sethi2019presto}, Redis~\cite{redis} và OpenSearch~\cite{opensearch}. Nhóm giữ các lựa chọn công nghệ ban đầu nếu chúng chạy được trên máy cá nhân; khi phải thay thế, nhóm chọn thành phần cùng vai trò và ghi lại quyết định bằng ADR.
+Bảng~\ref{tab:tech} tổng hợp các công nghệ theo vai trò. Nền tảng sử dụng Kafka~\cite{kreps2011kafka}, Debezium~\cite{debezium}, Spark~\cite{zaharia2016spark} cùng Structured Streaming~\cite{armbrust2018structured}, Delta Lake~\cite{armbrust2020delta}, Trino~\cite{sethi2019presto}, Redis~\cite{redis} và OpenSearch~\cite{opensearch}. Nhóm ưu tiên giữ các lựa chọn công nghệ ban đầu nếu chúng vận hành được trên máy cá nhân. Khi cần thay thế, nhóm chọn công nghệ có cùng vai trò và ghi lại quyết định tương ứng bằng ADR.
 
 {\small
 \begin{longtable}{@{}L{3.2cm}L{3.4cm}L{7.9cm}@{}}
@@ -83,14 +83,14 @@ Bảng~\ref{tab:tech} liệt kê công nghệ theo vai trò. Các thành phần 
 \midrule
 \endhead
 Ingestion, event bus & Apache Kafka & Buffer cho telemetry tốc độ cao, giữ thứ tự theo key, replay được; đồng thời là event bus cho các sự kiện LMS (ADR 0003) \\
-CDC & Debezium (pgoutput) & Đọc replication slot nên không tạo truy vấn lên production; lưu LSN để sắp thứ tự \\
+CDC & Debezium (pgoutput) & Đọc WAL qua replication slot, tránh polling bảng và giảm tải truy vấn lên production; dùng LSN để sắp thứ tự thay đổi \\
 Stream processing & Spark Structured Streaming & Watermark theo event time, checkpoint, sink giao dịch Delta; dùng chung engine với batch (ADR 0009, 0014) \\
 Batch processing & Apache Spark 3.5 & Hệ sinh thái Delta, song song hoá model SQL và bước chunk học liệu (ADR 0004) \\
 Lakehouse & Delta Lake 3.3 trên MinIO & ACID MERGE, time travel, Change Data Feed (ADR 0005) \\
 Catalog & Hive Metastore 3.1.3 & Catalog chung cho Spark và Trino; bản 3.1 tương thích Spark 3.5 (ADR 0010) \\
 SQL warehouse & Trino & Truy vấn trực tiếp bảng Delta, ANSI SQL, phân quyền theo schema, không cần bản sao thứ hai (ADR 0010) \\
 Serving latency thấp & Redis & Tra cứu theo key dưới mili-giây, TTL; dùng cho cache, overlay thời gian thực và dedup thông báo (ADR 0006) \\
-Mart thời gian thực BR4/BR5 & PostgreSQL 16 & Cập nhật có tính transaction; sau mỗi thay đổi của nguồn, kết quả được ghi bất đồng bộ trong một transaction (ADR 0009) \\
+Mart thời gian thực BR4/BR5 & PostgreSQL 16 & Đảm bảo tính nguyên tử bằng transaction; sau mỗi thay đổi nguồn, kết quả được cập nhật bất đồng bộ trong một transaction PostgreSQL (ADR 0009) \\
 Tìm kiếm & OpenSearch 2.17 & BM25 kết hợp vector HNSW; xếp hạng lai bằng reciprocal rank fusion (ADR 0013) \\
 Điều phối & Apache Airflow & DAG theo lịch và theo dataset; mọi task idempotent theo ngày chạy \\
 API, giao diện & FastAPI, React 18 + TypeScript & Một API chung cho mọi BR; giao diện không dùng thư viện UI hay chart bên ngoài \\
@@ -99,7 +99,7 @@ API, giao diện & FastAPI, React 18 + TypeScript & Một API chung cho mọi BR
 
 \subsection{Kiến trúc phần mềm: DDD và hexagonal}
 
-Mã nguồn nằm trong một gói Python duy nhất (monorepo, ADR 0002), chia thành bảy bounded context theo Domain-Driven Design~\cite{evans2003}: \code{telemetry}, \code{notification}, \code{recommendation}, \code{grading}, \code{risk}, \code{analytics} và \code{content}. Mỗi context gồm bốn lớp theo kiến trúc hexagonal~\cite{cockburn2005} (Bảng~\ref{tab:layers}); một architecture test kiểm tra quy tắc phụ thuộc giữa các lớp.
+Mã nguồn ứng dụng Python được quản lý trong monorepo (ADR 0002) và chia thành bảy bounded context theo Domain-Driven Design~\cite{evans2003}: \code{telemetry}, \code{notification}, \code{recommendation}, \code{grading}, \code{risk}, \code{analytics} và \code{content}. Mỗi context được chia thành bốn lớp theo kiến trúc hexagonal~\cite{cockburn2005} (Bảng~\ref{tab:layers}). Một architecture test kiểm tra các quy tắc phụ thuộc giữa những lớp này.
 
 \begin{table}[H]
 \centering\small
@@ -116,21 +116,21 @@ Entrypoint layer & Điểm ghép nối cho job Spark, dịch vụ, API & Mọi t
 \end{tabularx}
 \end{table}
 
-Lợi ích cốt lõi của cách tổ chức này là \textbf{một logic, nhiều engine}. Use case \code{NormalizeEvents} (kiểm tra hợp lệ, migrate schema, pseudonymise, gắn cờ late data) chạy trong job streaming, job silver của lakehouse và dịch vụ xử lý sự kiện, cho cùng kết quả về pseudonym và quyết định đưa vào DLQ. Các ngưỡng nghiệp vụ trong SQL mart lấy từ value object của domain và có unit test bảo đảm luôn đồng bộ.
+Lợi ích cốt lõi của cách tổ chức này là \textbf{một logic, nhiều engine}. Use case \code{NormalizeEvents} thực hiện kiểm tra hợp lệ, migrate schema, pseudonymise và gắn cờ late data; use case này được dùng chung trong job streaming, job silver của lakehouse và dịch vụ xử lý sự kiện. Nhờ đó, các luồng xử lý tạo pseudonym nhất quán và đưa ra cùng quyết định về việc chuyển dữ liệu vào DLQ. Các ngưỡng nghiệp vụ trong SQL mart được lấy từ value object của domain; unit test bảo đảm giá trị trong SQL và domain luôn khớp.
 
 \subsection{Ngữ nghĩa stream processing}
 
 \begin{itemize}
-  \item \textbf{Event time được dùng ở mọi nơi} theo mô hình Dataflow~\cite{akidau2015dataflow}. Watermark cho phép late data tối đa 5 phút với telemetry và 10 giây với CDC. Riêng window rủi ro BR5 dùng watermark 21 ngày vì dữ liệu học tập có thể được đồng bộ muộn.
-  \item \textbf{Late data không bị mất.} Sự kiện đến muộn hơn watermark vẫn được lưu và gắn cờ. Các model gold tự mở rộng window tính toán về ngày của sự kiện muộn nhất (cơ chế \code{late_data}, Mục~\ref{sec:late}).
-  \item \textbf{Exactly-once.} Landing dùng checkpoint của Structured Streaming kết hợp sink giao dịch Delta. Lớp silver dùng MERGE idempotent theo business key. Overlay trên Redis ghi giá trị tuyệt đối thay vì cộng dồn, nên replay không đếm hai lần.
-  \item \textbf{Thứ tự CDC.} Thay đổi được sắp theo \code{source.lsn} cho từng key; thay đổi có LSN cũ hơn không thể ghi đè bản ghi mới hơn.
-  \item \textbf{Clock skew trên thiết bị.} Sự kiện có thời gian đi trước thời điểm tiếp nhận hơn 2 phút được ghim về thời điểm tiếp nhận (\code{ClockSkewPolicy}). Nếu không, một thiết bị có đồng hồ chạy nhanh sẽ đẩy watermark lên và làm rơi các sự kiện đúng hạn của những người dùng khác.
+  \item \textbf{Event time được dùng xuyên suốt} theo mô hình Dataflow~\cite{akidau2015dataflow}. Độ trễ watermark được cấu hình là 5 phút với telemetry và 10 giây với CDC. Riêng window rủi ro BR5 sử dụng watermark 21 ngày vì dữ liệu học tập có thể được đồng bộ muộn.
+  \item \textbf{Late data không bị mất.} Sự kiện đến muộn hơn watermark vẫn được lưu và gắn cờ. Các model gold tự mở rộng window tính toán về ngày có sự kiện muộn nhất (cơ chế \code{late_data}, Mục~\ref{sec:late}).
+  \item \textbf{Exactly-once.} Landing kết hợp checkpoint của Structured Streaming với sink giao dịch Delta. Ở lớp silver, MERGE được thực hiện idempotent theo business key. Overlay trên Redis ghi giá trị tuyệt đối thay vì cộng dồn, nhờ đó replay không làm dữ liệu bị đếm hai lần.
+  \item \textbf{Thứ tự CDC.} Các thay đổi được sắp xếp theo \code{source.lsn} cho từng key. Vì vậy, thay đổi có LSN cũ hơn không thể ghi đè bản ghi mới hơn.
+  \item \textbf{Clock skew trên thiết bị.} Nếu timestamp sự kiện đi trước thời điểm tiếp nhận hơn 2 phút, \code{ClockSkewPolicy} điều chỉnh timestamp đó về thời điểm tiếp nhận. Nếu không xử lý, đồng hồ chạy nhanh trên một thiết bị có thể đẩy watermark lên, khiến sự kiện đúng hạn của những người dùng khác bị loại bỏ.
 \end{itemize}
 
 \subsection{Các quyết định kiến trúc}
 
-Mỗi quyết định quan trọng được ghi thành một ADR~\cite{nygard2011adr} trong bộ ADR của dự án. ADR đã chấp nhận thì không sửa; khi cần thay đổi, nhóm viết ADR mới thay thế ADR cũ. Bảng~\ref{tab:adr} tóm tắt mười sáu ADR.
+Mỗi quyết định kiến trúc quan trọng được ghi lại thành ADR~\cite{nygard2011adr} trong bộ ADR của dự án. ADR đã được chấp nhận sẽ không bị chỉnh sửa; nếu cần thay đổi quyết định, nhóm sẽ viết ADR mới để thay thế ADR cũ. Bảng~\ref{tab:adr} tóm tắt 16 ADR.
 
 {\small
 \begin{longtable}{@{}L{0.9cm}L{4.6cm}L{9.0cm}@{}}
@@ -151,11 +151,11 @@ Mỗi quyết định quan trọng được ghi thành một ADR~\cite{nygard201
 0006 & Redis cho serving layer & Dưới mili-giây, TTL; Redis không phải source of truth \\
 0007 & Pseudonymisation ở ranh giới silver & HMAC-SHA256 với key có phiên bản; báo cáo tổ chức áp dụng $k = 5$ \\
 0008 & Runtime ban đầu chạy trong tiến trình & Trình diễn end-to-end trên laptop bằng adapter trong bộ nhớ; BR1--BR3 sau đó chuyển sang runtime thật (ADR 0016) \\
-0009 & PostgreSQL mart + Spark Structured Streaming cho BR4/BR5 & Một driver Spark trên đường sản phẩm, chạy cả window BR5 lẫn job tổng hợp BR4; job Flink tương đương chỉ dùng để so sánh engine; latency từ CDC đến cảnh báo khoảng 10 giây (không đo lại) \\
+0009 & PostgreSQL mart + Spark Structured Streaming cho BR4/BR5 & Một Spark driver trong pipeline production chạy cả window BR5 lẫn job tổng hợp BR4; job Flink tương đương chỉ dùng để so sánh engine; latency từ CDC đến cảnh báo khoảng 10 giây (không đo lại) \\
 0010 & Trino + Hive Metastore làm SQL warehouse & Catalog và SQL warehouse đặt trên chính các bảng Delta, không có bản sao thứ hai \\
 0011 & Spark là writer duy nhất của Delta & Connector Flink cho Delta đã lỗi thời; đồng thời tránh xung đột commit \\
 0012 & Gold là star schema Kimball, key tất định & \code{xxhash64} của natural key; rebuild tái tạo đúng key; dùng inferred member cho dimension đến muộn \\
-0013 & Đồng bộ nội dung BR8 bằng CDC vào OpenSearch & Một đường đồng bộ cho mọi writer; idempotent theo phiên bản đã index \\
+0013 & Đồng bộ nội dung BR8 bằng CDC vào OpenSearch & Một pipeline đồng bộ dùng chung cho mọi writer; idempotent theo phiên bản đã index \\
 0014 & Spark Structured Streaming cho telemetry nhanh và overlay BR7/BR8 & Chưa có job Flink cho telemetry và overlay; latency đo được khoảng 6 giây là đủ cho overlay \\
 0015 & Session feature BR2 trên Spark Structured Streaming + Redis & Spark 3.5 không hỗ trợ \code{update} cho \code{session_window}; session state nằm trong Redis, \code{SET NX} chống đếm lại \\
 0016 & Runtime thật cho BR1--BR3 & Kafka, Redis, PostgreSQL thật; kết quả đến UI qua SSE; projector BR3 đồng bộ \code{public.*} \\
@@ -165,10 +165,10 @@ Mỗi quyết định quan trọng được ghi thành một ADR~\cite{nygard201
 \subsection{Điều chỉnh so với kiến trúc tham chiếu}
 \label{sec:deviations}
 
-Nhóm giữ nguyên vai trò của kiến trúc tham chiếu nhưng điều chỉnh ba điểm:
+Nhóm giữ nguyên các vai trò trong kiến trúc tham chiếu, đồng thời điều chỉnh ba điểm sau:
 
 \begin{enumerate}
-  \item \textbf{Dùng Spark Structured Streaming thay Flink cho BR5 và overlay BR7--BR8} (ADR 0009, 0014). Kiến trúc tham chiếu dùng Flink~\cite{carbone2015flink} cho stateful stream processing; khi bước vào hiện thực, job Flink mới chỉ là skeleton trong khi Spark Structured Streaming đã chạy cho landing lakehouse. Dùng một engine giúp giảm hạ tầng vận hành và cho phép tái sử dụng code chuẩn hoá silver. Đổi lại, latency khoảng 6 giây cho overlay và khoảng 10 giây cho cảnh báo BR5 (số của BR5 không đo lại) cao hơn mức dưới một giây của Flink, nhưng phù hợp với cảnh báo dành cho cố vấn và overlay trên mart theo ngày. Về sau, nhóm viết thêm một job Flink tính cùng các window rủi ro (\code{infra/br45/flink/RiskWindows.java}) để so sánh engine cho BR5; job này chạy trong một stack benchmark riêng (\code{docker-compose.br45-benchmark.yml}), chỉ ghi vào bảng benchmark và không sinh cảnh báo, còn đường sản phẩm vẫn là Spark Structured Streaming. Cụm Flink vẫn có trong Compose chính, chưa chạy job nào, để sẵn sàng chuyển đổi khi cần.
-  \item \textbf{Bổ sung Trino + Hive Metastore làm catalog và SQL warehouse} (ADR 0010). Delta Lake chỉ là định dạng bảng, nên data warehouse cần thêm một catalog và một engine truy vấn. Hive Metastore và Trino đảm nhận hai vai trò này trên chính các bảng Delta, không tạo bản sao thứ hai và vẫn chạy được cục bộ.
-  \item \textbf{BR2 dùng feature store hai nhánh.} Yêu cầu BR2 mô tả pipeline feature hai nhánh qua feature store; nhóm hiện thực cả hai: batch ghi bảng \code{features.learner_longterm}, streaming giữ session state trong Redis. Gợi ý dùng feature làm ngữ cảnh và xếp hạng bằng rule nghiệp vụ (Mục~\ref{sec:br2}).
+  \item \textbf{Dùng Spark Structured Streaming thay Flink cho BR5 và overlay BR7--BR8} (ADR 0009, 0014). Kiến trúc tham chiếu sử dụng Flink~\cite{carbone2015flink} cho stateful stream processing. Khi bắt đầu hiện thực, job Flink mới chỉ là skeleton, trong khi Spark Structured Streaming đã được dùng cho landing lakehouse. Việc thống nhất một engine giúp giảm hạ tầng vận hành và tái sử dụng code chuẩn hoá silver. Đổi lại, latency của overlay khoảng 6 giây và của cảnh báo BR5 khoảng 10 giây (số liệu BR5 chưa được đo lại), cao hơn mức dưới một giây của Flink; tuy vậy, các mức này vẫn phù hợp với cảnh báo dành cho cố vấn và overlay trên mart theo ngày. Sau đó, nhóm bổ sung một job Flink tính cùng các window rủi ro (\code{infra/br45/flink/RiskWindows.java}) để so sánh engine cho BR5. Job này chạy trong stack benchmark riêng (\code{docker-compose.br45-benchmark.yml}), chỉ ghi vào bảng benchmark và không phát sinh cảnh báo; pipeline production vẫn sử dụng Spark Structured Streaming. Cụm Flink vẫn được giữ trong Compose chính nhưng chưa chạy job nào, để sẵn sàng chuyển đổi khi cần.
+  \item \textbf{Bổ sung Trino + Hive Metastore làm catalog và SQL warehouse} (ADR 0010). Delta Lake chỉ cung cấp định dạng bảng, nên data warehouse cần thêm catalog và engine truy vấn. Hive Metastore và Trino đảm nhiệm hai vai trò này trực tiếp trên các bảng Delta, không tạo thêm bản sao dữ liệu và vẫn có thể vận hành cục bộ.
+  \item \textbf{BR2 sử dụng feature store hai nhánh.} BR2 yêu cầu một pipeline feature gồm hai nhánh đi qua feature store. Nhóm hiện thực cả hai: nhánh batch ghi vào bảng \code{features.learner_longterm}, còn nhánh streaming lưu session state trong Redis. Các feature này được dùng làm ngữ cảnh cho gợi ý, vốn được xếp hạng bằng rule nghiệp vụ (Mục~\ref{sec:br2}).
 \end{enumerate}
