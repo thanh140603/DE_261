@@ -53,7 +53,7 @@ umask 077; accounts_dir=$(mktemp -d)
 export EDU_STAFF_ACCOUNTS="$(jq -cs 'add' "$accounts_dir"/*.json)"
 
 # Bearer tokens for scripts (e2e check, BR6-BR8 benchmarks, Playwright API
-# checks). Local demonstration values only: token -> identity and scope.
+# checks). Local values only: token -> identity and scope.
 export EDU_BR45_AUTH='{
   "instructor-demo": {"id": "instructor-local", "role": "instructor",
     "courses": ["c-py-201", "c-sql-101", "c-de-301"]},

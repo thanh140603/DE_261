@@ -3,12 +3,12 @@
 
 \section{Thiết kế và hiện thực theo từng yêu cầu}
 
-Chương này lần lượt trình bày tám yêu cầu nghiệp vụ (BR), tập trung vào data flow, các rule nghiệp vụ cốt lõi và mức độ hoàn thiện của từng yêu cầu. Cả tám BR đều vận hành trên hạ tầng thật gồm Kafka, Redis, PostgreSQL, Spark, Delta, Trino và OpenSearch. Dịch vụ notification và grading dùng Kafka, Redis, PostgreSQL; BR2 dùng job batch \code{features-online} và job streaming \code{telemetry-live} trên Delta và Redis.
+Chương này lần lượt trình bày tám yêu cầu nghiệp vụ (BR), tập trung vào data flow, các rule nghiệp vụ cốt lõi và mức độ hoàn thiện của từng yêu cầu. Cả tám BR đều vận hành trên hạ tầng gồm Kafka, Redis, PostgreSQL, Spark, Delta, Trino và OpenSearch. Dịch vụ notification và grading dùng Kafka, Redis, PostgreSQL; BR2 dùng job batch \code{features-online} và job streaming \code{telemetry-live} trên Delta và Redis.
 
 % =====================================================================
 \subsection{BR1 --- Pipeline thông báo hướng sự kiện}
 
-\textbf{Luồng chạy thật.} Dịch vụ \code{notification} là một tiến trình độc lập, tiêu thụ năm topic Kafka: \code{lms.assignment_created.v1}, \code{lms.deadline_approaching.v1}, \code{lms.course_updated.v1}, \code{grading.submission_graded.v1} và topic \code{risk.dropout_alert.v1} (mang event type \code{risk.dropout_risk_detected.v1}). Mỗi sự kiện được xử lý qua rule engine, đối chiếu với tập rule YAML, rồi xác định người nhận từ PostgreSQL (\code{public.learners}, \code{public.enrollments}) hoặc cố vấn của người học. Thông báo được lưu vào Redis và gửi qua in-app, push hoặc email. Kết quả được phát lên \code{notification.dispatched.v1} hoặc \code{notification.suppressed.v1}, đồng thời ghi vào lakehouse thành \code{gold.fct_notification}. API đọc inbox từ Redis; cầu Kafka--SSE chuyển tiếp sự kiện \code{notification} xuống trình duyệt. Vòng tiêu thụ có retry/backoff và DLQ, nhờ đó một sự kiện lỗi không làm gián đoạn dịch vụ.
+\textbf{Luồng xử lý.} Dịch vụ \code{notification} là một tiến trình độc lập, tiêu thụ năm topic Kafka: \code{lms.assignment_created.v1}, \code{lms.deadline_approaching.v1}, \code{lms.course_updated.v1}, \code{grading.submission_graded.v1} và topic \code{risk.dropout_alert.v1} (mang event type \code{risk.dropout_risk_detected.v1}). Mỗi sự kiện được xử lý qua rule engine, đối chiếu với tập rule YAML, rồi xác định người nhận từ PostgreSQL (\code{public.learners}, \code{public.enrollments}) hoặc cố vấn của người học. Thông báo được lưu vào Redis và gửi qua in-app, push hoặc email. Kết quả được phát lên \code{notification.dispatched.v1} hoặc \code{notification.suppressed.v1}, đồng thời ghi vào lakehouse thành \code{gold.fct_notification}. API đọc inbox từ Redis; cầu Kafka--SSE chuyển tiếp sự kiện \code{notification} xuống trình duyệt. Vòng tiêu thụ có retry/backoff và DLQ, nhờ đó một sự kiện lỗi không làm gián đoạn dịch vụ.
 
 \textbf{Rule engine.} Các rule được khai báo trong YAML và nạp khi dịch vụ khởi động (Hình~\ref{lst:rules}). Điều kiện được biểu diễn bằng ngôn ngữ biểu thức tối giản áp dụng lên payload của sự kiện; hệ thống không cho phép thực thi mã tuỳ ý.
 
@@ -32,7 +32,7 @@ rules:
 
 \textbf{Chống làm phiền người dùng.} Mỗi thông báo có dedup key trong Redis với TTL 24 giờ, bảo đảm cùng một sự kiện không bị gửi lặp. Rate limit áp dụng sliding window, giới hạn 5 thông báo/giờ cho mỗi người học; thông báo ưu tiên cao (ví dụ còn dưới 24 giờ đến hạn) được miễn giới hạn. Notification store idempotent theo định danh: hai use case route và dispatch đều gọi \code{save()}, nhưng chỉ lần tạo đầu tiên mới thêm thông báo vào inbox và tăng counter, nhờ đó tránh nhân đôi thông báo. Các thông báo bị chặn được ghi kèm lý do để giao diện hiển thị.
 
-\textbf{Kênh gửi thật.} In-app ghi vào Redis; email đi qua SMTP; push đi qua webhook HTTP, cả hai đều có retry ba lần. Trong lần kiểm chứng, email và webhook đều được gửi thành công tới đích; thông tin provider được cấu hình qua biến môi trường.
+\textbf{Các kênh gửi.} In-app ghi vào Redis; email đi qua SMTP; push đi qua webhook HTTP, cả hai đều có retry ba lần. Trong lần kiểm chứng, email và webhook đều được gửi thành công tới đích; thông tin provider được cấu hình qua biến môi trường.
 
 \textbf{Kết quả kiểm chứng.} Đăng ký \code{l-002} vào \code{c-ml-301} ghi một dòng trong PostgreSQL; sự kiện deadline tạo đúng một thông báo; replay cùng sự kiện trả lý do \code{duplicate} và không tăng \code{notif:count}. Trong cùng đợt kiểm chứng, email và webhook đều gửi thành công; Playwright cũng xác nhận chức năng gửi thông báo trên giao diện.
 
@@ -70,7 +70,7 @@ Bộ xếp hạng dựa trên \textbf{rule nghiệp vụ}, được tính tại 
 % =====================================================================
 \subsection{BR3 --- Tiếp nhận bài nộp và phản hồi chi tiết}
 
-\textbf{Luồng tách rời, chạy thật.} Giao diện gọi BFF \code{POST /api/submissions}; BFF chuyển tiếp sang \code{grading-ingest} ở cổng 8001. Dịch vụ ghi bài nộp ở trạng thái \code{QUEUED} vào Redis và \code{grading.submissions}, phát \code{grading.submission_received.v1} và chỉ trả 202 sau khi broker xác nhận (\code{publisher.flush()}); nếu queue không nhận được message, API trả 503 thay vì xác nhận một yêu cầu có thể bị thất lạc. Worker nhận message, claim \code{SET NX}, chuyển trạng thái \code{RUNNING}, chạy sandbox và phát \code{grading.sandbox_result.raw.v1}. Normalizer áp \code{FeedbackPolicy}, ghi kết quả vào Redis và \code{grading.grades}, rồi phát \code{grading.submission_graded.v1}. Sự kiện này đi vào BR1, cầu SSE và projector đồng bộ \code{public.*}.
+\textbf{Luồng tách rời.} Giao diện gọi BFF \code{POST /api/submissions}; BFF chuyển tiếp sang \code{grading-ingest} ở cổng 8001. Dịch vụ ghi bài nộp ở trạng thái \code{QUEUED} vào Redis và \code{grading.submissions}, phát \code{grading.submission_received.v1} và chỉ trả 202 sau khi broker xác nhận (\code{publisher.flush()}); nếu queue không nhận được message, API trả 503 thay vì xác nhận một yêu cầu có thể bị thất lạc. Worker nhận message, claim \code{SET NX}, chuyển trạng thái \code{RUNNING}, chạy sandbox và phát \code{grading.sandbox_result.raw.v1}. Normalizer áp \code{FeedbackPolicy}, ghi kết quả vào Redis và \code{grading.grades}, rồi phát \code{grading.submission_graded.v1}. Sự kiện này đi vào BR1, cầu SSE và projector đồng bộ \code{public.*}.
 
 \textbf{Lifecycle và idempotency.} Trạng thái đi theo \code{queued} $\rightarrow$ \code{running} $\rightarrow$ \code{graded} hoặc \code{failed}. Worker claim theo \code{submission_id} nên message trùng không kích hoạt sandbox lần nữa. Normalizer bỏ qua kết quả đã tồn tại theo \code{(submission_id, worker_run_id)}; PostgreSQL dùng UPSERT theo \code{submission_id}. Nhờ đó, replay queue message hoặc raw result không tạo thêm grade.
 
@@ -86,7 +86,7 @@ Bộ xếp hạng dựa trên \textbf{rule nghiệp vụ}, được tính tại 
 \subsubsection{BR4 --- Phát hiện câu hỏi và test case bất thường}
 \label{sec:br4-runtime}
 
-\textbf{Luồng CDC thật} (ADR 0009). Dữ liệu vận hành nằm trong schema \code{br45} của PostgreSQL: khoá học, bài tập, câu hỏi và test case có phiên bản, bài nộp và kết quả chấm. Một connector Debezium riêng đọc WAL và phát thay đổi lên các topic \code{br45.cdc.br45.<bảng>}. Worker CDC lưu phong bì gốc vào \code{analytics.raw_changes}, kiểm tra hợp đồng (sai thì vào \code{quarantine}), khử trùng lặp theo định danh ổn định gồm bảng, LSN, giao dịch, thao tác và ảnh dòng, rồi ghi \code{clean_rows}. Nhờ vậy, thay đổi có LSN cũ không thể khôi phục bản ghi đã được cập nhật mới hơn.
+\textbf{Luồng CDC} (ADR 0009). Dữ liệu vận hành nằm trong schema \code{br45} của PostgreSQL: khoá học, bài tập, câu hỏi và test case có phiên bản, bài nộp và kết quả chấm. Một connector Debezium riêng đọc WAL và phát thay đổi lên các topic \code{br45.cdc.br45.<bảng>}. Worker CDC lưu phong bì gốc vào \code{analytics.raw_changes}, kiểm tra hợp đồng (sai thì vào \code{quarantine}), khử trùng lặp theo định danh ổn định gồm bảng, LSN, giao dịch, thao tác và ảnh dòng, rồi ghi \code{clean_rows}. Nhờ vậy, thay đổi có LSN cũ không thể khôi phục bản ghi đã được cập nhật mới hơn.
 
 \begin{figure}[H]
 \centering
@@ -265,7 +265,7 @@ Giao diện được phát triển qua ba vòng thiết kế:
   \item \textbf{Thiết kế lại theo quy ước LMS}: dựa trên Canvas và Moodle~\cite{canvas,moodle}, dùng thanh điều hướng toàn cục bên trái, menu theo khu vực, breadcrumb, thẻ khoá học có dải màu và trang bài tập có dòng thông tin chi tiết; chế độ sáng tông xanh da trời là mặc định. Mockup dùng cùng bộ design token với ứng dụng (CSS được sao chép và giữ đồng bộ), nhờ đó hai bản thống nhất về ngôn ngữ thị giác (Hình~\ref{fig:mock-learner}).
 \end{enumerate}
 
-Ứng dụng được xây dựng bằng React 18 + TypeScript trên Vite, không bổ sung thư viện UI hay chart; mọi màn hình đều đọc dữ liệu từ API thật. Những phần của mockup không có API tương ứng (độ tươi của báo cáo, kết quả kiểm tra chất lượng, ghi chú can thiệp) được lược bỏ thay vì thay bằng dữ liệu giả.
+Ứng dụng được xây dựng bằng React 18 + TypeScript trên Vite, không bổ sung thư viện UI hay chart; mọi màn hình đều đọc dữ liệu từ API. Những phần của mockup không có API tương ứng (độ tươi của báo cáo, kết quả kiểm tra chất lượng, ghi chú can thiệp) được lược bỏ thay vì thay bằng dữ liệu giả.
 
 \begin{figure}[H]
 \centering
@@ -341,7 +341,7 @@ Data platform & \code{/pipeline} & Bộ đếm luồng, throughput, topic, DLQ, 
 \bottomrule
 \end{longtable}}
 
-Workspace Instructor, Advisor và Org admin được bảo vệ bằng màn hình đăng nhập tên người dùng và mật khẩu, mỗi workspace có session riêng. Máy chủ đối chiếu mật khẩu với hash Argon2id của các tài khoản cấu hình sẵn (\code{EDU_STAFF_ACCOUNTS}), sau đó cấp cookie session HttpOnly gắn với vai trò và có thời hạn tám giờ. Các request tiếp theo gửi cookie này cùng header \code{X-Staff-Role}. Danh tính, vai trò và phạm vi khoá học hoặc tổ chức đều được xác định từ tài khoản phía máy chủ; giao diện không tự khai báo quyền. Các điều khiển thử nghiệm (giả lập sự kiện LMS, bộ sinh telemetry) được tách vào khối ``Demo controls'' viền nét đứt. Biểu đồ được vẽ bằng SVG thuần theo chiều rộng thực của phần tử, nên chữ không bị co giãn.
+Workspace Instructor, Advisor và Org admin được bảo vệ bằng màn hình đăng nhập tên người dùng và mật khẩu, mỗi workspace có session riêng. Máy chủ đối chiếu mật khẩu với hash Argon2id của các tài khoản cấu hình sẵn (\code{EDU_STAFF_ACCOUNTS}), sau đó cấp cookie session HttpOnly gắn với vai trò và có thời hạn tám giờ. Các request tiếp theo gửi cookie này cùng header \code{X-Staff-Role}. Danh tính, vai trò và phạm vi khoá học hoặc tổ chức đều được xác định từ tài khoản phía máy chủ; giao diện không tự khai báo quyền. Các điều khiển thử nghiệm (giả lập sự kiện LMS, bộ sinh telemetry) được tách vào một khối riêng viền nét đứt. Biểu đồ được vẽ bằng SVG thuần theo chiều rộng thực của phần tử, nên chữ không bị co giãn.
 
 \subsection{Các màn hình chính}
 
@@ -416,5 +416,5 @@ Giao diện được kiểm chứng theo ba phương thức:
 \begin{itemize}
   \item \textbf{Biên dịch nghiêm ngặt}: TypeScript \code{strict}; bản build production thành công.
   \item \textbf{Kiểm tra thủ công trên trình duyệt} với dữ liệu thật ở chế độ sáng/tối, desktop và điện thoại: một bài nộp được đưa qua sandbox để xác nhận thông báo mới được tạo; các trang BR6--BR8 đọc dữ liệu mart thật từ Trino.
-  \item \textbf{Acceptance test bằng Playwright} trên stack thật, gồm 12 test trong năm tệp spec: 2 test BR1--BR3, 3 test BR4/BR5, 4 test BR6--BR8, 2 test cho hai chế độ classroom và replay của BR4/BR5 và 1 test session đăng nhập nhân sự. Chín test của ba bộ đầu đã đạt ở các lần chạy trước khi gộp nhánh BR4/BR5; kết quả JSON và ảnh chụp được lưu kèm. Trên mã sau khi gộp, các test này dùng tài khoản nhân sự để đăng nhập, nhưng toàn bộ 12 test chưa được chạy lại.
+  \item \textbf{Acceptance test bằng Playwright} trên stack Docker Compose, gồm 12 test trong năm tệp spec: 2 test BR1--BR3, 3 test BR4/BR5, 4 test BR6--BR8, 2 test cho hai chế độ classroom và replay của BR4/BR5 và 1 test session đăng nhập nhân sự. Chín test của ba bộ đầu đã đạt ở các lần chạy trước khi gộp nhánh BR4/BR5; kết quả JSON và ảnh chụp được lưu kèm. Trên mã sau khi gộp, các test này dùng tài khoản nhân sự để đăng nhập, nhưng toàn bộ 12 test chưa được chạy lại.
 \end{itemize}

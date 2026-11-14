@@ -18,7 +18,7 @@ Dự án hướng tới xây dựng một nền tảng dữ liệu, chuyển đ�
 Mục tiêu của nhóm gồm:
 \begin{enumerate}
   \item Thiết kế kiến trúc dữ liệu end-to-end đáp ứng tám yêu cầu nghiệp vụ và bám sát kiến trúc tham chiếu; mọi điều chỉnh đều có căn cứ và được ghi lại.
-  \item Hiện thực pipeline trên máy cá nhân bằng Docker Compose, gồm CDC thật qua Debezium, lakehouse Delta Lake với star schema, data mart cho từng BR và các luồng xử lý thời gian thực.
+  \item Hiện thực pipeline trên máy cá nhân bằng Docker Compose, gồm CDC qua Debezium, lakehouse Delta Lake với star schema, data mart cho từng BR và các luồng xử lý thời gian thực.
   \item Bảo đảm các tính chất cốt lõi: xử lý theo event time; chịu được late data và dữ liệu trùng lặp; rerun có tính idempotent; hỗ trợ pseudonymisation, k-anonymity và kiểm tra chất lượng dữ liệu.
   \item Cung cấp API và giao diện web cho từng nhóm người dùng, giúp đưa kết quả pipeline vào sử dụng thực tế.
   \item Đánh giá tính đúng đắn và hiệu năng bằng kiểm thử tự động và các phép đo có thể tái lập.
@@ -30,12 +30,12 @@ Về phạm vi, báo cáo sử dụng \textbf{dữ liệu tổng hợp} (synthet
 
 \begin{itemize}
   \item \textbf{Lakehouse Delta Lake} gồm ba lớp, 51 bảng và 44 model (43 model tại thời điểm đo thời gian build ở Chương~\ref{chap:eval}, trước khi bổ sung model lịch sử chuyển trạng thái cảnh báo của BR5). Lớp gold là data warehouse theo mô hình Kimball, gồm 9 dimension và 11 fact table với surrogate key tất định. Hệ thống còn có các mart cho BR4, BR6, BR7, BR8 và offline feature store cho BR2; Hive Metastore làm catalog, còn Trino phục vụ truy vấn có phân quyền theo vai trò.
-  \item \textbf{Hiện thực BR1--BR3 trên hạ tầng thật}: dịch vụ thông báo và chấm bài sử dụng Kafka, Redis, PostgreSQL; pipeline gợi ý kết hợp hai nhánh của feature store.
+  \item \textbf{Hiện thực BR1--BR3}: dịch vụ thông báo và chấm bài sử dụng Kafka, Redis, PostgreSQL; pipeline gợi ý kết hợp hai nhánh của feature store.
   \item \textbf{Luồng CDC cho BR4--BR5} từ PostgreSQL WAL qua Debezium, Kafka và Spark Structured Streaming đến mart, trạng thái rủi ro và cảnh báo. Luồng này hỗ trợ replay, cập nhật, xoá và khởi động lại từ checkpoint.
   \item \textbf{Đồng bộ nội dung BR8 dựa trên CDC}: vô hiệu hoá cache trên Redis, chia tài liệu thành các chunk, tạo embedding cho từng chunk và cập nhật chỉ mục tìm kiếm trên OpenSearch. Quá trình đồng bộ hỗ trợ hybrid search và idempotent theo phiên bản.
   \item \textbf{Overlay thời gian thực} trên Redis cho heatmap video (BR7) và điểm tương tác (BR8), được kết hợp với mart theo ngày.
   \item Bộ 16 \textbf{ADR}, kiến trúc DDD/hexagonal có test bảo vệ ranh giới, cùng bộ kiểm thử nhiều tầng và các kết quả đo đạc.
-  \item \textbf{Giao diện web} gồm năm workspace, được thiết kế từ mockup và kết nối với API thật.
+  \item \textbf{Giao diện web} gồm năm workspace, được thiết kế từ mockup và kết nối với API.
 \end{itemize}
 
 \subsection{Phương pháp thực hiện}

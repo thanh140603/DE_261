@@ -1,7 +1,7 @@
 \chapter{Thiết kế và hiện thực theo từng yêu cầu}
 \label{chap:impl}
 
-Chương này đi qua tám yêu cầu nghiệp vụ. Với mỗi BR, báo cáo trình bày luồng dữ liệu, các quy tắc nghiệp vụ quan trọng và mức độ hoàn thiện. BR4--BR8 chạy trên hạ tầng thật (PostgreSQL, Debezium, Kafka, Spark, Delta, Trino, Redis, OpenSearch). BR1--BR3 có logic nghiệp vụ hoàn chỉnh và chạy được ở hai chế độ: runtime trong tiến trình cho demo (ADR 0008) và chế độ dịch vụ dùng Kafka/Redis/PostgreSQL, với API đóng vai trò BFF.
+Chương này đi qua tám yêu cầu nghiệp vụ. Với mỗi BR, báo cáo trình bày luồng dữ liệu, các quy tắc nghiệp vụ quan trọng và mức độ hoàn thiện. BR4--BR8 chạy trên hạ tầng thật (PostgreSQL, Debezium, Kafka, Spark, Delta, Trino, Redis, OpenSearch). BR1--BR3 có logic nghiệp vụ hoàn chỉnh và chạy được ở hai chế độ: runtime trong tiến trình (ADR 0008) và chế độ dịch vụ dùng Kafka/Redis/PostgreSQL, với API đóng vai trò BFF.
 
 % =====================================================================
 \section{BR1 --- Pipeline thông báo hướng sự kiện}

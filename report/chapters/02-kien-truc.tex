@@ -150,7 +150,7 @@ Mỗi quyết định kiến trúc quan trọng được ghi lại thành ADR~\c
 0005 & Lakehouse Delta Lake theo medallion & ACID upsert, time travel, ranh giới PII; cần job bảo trì để chống small file \\
 0006 & Redis cho serving layer & Dưới mili-giây, TTL; Redis không phải source of truth \\
 0007 & Pseudonymisation ở ranh giới silver & HMAC-SHA256 với key có phiên bản; báo cáo tổ chức áp dụng $k = 5$ \\
-0008 & Runtime ban đầu chạy trong tiến trình & Trình diễn end-to-end trên laptop bằng adapter trong bộ nhớ; BR1--BR3 sau đó chuyển sang runtime thật (ADR 0016) \\
+0008 & Runtime ban đầu chạy trong tiến trình & Chạy end-to-end trên laptop bằng adapter trong bộ nhớ; BR1--BR3 sau đó chuyển sang chế độ dịch vụ (ADR 0016) \\
 0009 & PostgreSQL mart + Spark Structured Streaming cho BR4/BR5 & Một Spark driver trong pipeline production chạy cả window BR5 lẫn job tổng hợp BR4; job Flink tương đương chỉ dùng để so sánh engine; latency từ CDC đến cảnh báo khoảng 10 giây (không đo lại) \\
 0010 & Trino + Hive Metastore làm SQL warehouse & Catalog và SQL warehouse đặt trên chính các bảng Delta, không có bản sao thứ hai \\
 0011 & Spark là writer duy nhất của Delta & Connector Flink cho Delta đã lỗi thời; đồng thời tránh xung đột commit \\
@@ -158,7 +158,7 @@ Mỗi quyết định kiến trúc quan trọng được ghi lại thành ADR~\c
 0013 & Đồng bộ nội dung BR8 bằng CDC vào OpenSearch & Một pipeline đồng bộ dùng chung cho mọi writer; idempotent theo phiên bản đã index \\
 0014 & Spark Structured Streaming cho telemetry nhanh và overlay BR7/BR8 & Chưa có job Flink cho telemetry và overlay; latency đo được khoảng 6 giây là đủ cho overlay \\
 0015 & Session feature BR2 trên Spark Structured Streaming + Redis & Spark 3.5 không hỗ trợ \code{update} cho \code{session_window}; session state nằm trong Redis, \code{SET NX} chống đếm lại \\
-0016 & Runtime thật cho BR1--BR3 & Kafka, Redis, PostgreSQL thật; kết quả đến UI qua SSE; projector BR3 đồng bộ \code{public.*} \\
+0016 & Chế độ dịch vụ cho BR1--BR3 & Kafka, Redis, PostgreSQL; kết quả đến UI qua SSE; projector BR3 đồng bộ \code{public.*} \\
 \bottomrule
 \end{longtable}}
 
