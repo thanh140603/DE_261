@@ -1,15 +1,15 @@
 \chapter{Kiểm thử và đánh giá}
 \label{chap:eval}
 
-Chương này đánh giá tính đúng đắn và hiệu năng của hệ thống. Mọi số liệu đo trên dữ liệu tổng hợp, trên máy cá nhân với stack Docker Compose chạy đồng thời (một số dịch vụ không cần cho từng phép đo được tạm dừng do giới hạn bộ nhớ, xem Mục~\ref{sec:env}); đây là quan sát cục bộ, không phải cam kết năng lực. Các tệp CSV gốc lưu mọi mẫu đo (Phụ lục~\ref{app:run}).
+Chương này đánh giá tính đúng đắn và hiệu năng của hệ thống. Mọi số liệu được đo trên dữ liệu tổng hợp, trên một máy cá nhân chạy stack Docker Compose. Do giới hạn bộ nhớ, mỗi phép đo chỉ bật những dịch vụ cần thiết (Mục~\ref{sec:env}); đây là quan sát cục bộ, không phải cam kết về năng lực hệ thống. Các tệp CSV gốc lưu mọi mẫu đo (Phụ lục~\ref{app:run}).
 
 \section{Chiến lược kiểm thử}
 
-Chiến lược kiểm thử chia thành nhiều tầng, từ domain thuần đến dịch vụ thật và trình duyệt; Bảng~\ref{tab:tests} tóm tắt số lượng và phạm vi từng tầng. Số lượng được đếm trên mã đã gộp nhánh BR4/BR5; trên mã này, đợt cập nhật báo cáo chỉ chạy lại tầng đơn vị, nên con số của các tầng còn lại là số test hiện có chứ không phải kết quả chạy.
+Chiến lược kiểm thử được chia thành nhiều tầng, từ domain thuần đến dịch vụ thật và trình duyệt; Bảng~\ref{tab:tests} tóm tắt số lượng và phạm vi của từng tầng. Số lượng được đếm trên mã đã gộp nhánh BR4/BR5; trên mã này, đợt cập nhật báo cáo chỉ chạy lại tầng unit, nên con số của các tầng còn lại phản ánh số test hiện có chứ không phải kết quả chạy.
 
-Mã Python được kiểm tra bằng \code{ruff} và \code{mypy}; kho dữ liệu chạy đủ 10 cổng chất lượng sau mỗi lần build.
+Mã Python được kiểm tra bằng \code{ruff} và \code{mypy}; data warehouse chạy đủ 10 quality gate sau mỗi lần build.
 
-Kiểm thử đơn vị tập trung vào policy và use case; kiểm thử tích hợp dùng PostgreSQL, Kafka và Redis thật; kiểm thử trình duyệt chạy trên stack đầy đủ. Cách phân tầng này giữ phản hồi nhanh ở tầng dưới và vẫn kiểm chứng được luồng đầu cuối.
+Unit test tập trung vào policy và use case; integration test dùng PostgreSQL, Kafka và Redis thật; browser test chạy trên stack đầy đủ. Nhờ cách phân tầng này, các tầng dưới vẫn cho phản hồi nhanh, còn luồng end-to-end vẫn được kiểm chứng.
 
 \begin{table}[H]
 \centering\small
@@ -18,20 +18,20 @@ Kiểm thử đơn vị tập trung vào policy và use case; kiểm thử tích
 \toprule
 \textbf{Tầng} & \textbf{Số lượng} & \textbf{Phạm vi} \\
 \midrule
-Đơn vị & 379 & Policy và use case của domain, phân quyền API với adapter giả, phiên đăng nhập nhân sự, phân tích bản ghi Debezium, S3 (moto), Redis (fakeredis), OpenSearch adapter, lớp phủ, cache; test kiến trúc kiểm tra ranh giới các lớp \\
-Spark & 11 & SQL của bộ đọc mart trên bảng Delta dựng từ DDL; job reindex trên Delta với S3 giả lập; tính tương đương của lớp phủ streaming trên Kafka và Redis thật; BR4: sửa điểm trên Delta giữ ảnh chụp cũ và khớp phép tính đối chiếu; BR5: checkpoint cửa sổ khử trùng lặp sau khi khởi động lại \\
-Tích hợp BR4/BR5 & 21 & PostgreSQL và API: SQL khớp Python, lần làm đầu/cuối, kết quả thiếu hoặc không hợp lệ, lỗi hạ tầng và lỗi mã, đổi phiên bản, LSN cũ, cách ly sự kiện trễ, phân quyền, vòng đời cảnh báo, lease của job tổng hợp, phiên bản chính sách, ghi chú can thiệp, retention \\
-Tích hợp BR1/BR3 & 1 & HTTP end-to-end: enroll, nộp bài, chờ \code{graded}, kiểm tra thông báo từ \code{grading.submission_graded.v1} \\
-Dịch vụ thật & -- & OpenSearch 2.17 (analyzer, HNSW, lọc kNN, chỉ phiên bản hiện hành); danh mục PostgreSQL (5 người xuất bản đồng thời, rollback); tính tương đương lớp phủ kể cả gửi lại và phát lại toàn bộ \\
-End-to-end & 1 + 6 & Luồng PostgreSQL $\rightarrow$ WAL $\rightarrow$ Debezium $\rightarrow$ Kafka $\rightarrow$ Spark $\rightarrow$ API với 6 kiểm tra chấp nhận, gồm sửa điểm, phát lại Kafka, UPDATE/DELETE hoạt động và khởi động lại checkpoint \\
-Trình duyệt & 12 & Playwright: 2 test BR1--BR3, 3 test BR4/BR5, 4 test BR6--BR8, 2 test cho chế độ classroom và replay của BR4/BR5 và 1 test phiên đăng nhập nhân sự; drill-down của giảng viên và cập nhật khi sửa điểm, xác nhận cảnh báo và hồi phục rủi ro, lỗi đăng nhập, k-anonymity, heatmap theo phiên bản, xuất bản đến khi tìm kiếm được, lớp phủ trực tiếp \\
+Unit & 379 & Policy và use case của domain, phân quyền API với adapter giả, session đăng nhập nhân sự, phân tích bản ghi Debezium, S3 (moto), Redis (fakeredis), OpenSearch adapter, overlay, cache; architecture test kiểm tra ranh giới các lớp \\
+Spark & 11 & SQL của bộ đọc mart trên bảng Delta dựng từ DDL; job reindex trên Delta với S3 giả lập; tính tương đương của streaming overlay trên Kafka và Redis thật; BR4: sửa điểm trên Delta giữ snapshot cũ và khớp phép tính đối chứng; BR5: checkpoint window dedup sau khi khởi động lại \\
+Integration BR4/BR5 & 21 & PostgreSQL và API: SQL khớp Python, lần làm đầu/cuối, kết quả thiếu hoặc không hợp lệ, lỗi hạ tầng và lỗi code, đổi phiên bản, LSN cũ, cách ly late data, phân quyền, alert lifecycle, lease của job tổng hợp, phiên bản policy, ghi chú can thiệp, retention \\
+Integration BR1/BR3 & 1 & HTTP end-to-end: enroll, nộp bài, chờ \code{graded}, kiểm tra thông báo từ \code{grading.submission_graded.v1} \\
+Dịch vụ thật & -- & OpenSearch 2.17 (analyzer, HNSW, lọc kNN, chỉ phiên bản hiện hành); catalog PostgreSQL (5 người xuất bản đồng thời, rollback); tính tương đương của overlay kể cả gửi lại và replay toàn bộ \\
+End-to-end & 1 + 6 & Luồng PostgreSQL $\rightarrow$ WAL $\rightarrow$ Debezium $\rightarrow$ Kafka $\rightarrow$ Spark $\rightarrow$ API với 6 kiểm tra chấp nhận, gồm sửa điểm, replay Kafka, UPDATE/DELETE hoạt động và khởi động lại checkpoint \\
+Trình duyệt & 12 & Playwright: 2 test BR1--BR3, 3 test BR4/BR5, 4 test BR6--BR8, 2 test cho chế độ classroom và replay của BR4/BR5 và 1 test session đăng nhập nhân sự; drill-down của giảng viên và cập nhật khi sửa điểm, xác nhận cảnh báo và hồi phục rủi ro, lỗi đăng nhập, k-anonymity, heatmap theo phiên bản, xuất bản đến khi tìm kiếm được, overlay trực tiếp \\
 \bottomrule
 \end{tabularx}
 \end{table}
 
 \section{Kiểm chứng nghiệp vụ}
 
-Mỗi BR có ít nhất một kịch bản kiểm tra quy tắc nghiệp vụ và được quan sát đến giao diện.
+Mỗi BR có ít nhất một kịch bản kiểm tra rule nghiệp vụ và được kiểm chứng tới tận giao diện.
 
 {\small
 \begin{longtable}{@{}L{0.9cm}L{6.0cm}L{7.6cm}@{}}
@@ -44,32 +44,32 @@ Mỗi BR có ít nhất một kịch bản kiểm tra quy tắc nghiệp vụ v�
 \textbf{BR} & \textbf{Kịch bản} & \textbf{Kết quả quan sát} \\
 \midrule
 \endhead
-1 & Đăng ký \code{l-002} vào \code{c-ml-301}, gửi deadline reminder, phát lại cùng sự kiện & PostgreSQL có enrollment; Redis inbox có đúng một thông báo và \code{count=1}; lần phát lại trả \code{duplicate}, không tăng bộ đếm; trong đợt kiểm chứng, email và webhook đều được gửi thành công \\
-2 & 5 sự kiện telemetry live, thêm 2 sự kiện, chạy lại; build kho rồi materialise & Phiên có 5 rồi 7 sự kiện, cùng \code{started_at}; replay không đếm lại; Redis có 40 khoá longterm; API trả cả hai nhóm feature \\
-3 & Nộp bài qua BFF; phát lại queue/raw result; bật projector & \code{queued} $\rightarrow$ \code{running} $\rightarrow$ \code{graded}, pass rate 0,8; \code{grading.*} có dòng; inbox có thông báo; replay không tạo grade thứ hai; projector 9/9 $\rightarrow$ 11/11 rồi trả baseline \\
-4 & 24 học viên, 3 test bắt buộc; 2 người đạt hết, 22 người trượt cùng một test & Câu hỏi đạt $2/24 = 8{,}33\%$; hai test đạt 100\%, test lỗi đạt 8{,}33\% và thấp hơn trung vị 91,67 điểm \%: gắn cờ \code{SUSPICIOUS_TEST_CASE}. Sửa một kết quả trong PostgreSQL làm số hiển thị đổi từ 8\% sang 13\% mà không tải lại trang. \\
-4 & Kho dữ liệu: test hỏng \code{t5_pairs} và test khó nhưng hợp lệ \code{t3_ties} & Chỉ \code{t5_pairs} (0/68 lượt đạt) bị gắn cờ; \code{t3_ties} (0,55) không bị gắn cờ \\
-5 & Học viên có 4 hoạt động tuần trước, không hoạt động tuần này, một bài đến hạn chưa nộp & 100 điểm, mức CRITICAL, sinh cảnh báo. Bốn hoạt động thật ghi qua API làm điểm giảm còn 50 và cảnh báo tự giải quyết. Phát lại Kafka không sinh cảnh báo trùng. \\
-5 & Kho dữ liệu: rủi ro theo ngày của một học viên & Một cảnh báo khi vượt ngưỡng; học viên bỏ học 6 ngày sau, nhãn kết quả \code{dropped_within_30d = true} \\
+1 & Đăng ký \code{l-002} vào \code{c-ml-301}, gửi deadline reminder, replay cùng sự kiện & PostgreSQL có enrollment; Redis inbox có đúng một thông báo và \code{count=1}; lần replay trả \code{duplicate}, không tăng counter; trong đợt kiểm chứng, email và webhook đều được gửi thành công \\
+2 & 5 sự kiện telemetry live, thêm 2 sự kiện, chạy lại; build warehouse rồi materialise & Session có 5 rồi 7 sự kiện, cùng \code{started_at}; replay không đếm lại; Redis có 40 key longterm; API trả cả hai nhóm feature \\
+3 & Nộp bài qua BFF; replay queue/raw result; bật projector & \code{queued} $\rightarrow$ \code{running} $\rightarrow$ \code{graded}, pass rate 0,8; \code{grading.*} có dòng; inbox có thông báo; replay không tạo grade thứ hai; projector 9/9 $\rightarrow$ 11/11 rồi trả baseline \\
+4 & 24 người học, 3 test bắt buộc; 2 người đạt hết, 22 người trượt cùng một test & Câu hỏi đạt $2/24 = 8{,}33\%$; hai test đạt 100\%, test lỗi đạt 8{,}33\% và thấp hơn median 91,67 điểm \%: gắn cờ \code{SUSPICIOUS_TEST_CASE}. Sửa một kết quả trong PostgreSQL làm số hiển thị đổi từ 8\% sang 13\% mà không tải lại trang. \\
+4 & Data warehouse: test hỏng \code{t5_pairs} và test khó nhưng hợp lệ \code{t3_ties} & Chỉ \code{t5_pairs} (0/68 lượt đạt) bị gắn cờ; \code{t3_ties} (0,55) không bị gắn cờ \\
+5 & Người học có 4 hoạt động tuần trước, không hoạt động tuần này, một bài đến hạn chưa nộp & 100 điểm, mức CRITICAL, sinh cảnh báo. Bốn hoạt động thật ghi qua API làm điểm giảm còn 50 và cảnh báo tự resolve. Replay Kafka không sinh cảnh báo trùng. \\
+5 & Data warehouse: rủi ro theo ngày của một người học & Một cảnh báo khi vượt threshold; người học bỏ học 6 ngày sau, nhãn kết quả \code{dropped_within_30d = true} \\
 6 & Globex có các nhóm 2 người; Acme có nhóm lớn & Globex chỉ công bố quy mô; Acme được báo cáo; truy cập ngoài phạm vi trả về 403 \\
 7 & Video \code{v-sql-joins} được quay lại & Hai heatmap riêng: v1 (420 giây) và v2 (390 giây) \\
 8 & Xuất bản transcript có chuỗi đánh dấu duy nhất & Phiên bản mới tìm kiếm được, cache trả \code{miss} rồi được làm ấm; xoá qua CDC gỡ vector và mục tìm kiếm \\
--- & Chạy kho dữ liệu: backfill, hai lần tăng dần, rồi chạy lại & Dấu vân tay các bảng giống hệt sau lần chạy lại (idempotent); một lần đồng bộ mobile trễ tự kéo cửa sổ gold lùi hai ngày \\
+-- & Chạy data warehouse: backfill, hai lần incremental, rồi chạy lại & Fingerprint các bảng giống hệt sau lần chạy lại (idempotent); một lần đồng bộ mobile muộn tự kéo window gold lùi hai ngày \\
 \bottomrule
 \end{longtable}}
 
-Ba kịch bản BR1--BR3 chạy trên stack thật với Kafka, Redis, PostgreSQL và Spark: integration test đạt và Playwright 2/2 đạt. Trên mã đã gộp nhánh BR4/BR5, cả 379 unit test đạt, không có test nào bị bỏ qua.
+Ba kịch bản BR1--BR3 chạy trên stack thật với Kafka, Redis, PostgreSQL và Spark: integration test đạt và Playwright 2/2 đạt. Trên mã đã gộp nhánh BR4/BR5, cả 379 unit test đều đạt, không có test nào bị bỏ qua.
 
 \section{Môi trường đo}
 \label{sec:env}
 
-Toàn bộ phép đo chạy ngày 13/11/2026 trên một máy Apple M1 Pro (10 nhân CPU: 8 nhân hiệu năng và 2 nhân tiết kiệm điện), 32 GB RAM, macOS 26.6.2. Docker Desktop (Docker Engine 29.7.2) được cấp 10 CPU và 8 GB RAM (máy ảo báo 7,75 GiB), kèm 1 GiB swap; container Hive Metastore dùng image amd64 nên chạy giả lập trên ARM. Stack Docker Compose đầy đủ (\code{docker-compose.yml} và \code{docker-compose.br13.yml} với các profile \code{br45}, \code{br678}, \code{airflow}, \code{pipelines}) gồm 30 container chạy lâu dài: Kafka, Kafka UI, Schema Registry, Debezium, PostgreSQL, Redis, MinIO, Hive Metastore cùng cơ sở dữ liệu của nó, Trino, Flink (jobmanager, taskmanager), Spark (master, worker), OpenSearch, Airflow (webserver, scheduler, metadata database), API demo, các dịch vụ notification, grading (ingest, worker, normalizer), push-sink, Mailpit, content-sync, telemetry-live, lakehouse-streaming, br45-cdc và br45-stream.
+Toàn bộ phép đo được thực hiện ngày 13/11/2026 trên một máy Apple M1 Pro (10 nhân CPU: 8 nhân hiệu năng và 2 nhân tiết kiệm điện), 32 GB RAM, macOS 26.6.2. Docker Desktop (Docker Engine 29.7.2) được cấp 10 CPU và 8 GB RAM (máy ảo báo 7,75 GiB), kèm 1 GiB swap; container Hive Metastore dùng image amd64 nên chạy giả lập trên ARM. Stack Docker Compose đầy đủ (\code{docker-compose.yml} và \code{docker-compose.br13.yml} với các profile \code{br45}, \code{br678}, \code{airflow}, \code{pipelines}) gồm 30 container chạy lâu dài: Kafka, Kafka UI, Schema Registry, Debezium, PostgreSQL, Redis, MinIO, Hive Metastore cùng cơ sở dữ liệu của nó, Trino, Flink (jobmanager, taskmanager), Spark (master, worker), OpenSearch, Airflow (webserver, scheduler, metadata database), API demo, các dịch vụ notification, grading (ingest, worker, normalizer), push-sink, Mailpit, content-sync, telemetry-live, lakehouse-streaming, br45-cdc và br45-stream.
 
-Các phép đo chia thành hai đợt trong cùng ngày, trên cùng máy và cùng cấu hình Docker. Đợt đầu đo toàn bộ BR1--BR8 và phần so sánh Debezium với polling trên mã trước khi gộp nhánh BR4/BR5 (commit \code{4d70703}). Sau đó nhánh \code{Benchmark_BR45} được gộp vào \code{main} (commit \code{05bb5af}); lần gộp này thay đổi chính các đường mà hai benchmark BR4 và BR5 đo, nên riêng hai phép đo này được đo lại trên mã đã gộp: BR4 từ 21:17:33 đến 21:18:13 và BR5 từ 21:19:23 đến 21:20:42 ngày 13/11/2026 (giờ Việt Nam, UTC+7). Mọi số liệu của hai thí nghiệm quy mô BR4 và BR5 trong chương này lấy từ lần đo lại đó. Các phép đo còn lại (BR1--BR3, BR6--BR8, build kho, Debezium và polling) giữ kết quả của đợt đầu trên commit \code{4d70703} và chưa được đo lại trên mã đã gộp.
+Các phép đo chia thành hai đợt trong cùng ngày, trên cùng máy và cùng cấu hình Docker. Đợt đầu đo toàn bộ BR1--BR8 và phần so sánh Debezium với polling trên mã trước khi gộp nhánh BR4/BR5 (commit \code{4d70703}). Sau đó nhánh \code{Benchmark_BR45} được gộp vào \code{main} (commit \code{05bb5af}); lần gộp này thay đổi đúng những đường mà BR4 và BR5 đo, nên hai phép đo này được chạy lại trên mã đã gộp: BR4 từ 21:17:33 đến 21:18:13 và BR5 từ 21:19:23 đến 21:20:42 ngày 13/11/2026 (giờ Việt Nam, UTC+7). Mọi số liệu của hai thí nghiệm quy mô BR4 và BR5 trong chương này lấy từ lần đo lại đó. Các phép đo còn lại (BR1--BR3, BR6--BR8, warehouse build, Debezium và polling) giữ kết quả của đợt đầu trên commit \code{4d70703} và chưa được đo lại trên mã đã gộp.
 
-Với 8 GB, stack đầy đủ không chạy ổn định: trong 25 phút đầu của đợt đo đầu, khi thử các cấu hình 24--27 container, bộ nhớ khả dụng của máy ảo nhiều lần về gần 0 và Trino bị dừng đột ngột rồi tự khởi động lại 14 lần (dấu hiệu của OOM-kill). Vì vậy mỗi phép đo chạy trên một cấu hình rút gọn, và kết quả chỉ được giữ khi cấu hình đó đứng vững suốt cửa sổ đo. Thứ tự tạm dừng là: trước hết các job streaming mà phép đo không dùng (lakehouse-streaming, br45-cdc, br45-stream, telemetry-live); nếu vẫn thiếu bộ nhớ thì đến các dịch vụ nhàn rỗi không nằm trên đường đo (cụm Flink chưa có job, Kafka UI), rồi đến Airflow (mọi DAG đang tạm dừng); riêng build kho còn phải dừng OpenSearch và content-sync. Bảng~\ref{tab:env-services} ghi cấu hình của từng phép đo; hàng BR4/BR5 là cấu hình của lần đo lại trên commit \code{05bb5af}, các hàng còn lại thuộc đợt đầu trên commit \code{4d70703}.
+Với 8 GB, stack đầy đủ không chạy ổn định: trong 25 phút đầu của đợt đo đầu, khi thử các cấu hình 24--27 container, bộ nhớ khả dụng của máy ảo nhiều lần về gần 0 và Trino bị dừng đột ngột rồi tự khởi động lại 14 lần (dấu hiệu của OOM-kill). Vì vậy mỗi phép đo chạy trên một cấu hình rút gọn, và kết quả chỉ được giữ khi cấu hình đó ổn định trong suốt measurement window. Thứ tự tạm dừng là: trước hết các job streaming mà phép đo không dùng (lakehouse-streaming, br45-cdc, br45-stream, telemetry-live); nếu vẫn thiếu bộ nhớ thì đến các dịch vụ nhàn rỗi không nằm trên đường đo (cụm Flink chưa có job, Kafka UI), rồi đến Airflow (mọi DAG đang tạm dừng); riêng warehouse build còn phải dừng OpenSearch và content-sync. Bảng~\ref{tab:env-services} ghi cấu hình của từng phép đo; hàng BR4/BR5 là cấu hình của lần đo lại trên commit \code{05bb5af}, các hàng còn lại thuộc đợt đầu trên commit \code{4d70703}.
 
-Trạng thái mọi container được chụp lại ngay trước và ngay sau mỗi phép đo. Một lần đo chỉ được giữ khi tập container đang chạy, số lần khởi động lại và thời điểm khởi động của từng container không đổi trong suốt cửa sổ đo; các lần đo có container bị dừng giữa chừng đều bị loại (cột ghi chú của Bảng~\ref{tab:env-services}). Bảng~\ref{tab:env} tóm tắt môi trường cho BR4--BR8.
+Trạng thái mọi container được chụp lại ngay trước và ngay sau mỗi phép đo. Một lần đo chỉ được giữ khi tập container đang chạy, số lần restart và thời điểm khởi động của từng container không đổi trong suốt measurement window; các lần đo có container bị dừng giữa chừng đều bị loại (cột ghi chú của Bảng~\ref{tab:env-services}). Bảng~\ref{tab:env} tóm tắt môi trường cho BR4--BR8.
 
 \begin{table}[H]
 \centering\small
@@ -78,10 +78,10 @@ Trạng thái mọi container được chụp lại ngay trước và ngay sau m
 \toprule
 \textbf{Phép đo} & \textbf{Chạy} & \textbf{Tạm dừng trong lúc đo} & \textbf{Ghi chú} \\
 \midrule
-BR1--BR3; BR6--BR8 phục vụ mart; BR8 xuất bản; Debezium và polling & 26 & lakehouse-streaming, br45-cdc, br45-stream, telemetry-live & Chỉ tạm dừng các job streaming mà phép đo không dùng \\
+BR1--BR3; BR6--BR8 serving mart; BR8 xuất bản; Debezium và polling & 26 & lakehouse-streaming, br45-cdc, br45-stream, telemetry-live & Chỉ tạm dừng các job streaming mà phép đo không dùng \\
 BR4; BR5 (đo lại trên commit \code{05bb5af}) & 23 & lakehouse-streaming, telemetry-live, Flink (jobmanager, taskmanager), Kafka UI, Airflow (scheduler, webserver) & Cùng tập container như lần đo BR4/BR5 của đợt đầu (khi đó Airflow chạy cùng br45-stream chỉ để lại khoảng 560 MiB bộ nhớ khả dụng nên được tạm dừng). Ở lần đo lại, bộ nhớ khả dụng lúc bắt đầu đo là khoảng 740 MiB (BR4) và 590 MiB (BR5), swap 1 GiB đã đầy \\
-BR7/BR8 lớp phủ & 23 & lakehouse-streaming, br45-cdc, br45-stream, Flink (jobmanager, taskmanager), Airflow (scheduler, webserver) & Hai lần đo khi Airflow còn chạy (27 và 24 container) bị loại vì Trino khởi động lại giữa chừng \\
-Build kho dữ liệu & 19 & như lớp phủ, thêm Kafka UI, OpenSearch, content-sync, telemetry-live & Hai lần thử với 24 và 22 container bị loại vì tiến trình Spark bị dừng giữa chừng (dấu hiệu của OOM-kill) \\
+BR7/BR8 overlay & 23 & lakehouse-streaming, br45-cdc, br45-stream, Flink (jobmanager, taskmanager), Airflow (scheduler, webserver) & Hai lần đo khi Airflow còn chạy (27 và 24 container) bị loại vì Trino khởi động lại giữa chừng \\
+Warehouse build & 19 & như overlay, thêm Kafka UI, OpenSearch, content-sync, telemetry-live & Hai lần thử với 24 và 22 container bị loại vì tiến trình Spark bị dừng giữa chừng (dấu hiệu của OOM-kill) \\
 \bottomrule
 \end{tabularx}
 \end{table}
@@ -94,27 +94,27 @@ Build kho dữ liệu & 19 & như lớp phủ, thêm Kafka UI, OpenSearch, conte
 & \textbf{BR4 / BR5 (13/11/2026, đo lại trên commit \code{05bb5af})} & \textbf{BR6--BR8 (13/11/2026, commit \code{4d70703})} \\
 \midrule
 Máy & Apple M1 Pro (10 nhân), 32 GB, macOS 26.6.2; Docker Desktop: 10 CPU, 8 GB (7,75 GiB) & Apple M1 Pro (10 nhân), 32 GB, macOS 26.6.2; Docker Desktop: 10 CPU, 8 GB (7,75 GiB) \\
-Engine & Spark 3.5.5 và Delta 3.3.2 (image \code{de261/spark}), \code{local[2]}, driver 1 GiB, state store RocksDB, container giới hạn 2 CPU và 2.304 MiB; PostgreSQL 16.15; script đo, phép tổng hợp Python (BR4) và phép tính lô (BR5) chạy ngoài Docker bằng Python 3.13 & Spark 3.5.5, Delta 3.3.2 (build kho: \code{local[*]}, 10 luồng); Trino 478 (heap 1,2 GB); OpenSearch 2.17.1 (heap 512 MB) \\
+Engine & Spark 3.5.5 và Delta 3.3.2 (image \code{de261/spark}), \code{local[2]}, driver 1 GiB, state store RocksDB, container giới hạn 2 CPU và 2.304 MiB; PostgreSQL 16.15; script đo, phép tổng hợp Python (BR4) và phép tính batch (BR5) chạy ngoài Docker bằng Python 3.13 & Spark 3.5.5, Delta 3.3.2 (warehouse build: \code{local[*]}, 10 luồng); Trino 478 (heap 1,2 GB); OpenSearch 2.17.1 (heap 512 MB) \\
 Lặp lại & 3 lần mỗi kích thước & 2--30 lần tuỳ thí nghiệm \\
 Dữ liệu & Tổng hợp & Tổng hợp \\
 \bottomrule
 \end{tabularx}
 \end{table}
 
-Ở lần đo lại BR4/BR5, hai image \code{de261/demo} và \code{de261/spark} được build lại từ commit \code{05bb5af}, và các migration bổ sung của schema \code{analytics} được áp dụng trước khi đo. Job br45-stream chạy đúng cấu hình Compose mặc định của mã đã gộp: Spark 3.5.5 \code{local[2]} trong container giới hạn 2 CPU và 2.304 MiB, với thư mục checkpoint mặc định của Compose (\code{br45-v2}), được mã nguồn tự gắn thêm dấu vân tay cấu hình \code{ff4b0f4a118a}; tệp Compose override ngoài repo từng dùng ở đợt đầu để đổi thư mục checkpoint không còn cần. Vì đây là checkpoint mới, job đọc lại topic \code{br45.activity.v1} từ offset sớm nhất Kafka còn giữ (3394); phép đo chỉ bắt đầu sau khi job đã bắt kịp cuối topic và các job tổng hợp BR4 trên Spark do lần seed sinh ra đã hoàn tất.
+Ở lần đo lại BR4/BR5, hai image \code{de261/demo} và \code{de261/spark} được build lại từ commit \code{05bb5af}, và các migration bổ sung của schema \code{analytics} được áp dụng trước khi đo. Job br45-stream chạy đúng cấu hình Compose mặc định của mã đã gộp: Spark 3.5.5 \code{local[2]} trong container giới hạn 2 CPU và 2.304 MiB, và mã nguồn tự gắn thêm fingerprint cấu hình \code{ff4b0f4a118a} vào thư mục checkpoint mặc định của Compose (\code{br45-v2}). Tệp Compose override ngoài repo dùng ở đợt đầu để đổi thư mục checkpoint nay không còn cần thiết. Vì đây là checkpoint mới, job đọc lại topic \code{br45.activity.v1} từ offset sớm nhất mà Kafka còn giữ (3394); phép đo chỉ bắt đầu sau khi job đã bắt kịp cuối topic và các job tổng hợp BR4 trên Spark do lần seed sinh ra đã hoàn tất.
 
 \section{Kết quả hiệu năng}
 
-\subsection{BR1--BR3: độ trễ đầu cuối}
+\subsection{BR1--BR3: end-to-end latency}
 
-Ba đường BR1--BR3 được đo ngày 13/11/2026 trên stack nói trên (26/30 container, Bảng~\ref{tab:env-services}), sau khi loại các mẫu khởi động nóng. Mỗi số đo là độ trễ của một chặng cụ thể sau khi stack đã dựng xong và các dịch vụ đã ấm, không tính thời gian khởi động stack. BR1 đo từ lúc gửi sự kiện LMS đến khi thông báo đọc được qua API; BR2 đo thời gian phản hồi API gợi ý có feature store trực tuyến; BR3 đo thời gian nhận 202 và từ lúc nộp đến khi trạng thái \code{graded}. Mỗi mẫu BR1/BR3 lặp 20 lần, BR2 lặp 30 lần, và cả phép đo lặp năm lượt liên tiếp; bảng gộp cả năm lượt (n = 100 cho BR1/BR3, n = 150 cho BR2). Trước mỗi mẫu BR1, khoá dedup và hộp thư của người học được xoá: API trả toàn bộ hộp thư, nên một hộp thư tích luỹ sẽ làm phép đo chậm dần chứ không phản ánh độ trễ của chặng. Trạng thái chấm bài trong Redis cũng được xoá trước mỗi mẫu BR3, vì số thứ tự lần nộp được tính bằng cách quét toàn bộ bài nộp của người học.
+Ba đường BR1--BR3 được đo ngày 13/11/2026 trên stack nói trên (26/30 container, Bảng~\ref{tab:env-services}), sau khi loại các mẫu khởi động nóng. Mỗi số đo là latency của một chặng cụ thể sau khi stack đã dựng xong và các dịch vụ đã ấm, không tính thời gian khởi động stack. BR1 đo từ lúc gửi sự kiện LMS đến khi thông báo đọc được qua API; BR2 đo thời gian phản hồi của API gợi ý có feature store trực tuyến; BR3 đo thời gian nhận 202 và từ lúc nộp đến khi trạng thái chuyển thành \code{graded}. Mỗi mẫu BR1/BR3 lặp 20 lần, BR2 lặp 30 lần, và cả phép đo lặp năm lượt liên tiếp; bảng gộp cả năm lượt (n = 100 cho BR1/BR3, n = 150 cho BR2). Trước mỗi mẫu BR1, dedup key và inbox của người học được xoá: API trả toàn bộ inbox, nên nếu inbox tích luỹ thì phép đo sẽ chậm dần và không còn phản ánh latency của chặng. Trạng thái chấm bài trong Redis cũng được xoá trước mỗi mẫu BR3, vì số thứ tự lần nộp được tính bằng cách quét toàn bộ bài nộp của người học.
 
 \begin{table}[H]
 \centering\small
-\caption{Độ trễ BR1--BR3 (ms)}\label{tab:br123-latency}
+\caption{Latency BR1--BR3 (ms)}\label{tab:br123-latency}
 \begin{tabular}{@{}L{5.4cm}rrrrr@{}}
 \toprule
-\textbf{Đường đo} & \textbf{n} & \textbf{Trung vị} & \textbf{p90} & \textbf{Nhỏ nhất} & \textbf{Lớn nhất} \\
+\textbf{Đường đo} & \textbf{n} & \textbf{Median} & \textbf{p90} & \textbf{Nhỏ nhất} & \textbf{Lớn nhất} \\
 \midrule
 BR1: sự kiện $\rightarrow$ thông báo đọc được qua API & 100 & 12,4 & 14,5 & 8,3 & 60,9 \\
 BR2: API gợi ý có feature store & 150 & 2,2 & 4,2 & 1,4 & 12,2 \\
@@ -124,13 +124,13 @@ BR3: nộp bài $\rightarrow$ \code{graded} & 100 & 71,0 & 77,3 & 65,4 & 90,2 \\
 \end{tabular}
 \end{table}
 
-BR1 đạt trung vị khoảng 12 ms, phù hợp với yêu cầu thông báo gần thời gian thực. BR2 có trung vị khoảng 2,2 ms và p90 4,2 ms; 148/150 request nằm dưới ngưỡng 10 ms của yêu cầu tra cứu đặc trưng, hai request còn lại mất 10,5 và 12,2 ms. BR3 nhận 202 sau khoảng 14 ms và hoàn tất chấm sau khoảng 0,07 giây; sau khi trừ 14 ms nhận 202, phần còn lại chủ yếu là chạy sandbox và các chặng Kafka. Năm lượt đo cho kết quả ổn định, không trôi dần: trung vị BR1 12,1--13,6 ms, BR2 1,8--4,1 ms, BR3 13,7--14,4 ms và 70--72 ms; p90 chỉ cao hơn trung vị 2--6 ms. Hai giá trị lớn nhất của BR1 (54,8 và 60,9 ms) là các mẫu đơn lẻ.
+BR1 đạt median khoảng 12 ms, phù hợp với yêu cầu thông báo gần thời gian thực. BR2 có median khoảng 2,2 ms và p90 4,2 ms; 148/150 request nằm dưới ngưỡng 10 ms của yêu cầu tra cứu feature, hai request còn lại mất 10,5 và 12,2 ms. BR3 nhận 202 sau khoảng 14 ms và hoàn tất chấm sau khoảng 0,07 giây; sau khi trừ 14 ms nhận 202, phần còn lại chủ yếu là thời gian chạy sandbox và các chặng Kafka. Năm lượt đo cho kết quả ổn định, không trôi dần: median BR1 12,1--13,6 ms, BR2 1,8--4,1 ms, BR3 13,7--14,4 ms và 70--72 ms; p90 chỉ cao hơn median 2--6 ms. Hai giá trị lớn nhất của BR1 (54,8 và 60,9 ms) là các mẫu đơn lẻ.
 
 \subsection{BR4: tổng hợp SQL so với Python}
 
-Hai cách dùng cùng tập dữ kiện hợp lệ và cùng ngữ nghĩa chỉ số; kết quả khớp ở mọi kích thước và lần lặp. Hình~\ref{fig:br4} cho thấy thời gian tăng gần tuyến tính theo số lượt chấm. Python nhanh hơn khoảng hai lần (1,8--2,2 lần theo trung bình) nhờ dùng lại dữ kiện đã nối cho cả hai phép tổng hợp, còn SQL lặp lại một số phép nối JSONB. Ở 100.000 lượt chấm, một trong ba lần lặp của Python chậm hẳn (1,79 giây so với 1,38 và 1,42 giây), nên trung bình 1,53 giây cao hơn trung vị 1,42 giây; tính theo trung vị thì tỉ lệ ở kích thước này là 2,0 lần. Phép tổng hợp Python chỉ là đối chứng: trên đường sản phẩm, nhóm vẫn tổng hợp bằng SQL và công bố mart trong một giao dịch PostgreSQL vì ngữ nghĩa rõ ràng; truy vấn mart đã tổng hợp mất khoảng 0,7--0,8 ms.
+Hai cách dùng cùng tập dữ kiện hợp lệ và cùng ngữ nghĩa chỉ số; kết quả khớp ở mọi kích thước và lần lặp. Hình~\ref{fig:br4} cho thấy thời gian tăng gần tuyến tính theo số lượt chấm. Python nhanh hơn khoảng hai lần (1,8--2,2 lần theo trung bình) nhờ dùng lại dữ kiện đã join cho cả hai phép tổng hợp, còn SQL phải lặp lại một số phép join JSONB. Ở 100.000 lượt chấm, một trong ba lần lặp của Python chậm hẳn (1,79 giây so với 1,38 và 1,42 giây), nên trung bình 1,53 giây cao hơn median 1,42 giây; tính theo median thì tỉ lệ ở kích thước này là 2,0 lần. Phép tổng hợp Python chỉ là đối chứng: trên đường sản phẩm, nhóm vẫn tổng hợp bằng SQL và công bố mart trong một transaction PostgreSQL vì ngữ nghĩa rõ ràng; truy vấn mart đã tổng hợp mất khoảng 0,7--0,8 ms.
 
-Phép đo này chạy lại trên mã sau khi gộp (commit \code{05bb5af}, 23/30 container, Bảng~\ref{tab:env-services}) và chỉ đo đường PostgreSQL: ``tổng hợp SQL'' là hai truy vấn SQL của PostgreSQL trên \code{analytics.clean_rows} (JSONB), còn ``làm mới mart'' là hàm \code{refresh} của PostgreSQL, nay kết thúc bằng bước công bố có khoá advisory và cổng chất lượng trên từng dòng. Trên mã đã gộp, engine tổng hợp mặc định của BR4 là Spark trên Delta (\code{EDU_BR45_ASSESSMENT_ENGINE=spark}), còn đường PostgreSQL là engine đối chứng; benchmark này không đo engine Spark.
+Phép đo này được chạy lại trên mã sau khi gộp (commit \code{05bb5af}, 23/30 container, Bảng~\ref{tab:env-services}) và chỉ đo đường PostgreSQL: ``tổng hợp SQL'' là hai truy vấn SQL của PostgreSQL trên \code{analytics.clean_rows} (JSONB), còn ``làm mới mart'' là hàm \code{refresh} của PostgreSQL, nay kết thúc bằng bước công bố có advisory lock và quality gate trên từng dòng. Trên mã đã gộp, engine tổng hợp mặc định của BR4 là Spark trên Delta (\code{EDU_BR45_ASSESSMENT_ENGINE=spark}), còn đường PostgreSQL là engine đối chứng; benchmark này không đo engine Spark.
 
 \begin{figure}[H]
 \centering
@@ -157,16 +157,16 @@ Phép đo này chạy lại trên mã sau khi gộp (commit \code{05bb5af}, 23/3
 \label{fig:br4}
 \end{figure}
 
-\subsection{BR5: độ trễ đầu cuối và thông lượng cửa sổ}
+\subsection{BR5: end-to-end latency và throughput của window}
 
-Lần chạy chấp nhận trên đường CDC thật mất khoảng \textbf{10.164 ms} từ khi ghi dữ liệu nguồn đến khi lưu kết quả rủi ro và cảnh báo. Khởi động lại Spark và hồi phục mất khoảng \textbf{20.142 ms}, không sinh cảnh báo trùng sau replay. Hai số này lấy từ lần chạy kịch bản chấp nhận trước đó (không đo lại). Thí nghiệm quy mô (Bảng~\ref{tab:br5}) đo riêng chặng Kafka $\rightarrow$ Spark $\rightarrow$ cửa sổ trong PostgreSQL với khoảng 1\% bản ghi trùng; mọi kết quả khớp với phép tổng hợp lô độc lập bằng Python. Thí nghiệm này được đo lại trên mã sau khi gộp (commit \code{05bb5af}, 23/30 container, Bảng~\ref{tab:env-services}) với job br45-stream của mã đó: Spark 3.5.5 dùng state store RocksDB, và cùng driver còn chạy thêm truy vấn landing Delta của BR4.
+Lần chạy chấp nhận trên đường CDC thật mất khoảng \textbf{10.164 ms} từ khi ghi dữ liệu nguồn đến khi lưu kết quả rủi ro và cảnh báo. Khởi động lại Spark và phục hồi mất khoảng \textbf{20.142 ms}, không sinh cảnh báo trùng sau replay. Hai số này lấy từ lần chạy kịch bản chấp nhận trước đó (không đo lại). Thí nghiệm quy mô (Bảng~\ref{tab:br5}) đo riêng chặng Kafka $\rightarrow$ Spark $\rightarrow$ window trong PostgreSQL với khoảng 1\% bản ghi trùng; mọi kết quả khớp với phép tổng hợp batch độc lập bằng Python. Thí nghiệm này được đo lại trên mã sau khi gộp (commit \code{05bb5af}, 23/30 container, Bảng~\ref{tab:env-services}) với job br45-stream của mã đó: Spark 3.5.5 dùng state store RocksDB, và cùng driver còn chạy thêm truy vấn landing Delta của BR4.
 
 \begin{table}[H]
 \centering\small
-\caption{BR5: chặng Kafka $\rightarrow$ Spark $\rightarrow$ cửa sổ đã lưu (trung bình 3 lần)}\label{tab:br5}
+\caption{BR5: chặng Kafka $\rightarrow$ Spark $\rightarrow$ window đã lưu (trung bình 3 lần)}\label{tab:br5}
 \begin{tabular}{@{}rrrr@{}}
 \toprule
-\textbf{Sự kiện duy nhất} & \textbf{Kafka đến cửa sổ đã lưu} & \textbf{Thông lượng quan sát} & \textbf{Tính lô bằng Python} \\
+\textbf{Sự kiện duy nhất} & \textbf{Kafka đến window đã lưu} & \textbf{Throughput quan sát} & \textbf{Tính batch bằng Python} \\
 \midrule
 1.000 & 6.161 ms & 170 sự kiện/s & 1,8 ms \\
 10.000 & 4.843 ms & 2.088 sự kiện/s & 18,4 ms \\
@@ -175,9 +175,9 @@ Lần chạy chấp nhận trên đường CDC thật mất khoảng \textbf{10.
 \end{tabular}
 \end{table}
 
-Ở 1.000 và 10.000 sự kiện, từng lần đo mất 4,1--8,2 giây và không tăng theo khối lượng: job chạy micro-batch với trigger 5 giây, nên độ trễ chủ yếu là thời gian chờ trigger. Tính lô rẻ hơn nhiều cho ảnh chụp tĩnh; streaming đổi lấy tiếp nhận liên tục, xử lý sửa đổi, replay, checkpoint và cập nhật tự động, trong khi lô theo lịch phải chờ lượt chạy mới thấy thay đổi. Nhóm không đưa ra số liệu dương tính giả hay độ hiệu chỉnh điểm rủi ro vì không có nhãn bỏ học thật.
+Ở 1.000 và 10.000 sự kiện, từng lần đo mất 4,1--8,2 giây và không tăng theo khối lượng: job chạy micro-batch với trigger 5 giây, nên latency chủ yếu là thời gian chờ trigger. Tính batch rẻ hơn nhiều cho một snapshot tĩnh; streaming đổi lấy việc tiếp nhận liên tục, xử lý sửa đổi, replay, checkpoint và cập nhật tự động, trong khi batch theo lịch phải chờ lượt chạy mới thấy thay đổi. Nhóm không đưa ra số liệu false positive hay độ hiệu chỉnh của risk score vì không có nhãn dropout thật.
 
-\subsection{BR6--BR8: phục vụ mart}
+\subsection{BR6--BR8: serving mart}
 
 \begin{figure}[H]
 \centering
@@ -186,20 +186,20 @@ Lần chạy chấp nhận trên đường CDC thật mất khoảng \textbf{10.
   ybar, bar width=16pt, width=0.82\textwidth, height=6.2cm,
   ymode=log, log basis y=10, ymin=0.8, ymax=400,
   symbolic x coords={BR6,BR7,BR8}, xtick=data,
-  xticklabels={{BR6: tiến độ tổ chức}, {BR7: heatmap 390 s}, {BR8: tương tác 38 học viên}},
-  ylabel={Trung vị độ trễ (ms, trục log)},
+  xticklabels={{BR6: tiến độ tổ chức}, {BR7: heatmap 390 s}, {BR8: tương tác 38 người học}},
+  ylabel={Median latency (ms, trục log)},
   ymajorgrids, enlarge x limits=0.25,
   legend style={at={(0.5,1.02)}, anchor=south, legend columns=2},
   nodes near coords, nodes near coords style={font=\scriptsize, color=ink},
   point meta=rawy,
 ]
 \addplot[fill=sone, draw=none] coordinates {(BR6,110.6) (BR7,172.4) (BR8,81.0)};
-\addlegendentry{Đọc kho qua Trino, chưa cache}
+\addlegendentry{Đọc warehouse qua Trino, chưa cache}
 \addplot[fill=stwo, draw=none] coordinates {(BR6,2.6) (BR7,6.0) (BR8,3.9)};
 \addlegendentry{API, cache mart đã ấm}
 \end{axis}
 \end{tikzpicture}
-\caption{Độ trễ phục vụ các mart BR6--BR8 (30 request mỗi trường hợp)}
+\caption{Latency serving các mart BR6--BR8 (30 request mỗi trường hợp)}
 \label{fig:serving}
 \end{figure}
 
@@ -212,30 +212,30 @@ Bách phân vị 90 khi đọc trực tiếp qua Trino là 220, 218 và 111 ms c
 \begin{tikzpicture}
 \begin{axis}[
   width=0.82\textwidth, height=5.6cm,
-  xlabel={Lần xuất bản}, ylabel={Độ trễ (ms)},
+  xlabel={Lần xuất bản}, ylabel={Latency (ms)},
   xmin=0.5, xmax=20.5, ymin=0, ymax=1200,
   xtick={1,5,10,15,20}, ymajorgrids,
 ]
 \addplot[color=sone, mark=*, mark size=2pt, line width=0.9pt]
   table[x=publish, y=publish_to_searchable_ms, col sep=comma] {data/content_sync_latency.csv};
 \draw[stgood!70!black, dashed] (axis cs:0.5,501) -- (axis cs:20.5,501);
-\node[anchor=north east, font=\scriptsize, color=ink] at (axis cs:20.3,1150) {đường nét đứt: trung vị 501 ms};
+\node[anchor=north east, font=\scriptsize, color=ink] at (axis cs:20.3,1150) {đường nét đứt: median 501 ms};
 \end{axis}
 \end{tikzpicture}
-\caption{BR8: độ trễ từ xuất bản đến khi tìm kiếm được, 20 lần xuất bản liên tiếp}
+\caption{BR8: latency từ xuất bản đến khi tìm kiếm được, 20 lần xuất bản liên tiếp}
 \label{fig:sync-latency}
 \end{figure}
 
-API nhận yêu cầu xuất bản trong 31,6 ms (trung vị). Toàn bộ đường đi PostgreSQL WAL $\rightarrow$ Debezium $\rightarrow$ Kafka $\rightarrow$ content-sync $\rightarrow$ tìm kiếm được có trung vị \textbf{501 ms}, p90 541 ms và lớn nhất 552 ms. Theo log của content-sync trong lúc đo, bước đồng bộ chỉ mất 40--85 ms; phần còn lại là thời gian bắt thay đổi và chu kỳ thăm dò của consumer.
+API nhận yêu cầu xuất bản trong 31,6 ms (median). Toàn bộ đường đi PostgreSQL WAL $\rightarrow$ Debezium $\rightarrow$ Kafka $\rightarrow$ content-sync $\rightarrow$ tìm kiếm được có median \textbf{501 ms}, p90 541 ms và lớn nhất 552 ms. Theo log của content-sync trong lúc đo, bước đồng bộ chỉ mất 40--85 ms; phần còn lại là thời gian bắt thay đổi và chu kỳ thăm dò của consumer.
 
-\subsection{BR7/BR8: lớp phủ thời gian thực}
+\subsection{BR7/BR8: overlay thời gian thực}
 
 \begin{table}[H]
 \centering\small
-\caption{Độ trễ từ sự kiện đến khi hiển thị trong API (3 đợt mỗi kích thước)}\label{tab:live}
+\caption{Latency từ sự kiện đến khi hiển thị trong API (3 đợt mỗi kích thước)}\label{tab:live}
 \begin{tabular}{@{}rrrc@{}}
 \toprule
-\textbf{Phiên mỗi đợt} & \textbf{Sự kiện thô (trung bình)} & \textbf{Trung bình (nhỏ nhất -- lớn nhất)} & \textbf{Chính xác} \\
+\textbf{Session mỗi đợt} & \textbf{Sự kiện thô (trung bình)} & \textbf{Trung bình (nhỏ nhất -- lớn nhất)} & \textbf{Chính xác} \\
 \midrule
 25 & 234 & 5,71 s (4,76 -- 6,93) & có \\
 100 & 922 & 5,95 s (5,60 -- 6,58) & có \\
@@ -244,9 +244,9 @@ API nhận yêu cầu xuất bản trong 31,6 ms (trung vị). Toàn bộ đư�
 \end{tabular}
 \end{table}
 
-Độ trễ gần như không đổi khi tải tăng 15 lần (trung bình tăng từ 5,7 lên 6,1 s) vì chi phối bởi chi phí cố định của các micro-batch nối tiếp (trigger 1 s; theo log của telemetry-live trong lúc đo, mỗi micro-batch kéo dài khoảng 0,8--6,4 s), không phải khối lượng. ``Chính xác'' nghĩa là lớp phủ chứa đúng số tương tác đúng hạn của đợt cho video nhiều tương tác nhất.
+Latency gần như không đổi khi tải tăng 15 lần (trung bình tăng từ 5,7 lên 6,1 s) vì bị chi phối bởi chi phí cố định của các micro-batch nối tiếp (trigger 1 s; theo log của telemetry-live trong lúc đo, mỗi micro-batch kéo dài khoảng 0,8--6,4 s), chứ không phải bởi khối lượng. ``Chính xác'' nghĩa là overlay chứa đúng số tương tác đúng hạn của đợt cho video có nhiều tương tác nhất.
 
-\subsection{Thời gian build kho dữ liệu}
+\subsection{Thời gian build data warehouse}
 
 \begin{figure}[H]
 \centering
@@ -273,16 +273,16 @@ API nhận yêu cầu xuất bản trong 31,6 ms (trung vị). Toàn bộ đư�
 \label{fig:build}
 \end{figure}
 
-Tổng thời gian build là 121,6; 126,5 và 123,6 giây cho 35, 70 và 140 ngày dữ liệu; mọi model đều thành công. Thời gian gần như phẳng khi khối lượng tăng 4 lần vì chi phí cố định mỗi model (khởi tạo job Spark, commit Delta, kiểm tra chất lượng) chiếm phần lớn; mỗi mart BR6--BR8 chỉ mất 1,3--2,3 giây. Hai lần chạy cùng kích thước lệch nhau nhiều nhất 6,5 giây (123,3 và 129,8 giây ở 70 ngày). Mỗi lần build chạy trong một tiến trình Spark riêng, trên cấu hình 19 container của Bảng~\ref{tab:env-services}.
+Tổng thời gian build là 121,6; 126,5 và 123,6 giây cho 35, 70 và 140 ngày dữ liệu; mọi model đều thành công. Thời gian gần như phẳng khi khối lượng tăng 4 lần vì chi phí cố định của mỗi model (khởi tạo job Spark, commit Delta, kiểm tra chất lượng) chiếm phần lớn; mỗi mart BR6--BR8 chỉ mất 1,3--2,3 giây. Hai lần chạy cùng kích thước lệch nhau nhiều nhất 6,5 giây (123,3 và 129,8 giây ở 70 ngày). Mỗi lần build chạy trong một tiến trình Spark riêng, trên cấu hình 19 container của Bảng~\ref{tab:env-services}.
 
 \section{Debezium và polling: negative-control benchmark}
 \label{sec:cdc-comparison}
 
-Phần này không tìm giải pháp nhanh hơn mà kiểm tra điều gì xảy ra khi bỏ Debezium, thay bằng polling bảng nguồn theo \code{updated_at}. Đây là negative-control: polling hợp lý ở quy mô nhỏ nhưng cần chỉ ra điểm vỡ khi dữ liệu lớn.
+Phần này không nhằm tìm một giải pháp nhanh hơn mà kiểm tra điều gì xảy ra khi thay Debezium bằng polling bảng nguồn theo \code{updated_at}. Đây là một negative control: polling hợp lý ở quy mô nhỏ nhưng cần chỉ ra điểm vỡ khi dữ liệu lớn.
 
 \subsection{Thiết lập}
 
-Bảng nguồn \code{bench.cdc_source} có 100.000 dòng, khoá chính, cột \code{updated_at} và index trên cột này (tạo bằng một lệnh \code{CREATE INDEX} sau khi nạp bảng, Phụ lục~\ref{app:run}). Debezium đọc WAL qua logical replication; polling chạy mỗi 0,5 giây với watermark \code{updated_at}. Sau snapshot, thực hiện một đợt gồm 100 UPDATE và 10 DELETE cứng rồi đo event nhận được, latency, query và số tuple PostgreSQL trả về. Latency của polling tính từ \code{updated_at} của dòng đến lúc poller đọc được; latency của Debezium tính từ mốc \code{ts_ms} mà connector gắn vào event đến lúc consumer nhận được. Phép đo chạy ngày 13/11/2026 trên cấu hình 26 container của Bảng~\ref{tab:env-services}.
+Bảng nguồn \code{bench.cdc_source} có 100.000 dòng, khoá chính, cột \code{updated_at} và index trên cột này (tạo bằng một lệnh \code{CREATE INDEX} sau khi nạp bảng, Phụ lục~\ref{app:run}). Debezium đọc WAL qua logical replication; polling chạy mỗi 0,5 giây với watermark \code{updated_at}. Sau snapshot, nhóm thực hiện một đợt gồm 100 UPDATE và 10 hard DELETE rồi đo số event nhận được, latency, số query và số tuple PostgreSQL trả về. Latency của polling được tính từ \code{updated_at} của dòng đến lúc poller đọc được; latency của Debezium được tính từ mốc \code{ts_ms} mà connector gắn vào event đến lúc consumer nhận được. Phép đo chạy ngày 13/11/2026 trên cấu hình 26 container của Bảng~\ref{tab:env-services}.
 
 \subsection{Kết quả}
 
@@ -296,7 +296,7 @@ Bảng nguồn \code{bench.cdc_source} có 100.000 dòng, khoá chính, cột \c
 \midrule
 Event nhận được & 110 & 100 \\
 UPDATE & 100 & 100 \\
-DELETE cứng & \textbf{10} & \textbf{0} \\
+Hard DELETE & \textbf{10} & \textbf{0} \\
 Latency p50 & 485,9 ms & 14,4 ms \\
 Latency p95 & 487,2 ms & 16,1 ms \\
 Query bảng nguồn (SELECT/scan) & 0 & 16 \\
@@ -306,33 +306,33 @@ Tuple trả về do query bảng & 0 & 4.061 \\
 \end{tabular}
 \end{table}
 
-Polling có index nên không full scan; đây là so sánh công bằng. Tuy vậy polling vẫn thiếu 10 DELETE vì hard delete không còn dòng để \code{SELECT}; Debezium nhận đủ 100 UPDATE và 10 DELETE. Về độ trễ, lần đo này không cho thấy Debezium nhanh hơn: polling đọc được 100 UPDATE sau trung vị 14,4 ms, còn event của Debezium đến consumer sau trung vị 485,9 ms.
+Polling có index nên không full scan; đây là một so sánh công bằng. Tuy vậy polling vẫn thiếu 10 DELETE vì hard delete không còn dòng để \code{SELECT}; Debezium nhận đủ 100 UPDATE và 10 DELETE. Về latency, lần đo này không cho thấy Debezium nhanh hơn: polling đọc được 100 UPDATE sau median 14,4 ms, còn event của Debezium đến consumer sau median 485,9 ms.
 
-Lưu ý: snapshot ban đầu của Debezium đọc 100.000 dòng nhưng nằm ngoài cửa sổ đo. ``0'' trong bảng là 0 query bảng trong cửa sổ đo, không phải 0 SQL tuyệt đối; Debezium vẫn dùng replication protocol và metadata. Tương tự, \code{tup_returned} của polling là số tuple index/heap PostgreSQL trả về, không phải số event.
+Cần lưu ý: snapshot ban đầu của Debezium đọc 100.000 dòng nhưng nằm ngoài measurement window. Giá trị ``0'' trong bảng là 0 query bảng trong measurement window, không phải 0 SQL tuyệt đối; Debezium vẫn dùng replication protocol và metadata. Tương tự, \code{tup_returned} của polling là số tuple index/heap mà PostgreSQL trả về, không phải số event.
 
-\subsection{Ý nghĩa với Big Data}
+\subsection{Ý nghĩa với bài toán dữ liệu lớn}
 
-\textbf{Speed.} Phép đo này không chứng minh được Debezium nhanh hơn polling. Trong lần đo, polling có độ trễ thấp hơn nhiều (p50 14,4 ms so với 485,9 ms của Debezium; p95 16,1 ms so với 487,2 ms). Cả hai giá trị đều nằm trong một chu kỳ 0,5 giây: polling thăm dò mỗi 0,5 giây và đợt UPDATE rơi ngay trước một lần thăm dò; độ trễ gần 0,5 giây của Debezium phù hợp với \code{poll.interval.ms} mặc định 500 ms của connector, vốn không được chỉnh trong cấu hình đo. Vì chỉ có một đợt thay đổi, mỗi con số là một mẫu về vị trí của đợt thay đổi trong chu kỳ, không phải phân phối độ trễ; muốn so sánh tốc độ cần lặp nhiều đợt ở các pha khác nhau.
+\textbf{Tốc độ.} Phép đo này không chứng minh được Debezium nhanh hơn polling. Trong lần đo, polling có latency thấp hơn nhiều (p50 14,4 ms so với 485,9 ms của Debezium; p95 16,1 ms so với 487,2 ms). Cả hai giá trị đều nằm trong một chu kỳ 0,5 giây: polling thăm dò mỗi 0,5 giây và đợt UPDATE rơi ngay trước một lần thăm dò; latency gần 0,5 giây của Debezium phù hợp với \code{poll.interval.ms} mặc định 500 ms của connector, vốn không được chỉnh trong cấu hình đo. Vì chỉ có một đợt thay đổi, mỗi con số là một mẫu về vị trí của đợt thay đổi trong chu kỳ chứ không phải một phân phối latency; muốn so sánh tốc độ cần lặp nhiều đợt ở các pha khác nhau.
 
-\textbf{Correctness.} Polling chỉ thấy trạng thái hiện tại; hard DELETE biến mất khỏi bảng nên không có gì để poll. Nó cũng có thể bỏ qua UPDATE trung gian nếu một dòng bị sửa nhiều lần giữa hai lần poll. Debezium giữ chuỗi thay đổi theo LSN, gồm cả DELETE và thứ tự giao dịch.
+\textbf{Tính đúng đắn.} Polling chỉ thấy trạng thái hiện tại; hard DELETE biến mất khỏi bảng nên không còn gì để poll. Polling cũng có thể bỏ qua các UPDATE trung gian nếu một dòng bị sửa nhiều lần giữa hai lần poll. Debezium giữ chuỗi thay đổi theo LSN, gồm cả DELETE và thứ tự giao dịch.
 
-\textbf{Stateful và retry.} Debezium lưu offset/LSN và schema history trong Kafka Connect, nên restart có thể tiếp tục từ vị trí đã đọc. Polling không có trạng thái, phải tự lưu watermark; nếu poller chết giữa chừng hoặc commit watermark trước khi xử lý, có thể mất hoặc lặp event. Hard DELETE vẫn không thể phục hồi bằng watermark.
+\textbf{Stateful và retry.} Debezium lưu offset/LSN và schema history trong Kafka Connect, nên restart có thể tiếp tục từ vị trí đã đọc. Polling không có trạng thái và phải tự lưu watermark; nếu poller chết giữa chừng hoặc commit watermark trước khi xử lý, event có thể bị mất hoặc bị lặp. Hard DELETE vẫn không thể phục hồi bằng watermark.
 
 \textbf{Scale dọc và ngang.} Polling tăng tải theo số poller và số dòng/index phải quét; thêm poller là thêm query lên cùng bảng nguồn. Debezium đọc WAL với tải nguồn thấp và mở rộng theo partition/topic, consumer; nguồn không phải scan lại bảng khi dữ liệu tăng.
 
-Ở 100.000 dòng, polling còn dùng được; ở 1--10 triệu dòng, chi phí index scan, số tuple trả về và số poller tăng tuyến tính trong khi Debezium vẫn đọc log. Với BR4--BR5 cần bắt sửa điểm, xoá và giữ thứ tự LSN, polling không đáp ứng đúng nghĩa dữ liệu; Debezium phù hợp hơn vì tính đúng đắn, không phải vì tốc độ: phép đo này không cho thấy Debezium nhanh hơn.
+Ở 100.000 dòng, polling còn dùng được; ở 1--10 triệu dòng, chi phí index scan, số tuple trả về và số poller tăng tuyến tính trong khi Debezium vẫn đọc log. Với BR4--BR5 cần bắt sửa điểm, xoá và giữ thứ tự LSN, polling không bảo đảm đúng ngữ nghĩa dữ liệu; Debezium phù hợp hơn vì tính đúng đắn chứ không phải vì tốc độ.
 
-\subsection{Giới hạn phép đo}
+\subsection{Giới hạn của phép đo}
 
-Đây là smoke test 100.000 dòng trên một máy, chưa phải 1--10 triệu dòng. Chưa chạy failure injection cho connector. Độ trễ của cả hai phương án chỉ đo trên một đợt thay đổi nên phụ thuộc vào pha của chu kỳ thăm dò 0,5 giây và không dùng để xếp hạng tốc độ. Các số này đủ để chứng minh correctness/state/scale, không đủ tuyên bố SLA production.
+Đây là smoke test 100.000 dòng trên một máy, chưa phải 1--10 triệu dòng. Nhóm chưa chạy failure injection cho connector. Latency của cả hai phương án chỉ được đo trên một đợt thay đổi nên phụ thuộc vào pha của chu kỳ thăm dò 0,5 giây và không dùng để xếp hạng tốc độ. Các số này đủ để chứng minh correctness, state và scale, nhưng không đủ để tuyên bố SLA production.
 
-Riêng BR1--BR3, phép đo chạy trên cùng một máy đang gánh phần lớn stack (26/30 container) nên chịu ảnh hưởng của tranh chấp CPU và bộ nhớ. Hai đặc điểm của bản demo ảnh hưởng trực tiếp đến cách đo và là hạn chế cần xử lý: API hộp thư trả toàn bộ danh sách, nên hộp thư càng dài mỗi lần đọc càng chậm (152 thông báo: khoảng 68 ms, so với 7,5 ms khi còn 10 thông báo), cần phân trang; và số thứ tự lần nộp được tính bằng cách quét toàn bộ bài nộp của người học, nên chi phí nhận 202 tăng theo lịch sử (398 bài nộp: khoảng 167 ms, so với 28 ms khi chưa có lịch sử). Vì vậy mỗi mẫu BR1/BR3 được đo trên trạng thái rỗng. Hai cặp số chẩn đoán trên lấy từ lần đo trước trên máy khác (không đo lại).
+Riêng BR1--BR3, phép đo chạy trên cùng một máy đang gánh phần lớn stack (26/30 container) nên chịu ảnh hưởng của tranh chấp CPU và bộ nhớ. Hai đặc điểm của bản demo ảnh hưởng trực tiếp đến cách đo và là hạn chế cần xử lý: API inbox trả toàn bộ danh sách, nên inbox càng dài thì mỗi lần đọc càng chậm (152 thông báo: khoảng 68 ms, so với 7,5 ms khi còn 10 thông báo); cần phân trang. Thứ hai, số thứ tự lần nộp được tính bằng cách quét toàn bộ bài nộp của người học, nên chi phí nhận 202 tăng theo lịch sử (398 bài nộp: khoảng 167 ms, so với 28 ms khi chưa có lịch sử). Vì vậy mỗi mẫu BR1/BR3 được đo trên trạng thái rỗng. Hai cặp số chẩn đoán trên lấy từ lần đo trước trên máy khác (không đo lại).
 
 \section{Thảo luận}
 
 \begin{itemize}
-  \item \textbf{Đáp ứng yêu cầu độ trễ.} Cảnh báo BR5 khoảng 10 giây (kịch bản chấp nhận, không đo lại) và tìm kiếm BR8 khoảng nửa giây đều đủ cho nghiệp vụ (cố vấn can thiệp, người học tìm nội dung mới). Lớp phủ khoảng 6 giây phù hợp dashboard trên mart theo ngày; muốn dưới một giây sẽ cần Flink (ADR 0014). Riêng ngưỡng 10 ms của BR2 đạt ở trung vị và p90, nhưng 2/150 request vượt ngưỡng.
-  \item \textbf{Tách tính toán khỏi phục vụ.} Mart tổng hợp sẵn và cache giúp độ trễ phục vụ vài mili-giây dù truy vấn gốc qua Trino mất khoảng 80--170 mili-giây; tra cứu theo khoá vẫn ở Redis.
+  \item \textbf{Đáp ứng yêu cầu latency.} Cảnh báo BR5 khoảng 10 giây (kịch bản chấp nhận, không đo lại) và tìm kiếm BR8 khoảng nửa giây đều đủ cho nghiệp vụ (cố vấn can thiệp, người học tìm nội dung mới). Overlay khoảng 6 giây phù hợp với dashboard trên mart theo ngày; muốn dưới một giây sẽ cần Flink (ADR 0014). Riêng ngưỡng 10 ms của BR2 đạt ở median và p90, nhưng 2/150 request vượt ngưỡng.
+  \item \textbf{Tách tính toán khỏi serving.} Mart được tổng hợp sẵn và cache giúp latency serving chỉ còn vài mili-giây dù truy vấn gốc qua Trino mất khoảng 80--170 mili-giây; các tra cứu theo key vẫn nằm ở Redis.
   \item \textbf{Đúng đắn quan trọng hơn tốc độ.} Ở BR4, nhóm giữ SQL dù Python nhanh hơn trên đường PostgreSQL và ghi rõ kết quả benchmark thay vì tuyên bố SQL thắng; hướng tối ưu (bảng có kiểu, dùng chung kết quả trung gian) đã được hiện thực trong engine mặc định Spark SQL trên Delta, nhưng engine này chưa có trong các phép đo của chương.
-  \item \textbf{Lỗi phát hiện nhờ kiểm chứng.} Quá trình đo và kiểm thử đã phát hiện, sửa nhiều lỗi thật, ví dụ: bộ chia đoạn bỏ mất khoảng 2/3 transcript; đồng hồ thiết bị chạy nhanh làm rơi sự kiện đúng hạn của người khác; cache tài liệu bị đọc trước khi kiểm tra phạm vi; Trino hết bộ nhớ khi dashboard thăm dò liên tục.
+  \item \textbf{Lỗi phát hiện nhờ kiểm chứng.} Quá trình đo và kiểm thử đã phát hiện và sửa nhiều lỗi thật, ví dụ: bộ chunk bỏ mất khoảng 2/3 transcript; đồng hồ thiết bị chạy nhanh làm rơi sự kiện đúng hạn của người khác; cache tài liệu bị đọc trước khi kiểm tra phạm vi; Trino hết bộ nhớ khi dashboard thăm dò liên tục.
 \end{itemize}

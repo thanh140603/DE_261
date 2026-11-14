@@ -3,14 +3,14 @@
 
 \section{Thiết kế và hiện thực theo từng yêu cầu}
 
-Chương này trình bày tám yêu cầu nghiệp vụ. Với mỗi BR, báo cáo trình bày luồng dữ liệu, các quy tắc nghiệp vụ quan trọng và mức độ hoàn thiện. BR1--BR8 đều chạy trên hạ tầng thật: Kafka, Redis, PostgreSQL, Spark, Delta, Trino và OpenSearch. Dịch vụ notification và grading dùng Kafka, Redis, PostgreSQL; BR2 dùng job batch \code{features-online} và job streaming \code{telemetry-live} trên Delta và Redis.
+Chương này trình bày tám yêu cầu nghiệp vụ. Với mỗi BR, báo cáo mô tả data flow, các rule nghiệp vụ quan trọng và mức độ hoàn thiện. BR1--BR8 đều chạy trên hạ tầng thật: Kafka, Redis, PostgreSQL, Spark, Delta, Trino và OpenSearch. Dịch vụ notification và grading dùng Kafka, Redis, PostgreSQL; BR2 dùng job batch \code{features-online} và job streaming \code{telemetry-live} trên Delta và Redis.
 
 % =====================================================================
 \subsection{BR1 --- Pipeline thông báo hướng sự kiện}
 
-\textbf{Luồng chạy thật.} Dịch vụ \code{notification} là tiến trình độc lập, tiêu thụ năm topic Kafka: \code{lms.assignment_created.v1}, \code{lms.deadline_approaching.v1}, \code{lms.course_updated.v1}, \code{grading.submission_graded.v1} và \code{risk.dropout_risk_detected.v1}. Mỗi sự kiện đi qua rule engine, đối chiếu với tập luật YAML rồi phân giải người nhận từ PostgreSQL (\code{public.learners}, \code{public.enrollments}) hoặc cố vấn của học viên. Thông báo được ghi vào Redis và gửi qua in-app, push hoặc email. Kết quả được phát lên \code{notification.dispatched.v1} hoặc \code{notification.suppressed.v1} và ghi vào lakehouse thành \code{gold.fct_notification}. API đọc hộp thư từ Redis; cầu Kafka--SSE đẩy sự kiện \code{notification} xuống trình duyệt. Vòng tiêu thụ có retry/backoff và DLQ, nên một sự kiện lỗi không làm dừng dịch vụ.
+\textbf{Đường chạy thật.} Dịch vụ \code{notification} là một tiến trình độc lập, tiêu thụ năm topic Kafka: \code{lms.assignment_created.v1}, \code{lms.deadline_approaching.v1}, \code{lms.course_updated.v1}, \code{grading.submission_graded.v1} và topic \code{risk.dropout_alert.v1} (mang event type \code{risk.dropout_risk_detected.v1}). Mỗi sự kiện đi qua rule engine, được đối chiếu với tập rule YAML rồi phân giải người nhận từ PostgreSQL (\code{public.learners}, \code{public.enrollments}) hoặc cố vấn của người học. Thông báo được ghi vào Redis và gửi qua in-app, push hoặc email. Kết quả được phát lên \code{notification.dispatched.v1} hoặc \code{notification.suppressed.v1}, đồng thời ghi vào lakehouse thành \code{gold.fct_notification}. API đọc inbox từ Redis; cầu Kafka--SSE đẩy sự kiện \code{notification} xuống trình duyệt. Vòng tiêu thụ có retry/backoff và DLQ, nên một sự kiện lỗi không làm dừng dịch vụ.
 
-\textbf{Rule engine.} Luật được khai báo trong YAML và nạp khi dịch vụ khởi động (Hình~\ref{lst:rules}). Điều kiện viết bằng một ngôn ngữ biểu thức rất nhỏ trên payload của sự kiện, không cho chạy mã tuỳ ý.
+\textbf{Rule engine.} Rule được khai báo trong YAML và nạp khi dịch vụ khởi động (Hình~\ref{lst:rules}). Điều kiện được viết bằng một ngôn ngữ biểu thức tối giản trên payload của sự kiện, không cho phép chạy mã tuỳ ý.
 
 \begin{figure}[H]
 \begin{lstlisting}[language=yaml]
@@ -26,36 +26,36 @@ rules:
     channels: [email]      # recipient = the learner's advisor
     priority: high
 \end{lstlisting}
-\caption{Trích tập luật thông báo}
+\caption{Trích tập rule thông báo}
 \label{lst:rules}
 \end{figure}
 
-\textbf{Chống làm phiền.} Mỗi thông báo có khoá khử trùng lặp trong Redis với TTL 24 giờ, nên cùng một sự kiện không gửi hai lần. Giới hạn tần suất dùng cửa sổ trượt 5 thông báo/giờ cho mỗi người học; thông báo ưu tiên cao (ví dụ còn dưới 24 giờ đến hạn) được miễn giới hạn. Kho thông báo idempotent theo định danh: hai use case định tuyến và gửi đều gọi \code{save()} nhưng chỉ lần tạo đầu thêm vào inbox và tăng bộ đếm, nên không nhân đôi thông báo. Thông báo bị chặn được ghi kèm lý do để giao diện hiển thị.
+\textbf{Chống làm phiền người dùng.} Mỗi thông báo có dedup key trong Redis với TTL 24 giờ, nhờ đó cùng một sự kiện không được gửi hai lần. Rate limit dùng sliding window 5 thông báo/giờ cho mỗi người học; thông báo ưu tiên cao (ví dụ còn dưới 24 giờ đến hạn) được miễn giới hạn. Notification store idempotent theo định danh: hai use case route và dispatch đều gọi \code{save()} nhưng chỉ lần tạo đầu tiên thêm vào inbox và tăng counter, nên thông báo không bị nhân đôi. Các thông báo bị chặn được ghi kèm lý do để giao diện hiển thị.
 
-\textbf{Kênh gửi thật.} In-app ghi vào Redis; email đi qua SMTP; push đi qua webhook HTTP, cả hai có retry ba lần. Trong lần kiểm chứng, email và webhook đều đến đích; provider được cấu hình qua biến môi trường.
+\textbf{Kênh gửi thật.} In-app ghi vào Redis; email đi qua SMTP; push đi qua webhook HTTP, cả hai đều có retry ba lần. Trong lần kiểm chứng, email và webhook đều đến đích; provider được cấu hình qua biến môi trường.
 
-\textbf{Đã kiểm chứng.} Đăng ký \code{l-002} vào \code{c-ml-301} ghi một dòng trong PostgreSQL; sự kiện deadline tạo đúng một thông báo; phát lại cùng sự kiện trả lý do \code{duplicate} và không tăng \code{notif:count}. Trong cùng đợt kiểm chứng, email và webhook đều gửi thành công; Playwright xác nhận điều khiển gửi thông báo trên giao diện.
+\textbf{Kết quả kiểm chứng.} Đăng ký \code{l-002} vào \code{c-ml-301} ghi một dòng trong PostgreSQL; sự kiện deadline tạo đúng một thông báo; replay cùng sự kiện trả lý do \code{duplicate} và không tăng \code{notif:count}. Trong cùng đợt kiểm chứng, email và webhook đều gửi thành công; Playwright xác nhận điều khiển gửi thông báo trên giao diện.
 
 % =====================================================================
 \subsection{BR2 --- Gợi ý khoá học và bước học tiếp theo}
 \label{sec:br2}
 
-Yêu cầu BR2 mô tả pipeline đặc trưng hai nhánh: đặc trưng dài hạn tính theo lô bằng Spark, đặc trưng phiên tính theo luồng, qua feature store. Nhóm hiện thực cả hai và nối vào cùng online store Redis.
+Yêu cầu BR2 mô tả pipeline feature hai nhánh: feature dài hạn tính bằng batch trên Spark, feature phiên tính bằng streaming, cả hai đi qua feature store. Nhóm hiện thực đủ hai nhánh và nối chúng vào cùng một online store trên Redis.
 
-\textbf{Nhánh lô.} Bảng \code{features.learner_longterm} gồm tỷ lệ hoàn thành 30 ngày, tỷ lệ đạt trung bình, số ngày hoạt động, nền tảng ưa dùng và mức thành thạo theo kỹ năng. Mỗi ngày tính là một phân vùng, bảo đảm tính đúng theo mốc thời gian và không rò rỉ dữ liệu tương lai. Job \code{edu batch features-online} đọc phân vùng mới nhất và ghi \code{edu:features:longterm:<pseudonym>} vào Redis với TTL 36 giờ. Lần materialise ngày 2026-11-10 ghi 40 khoá từ bảng Delta.
+\textbf{Nhánh batch.} Bảng \code{features.learner_longterm} gồm completion rate 30 ngày, average pass rate, số ngày hoạt động, nền tảng ưa dùng và mức thành thạo theo kỹ năng. Mỗi ngày được tính thành một partition, bảo đảm point-in-time correctness và không rò rỉ dữ liệu tương lai. Job \code{edu batch features-online} đọc partition mới nhất và ghi \code{edu:features:longterm:<pseudonym>} vào Redis với TTL 36 giờ. Lần materialise ngày 2026-11-10 ghi 40 key từ bảng Delta.
 
-\textbf{Nhánh luồng.} Job \code{edu stream session-features} (chạy trong \code{telemetry-live}) đọc \code{telemetry.learning_events.v1}, giữ trạng thái phiên trong Redis và tách phiên khi khoảng trống quá 30 phút hoặc \code{session_id} đổi. Mỗi \code{event_id} được claim bằng \code{SET NX} trong 1 giờ, nên replay Kafka không đếm hai lần. Kết quả ghi \code{edu:features:session:<pseudonym>} với TTL 2 giờ và phát \code{features.session.v1} để lưu vết (ADR 0015). Micro-batch 30 giây giúp phiên đang mở hiển thị ngay, không phải chờ watermark.
+\textbf{Nhánh streaming.} Job \code{edu stream session-features} (chạy trong \code{telemetry-live}) đọc \code{telemetry.learning_events.v1}, giữ session state trong Redis và tách session khi khoảng trống vượt quá 30 phút hoặc \code{session_id} thay đổi. Mỗi \code{event_id} được claim bằng \code{SET NX} trong 1 giờ, nên replay Kafka không đếm hai lần. Kết quả ghi \code{edu:features:session:<pseudonym>} với TTL 2 giờ và phát \code{features.session.v1} để lưu vết (ADR 0015). Micro-batch 30 giây giúp session đang mở hiển thị ngay mà không phải chờ watermark.
 
-\textbf{Phục vụ.} \code{LoadLearnerFeatures} kết hợp hai nhánh theo bút danh. API trả \code{features.longterm} và \code{features.session}; giao diện hiển thị chip ``Live session'' và ``\% recent pass''. \code{NextStepPolicy} dùng feature làm ngữ cảnh: tỷ lệ đạt thấp hạ ưu tiên bước tiếp theo, phiên đang gặp khó ưu tiên bù kiến thức, cùng lộ trình thắng khi hoà. Khi ngữ cảnh rỗng, luật giữ nguyên hành vi cũ.
+\textbf{Serving.} \code{LoadLearnerFeatures} kết hợp hai nhánh theo pseudonym. API trả \code{features.longterm} và \code{features.session}; giao diện hiển thị chip ``Live session'' và ``\% recent pass''. \code{NextStepPolicy} dùng feature làm context: pass rate thấp làm giảm ưu tiên bước tiếp theo, session đang gặp khó thì ưu tiên bù kiến thức; khi hoà thì giữ nguyên lộ trình hiện tại. Khi context rỗng, rule giữ nguyên hành vi cũ.
 
-Bộ xếp hạng dựa trên \textbf{luật nghiệp vụ}, tính tại thời điểm truy vấn từ danh mục khoá học và các khoá đã hoàn thành. Luật xếp khoá chưa ghi danh theo \emph{tầng}, rồi theo mức liên quan, độ khó và độ ưa thích (Bảng~\ref{tab:br2}); mỗi gợi ý kèm một câu giải thích để người học hiểu vì sao.
+Bộ xếp hạng dựa trên \textbf{rule nghiệp vụ}, được tính tại query time từ catalog khoá học và các khoá đã hoàn thành. Rule xếp các khoá chưa ghi danh theo \emph{tier}, rồi theo relevance, difficulty và preference (Bảng~\ref{tab:br2}); mỗi gợi ý kèm một câu giải thích để người học hiểu vì sao khoá đó được đề xuất.
 
 \begin{table}[H]
 \centering\small
-\caption{Các tầng của luật gợi ý (BR2)}\label{tab:br2}
+\caption{Các tier của rule gợi ý (BR2)}\label{tab:br2}
 \begin{tabularx}{\textwidth}{@{}cL{3.4cm}YL{1.2cm}@{}}
 \toprule
-\textbf{Tầng} & \textbf{Trường hợp} & \textbf{Ví dụ lời giải thích} & \textbf{Điểm} \\
+\textbf{Tier} & \textbf{Trường hợp} & \textbf{Ví dụ lời giải thích} & \textbf{Điểm} \\
 \midrule
 0 & Bước tiếp theo trong lộ trình & ``Tiếp tục lộ trình data engineering: mức khó tiếp theo'' hoặc ``Bước liên quan trong lộ trình'' & 1,00 \\
 1 & Mở rộng cùng mức & ``Mở rộng ở mức của bạn: một khoá analytics mức dễ'' & 0,75 \\
@@ -65,27 +65,27 @@ Bộ xếp hạng dựa trên \textbf{luật nghiệp vụ}, tính tại thời 
 \end{tabularx}
 \end{table}
 
-\textbf{Đã kiểm chứng.} Năm sự kiện telemetry live cho \code{l-002} tạo phiên có 5 sự kiện; thêm 2 sự kiện và chạy lại thì phiên có 7 sự kiện, cùng \code{started_at}, còn replay không đếm lại. API trả cả \code{longterm} lẫn \code{session} sau khi build kho và materialise 40 khoá. Sáu unit test phủ policy, store, phép kết hợp và xếp hạng theo feature; Playwright xác nhận trang người học và danh sách gợi ý hiển thị.
+\textbf{Kết quả kiểm chứng.} Năm sự kiện telemetry live của \code{l-002} tạo một session 5 sự kiện; thêm 2 sự kiện và chạy lại thì session có 7 sự kiện với cùng \code{started_at}, còn replay không đếm lại. API trả cả \code{longterm} lẫn \code{session} sau khi build warehouse và materialise 40 key. Sáu unit test phủ policy, store, phép kết hợp và xếp hạng theo feature; Playwright xác nhận trang người học và danh sách gợi ý hiển thị.
 
 % =====================================================================
 \subsection{BR3 --- Tiếp nhận bài nộp và phản hồi chi tiết}
 
-\textbf{Luồng tách rời, chạy thật.} Giao diện gọi BFF \code{POST /api/submissions}; BFF chuyển tiếp sang \code{grading-ingest} ở cổng 8001. Dịch vụ ghi bài nộp \code{QUEUED} vào Redis và \code{grading.submissions}, phát \code{grading.submission_received.v1}, chỉ trả 202 sau khi broker xác nhận (\code{publisher.flush()}); nếu queue không nhận, API trả 503 thay vì nhận việc rồi làm mất. Worker nhận message, claim \code{SET NX}, chuyển \code{RUNNING}, chạy sandbox và phát \code{grading.sandbox_result.raw.v1}. Normalizer áp \code{FeedbackPolicy}, ghi kết quả vào Redis và \code{grading.grades}, rồi phát \code{grading.submission_graded.v1}. Sự kiện này đi vào BR1, cầu SSE và projector đồng bộ \code{public.*}.
+\textbf{Luồng tách rời, chạy thật.} Giao diện gọi BFF \code{POST /api/submissions}; BFF chuyển tiếp sang \code{grading-ingest} ở cổng 8001. Dịch vụ ghi bài nộp ở trạng thái \code{QUEUED} vào Redis và \code{grading.submissions}, phát \code{grading.submission_received.v1} và chỉ trả 202 sau khi broker xác nhận (\code{publisher.flush()}); nếu queue không nhận, API trả 503 thay vì nhận việc rồi làm mất. Worker nhận message, claim \code{SET NX}, chuyển trạng thái \code{RUNNING}, chạy sandbox và phát \code{grading.sandbox_result.raw.v1}. Normalizer áp \code{FeedbackPolicy}, ghi kết quả vào Redis và \code{grading.grades}, rồi phát \code{grading.submission_graded.v1}. Sự kiện này đi vào BR1, cầu SSE và projector đồng bộ \code{public.*}.
 
-\textbf{Vòng đời và tính idempotent.} Trạng thái đi theo \code{queued} $\rightarrow$ \code{running} $\rightarrow$ \code{graded} hoặc \code{failed}. Worker claim theo \code{submission_id} nên message trùng không chạy sandbox lần hai; normalizer bỏ qua kết quả đã có theo \code{(submission_id, worker_run_id)}; PostgreSQL dùng UPSERT theo \code{submission_id}. Replay queue message hoặc raw result không tạo grade thứ hai.
+\textbf{Lifecycle và idempotency.} Trạng thái đi theo \code{queued} $\rightarrow$ \code{running} $\rightarrow$ \code{graded} hoặc \code{failed}. Worker claim theo \code{submission_id} nên message trùng không chạy sandbox lần hai; normalizer bỏ qua kết quả đã có theo \code{(submission_id, worker_run_id)}; PostgreSQL dùng UPSERT theo \code{submission_id}. Nhờ đó replay queue message hoặc raw result không tạo ra grade thứ hai.
 
-\textbf{Sandbox.} Bài Python chạy trong tiến trình con có giới hạn thời gian 3 giây. Bài SQL chạy trên SQLite trong bộ nhớ ở chế độ chỉ đọc, có hàm ngắt khi quá hạn. Lỗi hạ tầng được tách khỏi lỗi trong mã của người học: lỗi và timeout của mã người học tính là trượt, còn lỗi hạ tầng không tính vào tỷ lệ đạt.
+\textbf{Sandbox.} Bài Python chạy trong một tiến trình con có time limit 3 giây. Bài SQL chạy trên SQLite in-memory ở chế độ read-only, có hàm ngắt khi quá hạn. Lỗi hạ tầng được tách khỏi lỗi trong code của người học: lỗi và timeout của code người học được tính là trượt, còn lỗi hạ tầng không tính vào pass rate.
 
-\textbf{Phản hồi có cấu trúc.} \code{FeedbackPolicy} là hàm thuần, không I/O, tạo phản hồi gồm câu tóm tắt, danh sách test trượt kèm giá trị mong đợi và thực tế (hoặc diff), 8 dòng cuối stderr và gợi ý theo ngôn ngữ dựa trên bảng mẫu lỗi thường gặp. Kết quả còn gồm thời gian chạy, bộ nhớ và mã thoát. Mục~\ref{chap:ui} trình bày cách hiển thị phản hồi trong Code lab.
+\textbf{Phản hồi có cấu trúc.} \code{FeedbackPolicy} là một hàm thuần, không I/O, tạo phản hồi gồm câu tóm tắt, danh sách test trượt kèm giá trị mong đợi và thực tế (hoặc diff), 8 dòng cuối của stderr và gợi ý theo ngôn ngữ dựa trên bảng mẫu lỗi thường gặp. Kết quả còn gồm thời gian chạy, bộ nhớ và exit code. Mục~\ref{chap:ui} trình bày cách hiển thị phản hồi trong Code lab.
 
-\textbf{Sở hữu dữ liệu.} BR3 ghi \code{grading.submissions} và \code{grading.grades}; projector \code{grading-projector} đồng bộ sang \code{public.submissions}/\code{public.grades} theo profile \code{br13-project} để LMS và CDC nhận lịch sử.
+\textbf{Sở hữu dữ liệu.} BR3 ghi \code{grading.submissions} và \code{grading.grades}; projector \code{grading-projector} đồng bộ sang \code{public.submissions}/\code{public.grades} theo profile \code{br13-project} để LMS và CDC nhận được lịch sử.
 
-\textbf{Đã kiểm chứng.} Nộp bài qua BFF trả 202 \code{queued}, sau đó chuyển \code{running} rồi \code{graded} với pass rate 0,8 và phản hồi ``4/5 tests passed''. Redis có đủ khoá submission, worker, result và code; PostgreSQL có dòng \code{graded} trong \code{grading.*}; hộp thư \code{l-002} có thông báo từ \code{grading.submission_graded.v1}; SSE phát \code{submission.graded}. Integration test end-to-end đạt; Playwright 2/2 đạt. Projector đồng bộ \code{public.*} từ 9/9 lên 11/11 trong lần kiểm chứng.
+\textbf{Kết quả kiểm chứng.} Nộp bài qua BFF trả 202 \code{queued}, sau đó chuyển \code{running} rồi \code{graded} với pass rate 0,8 và phản hồi ``4/5 tests passed''. Redis có đủ key submission, worker, result và code; PostgreSQL có dòng \code{graded} trong \code{grading.*}; inbox của \code{l-002} có thông báo từ \code{grading.submission_graded.v1}; SSE phát \code{submission.graded}. Integration test end-to-end đạt; Playwright 2/2 đạt. Projector đồng bộ \code{public.*} từ 9/9 lên 11/11 trong lần kiểm chứng.
 
 % =====================================================================
 \subsection{BR4 --- Phát hiện câu hỏi và test case bất thường}
 
-\textbf{Luồng CDC thật} (ADR 0009). Dữ liệu vận hành nằm trong schema \code{br45} của PostgreSQL: khoá học, bài tập, câu hỏi và test case có phiên bản, bài nộp và kết quả chấm. Connector Debezium riêng bắt WAL vào các topic \code{br45.cdc.br45.<table>}. Worker CDC lưu phong bì gốc vào \code{analytics.raw_changes}, kiểm tra hợp đồng (sai thì vào \code{quarantine}), khử trùng lặp theo định danh ổn định (bảng, LSN, giao dịch, thao tác, ảnh dòng) rồi ghi \code{clean_rows}. Thay đổi có LSN cũ không thể ghi đè bản ghi mới hơn. Trong cùng giao dịch, mỗi dòng được chấp nhận còn được ghi vào outbox \code{analytics.domain_outbox} để worker phát lên topic \code{br45.clean.v2}.
+\textbf{Đường CDC thật} (ADR 0009). Dữ liệu vận hành nằm trong schema \code{br45} của PostgreSQL: khoá học, bài tập, câu hỏi và test case có version, bài nộp và kết quả chấm. Một connector Debezium riêng bắt WAL vào các topic \code{br45.cdc.br45.<table>}. CDC worker lưu envelope gốc vào \code{analytics.raw_changes}, kiểm tra contract (sai thì vào \code{quarantine}), dedup theo định danh ổn định (bảng, LSN, transaction, operation, row image) rồi ghi \code{clean_rows}. Thay đổi có LSN cũ không thể ghi đè bản ghi mới hơn. Trong cùng transaction, mỗi dòng được chấp nhận còn được ghi vào outbox \code{analytics.domain_outbox} để worker phát lên topic \code{br45.clean.v2}.
 
 \begin{figure}[H]
 \centering
@@ -94,9 +94,9 @@ Bộ xếp hạng dựa trên \textbf{luật nghiệp vụ}, tính tại thời 
   \node[box, right=of pg, text width=1.6cm] (dbz) {Debezium};
   \node[box, right=of dbz, text width=1.3cm] (k) {Kafka};
   \node[stage, right=of k, text width=2.6cm] (w) {CDC worker\\\scriptsize raw $\rightarrow$ clean, outbox};
-  \node[hl, right=25mm of w, text width=2.8cm] (m) {Job Spark SQL\\\scriptsize ảnh chụp Delta (BR4)};
+  \node[hl, right=25mm of w, text width=2.8cm] (m) {Job Spark SQL\\\scriptsize snapshot Delta (BR4)};
   \node[box, below=6mm of m, text width=2.8cm] (api) {Mart PostgreSQL\\\scriptsize API giảng viên};
-  \node[hl, below=6mm of w, text width=2.6cm] (sp) {Spark Streaming\\\scriptsize cửa sổ 7 ngày (BR5)};
+  \node[hl, below=6mm of w, text width=2.6cm] (sp) {Spark Streaming\\\scriptsize window 7 ngày\\ (BR5)};
   \node[box, left=of sp, text width=2.9cm] (risk) {Rủi ro, lịch sử, cảnh báo};
   \draw[arr] (pg) -- (dbz); \draw[arr] (dbz) -- (k); \draw[arr] (k) -- (w); \draw[arr] (w) -- node[above, font=\scriptsize]{\texttt{br45.clean.v2}} (m); \draw[arr] (m) -- node[right, font=\scriptsize]{\texttt{publish()}} (api);
   \draw[arr] (w) -- node[right, font=\scriptsize]{\texttt{br45.activity.v1}} (sp); \draw[arr] (sp) -- (risk);
@@ -105,34 +105,34 @@ Bộ xếp hạng dựa trên \textbf{luật nghiệp vụ}, tính tại thời 
 \label{fig:br45}
 \end{figure}
 
-\textbf{Ngữ nghĩa chỉ số.} Mọi khoảng quan sát là nửa mở $[t_0, t_1)$. Một lần chấm test hợp lệ khi bài nộp đã được chấm, kết quả hợp lệ và trạng thái thuộc \{passed, failed, error, timeout\}. Một lần làm câu hỏi hợp lệ khi mọi test bắt buộc của phiên bản câu hỏi \emph{tại thời điểm nộp} có kết quả hợp lệ; lần làm đó đạt khi mọi test bắt buộc đều đạt. Phiên bản test mới hơn không diễn giải lại bài nộp cũ.
+\textbf{Ngữ nghĩa chỉ số.} Mọi khoảng quan sát là nửa mở $[t_0, t_1)$. Một lần chấm test là hợp lệ khi bài nộp đã được chấm, kết quả hợp lệ và trạng thái thuộc \{passed, failed, error, timeout\}. Một lần làm câu hỏi là hợp lệ khi mọi test bắt buộc của phiên bản câu hỏi \emph{tại thời điểm nộp} có kết quả hợp lệ; lần làm đó đạt khi mọi test bắt buộc đều đạt. Phiên bản test mới hơn không diễn giải lại bài nộp cũ.
 \[
   \text{pass\_rate} = \frac{\text{số lần chấm hợp lệ đạt}}{\text{tổng số lần chấm hợp lệ}}
 \]
-Mẫu số bằng 0 cho kết quả \code{null} (hiển thị là chưa có số liệu). Hệ thống cũng tính tỷ lệ đạt ở lần làm đầu tiên và lần làm cuối cùng của mỗi học viên.
+Mẫu số bằng 0 cho kết quả \code{null} (hiển thị là chưa có số liệu). Hệ thống cũng tính pass rate ở lần làm đầu tiên và lần làm cuối cùng của mỗi người học.
 
 \begin{table}[H]
 \centering\small
-\caption{Quy tắc phát hiện bất thường của BR4 (cấu hình được)}\label{tab:br4-rules}
+\caption{Rule phát hiện bất thường của BR4 (có thể cấu hình)}\label{tab:br4-rules}
 \begin{tabularx}{\textwidth}{@{}YL{2.4cm}L{5.0cm}@{}}
 \toprule
-\textbf{Quy tắc} & \textbf{Mặc định} & \textbf{Trạng thái sinh ra} \\
+\textbf{Rule} & \textbf{Mặc định} & \textbf{Trạng thái sinh ra} \\
 \midrule
-Số học viên hợp lệ phân biệt tối thiểu & 20 & \code{INSUFFICIENT_DATA} nếu thiếu \\
-Tỷ lệ đạt thấp của câu hỏi & dưới 30\% & \code{LOW_PASS_RATE} \\
-Tỷ lệ đạt thấp của test case & dưới 20\% & \code{LOW_PASS_RATE} \\
-Thấp hơn trung vị các test bắt buộc khác & $\ge 50$ điểm \% & \code{SUSPICIOUS_TEST_CASE} \\
-Giảm so với cửa sổ liền trước cùng độ dài & $\ge 30$ điểm \% & \code{NEEDS_REVIEW} \\
+Số người học hợp lệ phân biệt tối thiểu & 20 & \code{INSUFFICIENT_DATA} nếu thiếu \\
+Pass rate thấp của câu hỏi & dưới 30\% & \code{LOW_PASS_RATE} \\
+Pass rate thấp của test case & dưới 20\% & \code{LOW_PASS_RATE} \\
+Thấp hơn median của các test bắt buộc khác & $\ge 50$ điểm \% & \code{SUSPICIOUS_TEST_CASE} \\
+Giảm so với window liền trước cùng độ dài & $\ge 30$ điểm \% & \code{NEEDS_REVIEW} \\
 \bottomrule
 \end{tabularx}
 \end{table}
 
-Kết quả lưu trong ba mart của PostgreSQL (\code{mart_question_pass_statistics}, \code{mart_test_case_pass_statistics}, \code{mart_question_anomalies}) kèm định danh, phiên bản, cửa sổ, số đếm, lý do và ngưỡng. Việc tổng hợp chạy bất đồng bộ (Hình~\ref{fig:br45}). Khi một thay đổi CDC của dữ liệu chấm bài được chấp nhận, hoặc khi mốc đánh giá tiến lên, worker CDC ghi một job bền vào \code{analytics.assessment_jobs} cho cửa sổ 30 ngày của từng khoá học có bài nộp. Job br45-stream nạp các dòng từ \code{br45.clean.v2} vào một bảng Delta bằng MERGE theo khoá, chỉ nhận dòng có LSN mới hơn. Khi bảng này đã chứa thay đổi mà job yêu cầu, br45-stream tổng hợp bằng Spark SQL trên một ảnh chụp có phiên bản của bảng, rồi gọi \code{publish()}: sau một cổng chất lượng, toàn bộ dòng mart của khoá học và cửa sổ đó được thay trong một giao dịch PostgreSQL. Vì mart được thay bằng giá trị tuyệt đối theo khoá ổn định thay vì cộng dồn, sửa điểm hay xoá bản ghi được phản ánh đúng mà không cần chạy lại seed. API chỉ đọc mart và báo trạng thái của job, không tự chạy phép tổng hợp. Phép tổng hợp bằng SQL của PostgreSQL trên \code{clean_rows} vẫn được giữ làm engine đối chứng, chọn bằng \code{EDU_BR45_ASSESSMENT_ENGINE=postgres}. Một cờ bất thường chỉ yêu cầu giảng viên xem xét, không kết luận đề bị lỗi.
+Kết quả được lưu trong ba mart của PostgreSQL (\code{mart_question_pass_statistics}, \code{mart_test_case_pass_statistics}, \code{mart_question_anomalies}) kèm định danh, phiên bản, window, số đếm, lý do và threshold. Phép tổng hợp chạy bất đồng bộ (Hình~\ref{fig:br45}). Khi một thay đổi CDC của dữ liệu chấm bài được chấp nhận, hoặc khi evaluation time tiến lên, CDC worker ghi một job bền vững vào \code{analytics.assessment_jobs} cho window 30 ngày của từng khoá học có bài nộp. Job br45-stream nạp các dòng từ \code{br45.clean.v2} vào một bảng Delta bằng MERGE theo key, chỉ nhận dòng có LSN mới hơn. Khi bảng đã chứa thay đổi mà job yêu cầu, br45-stream tổng hợp bằng Spark SQL trên một snapshot có version của bảng rồi gọi \code{publish()}: sau một quality gate, toàn bộ dòng mart của khoá học và window đó được thay trong một transaction PostgreSQL. Vì mart được thay bằng giá trị tuyệt đối theo key ổn định thay vì cộng dồn, việc sửa điểm hay xoá bản ghi được phản ánh đúng mà không cần chạy lại seed. API chỉ đọc mart và báo trạng thái của job, không tự chạy phép tổng hợp. Phép tổng hợp bằng SQL của PostgreSQL trên \code{clean_rows} vẫn được giữ làm engine đối chứng, chọn bằng \code{EDU_BR45_ASSESSMENT_ENGINE=postgres}. Một cờ bất thường chỉ yêu cầu giảng viên xem xét, không kết luận đề bị lỗi.
 
 % =====================================================================
-\subsection{BR5 --- Cảnh báo sớm nguy cơ bỏ học}
+\subsection{BR5 --- Cảnh báo sớm nguy cơ dropout}
 
-\textbf{Cửa sổ trượt theo thời gian sự kiện.} Spark Structured Streaming đọc \code{br45.activity.v1}, dùng watermark 21 ngày và \code{dropDuplicatesWithinWatermark(event_id)}, rồi tổng hợp bằng \code{window(event_time, '7 days', slide)} với bước trượt mặc định 1 giờ. Đây là tổng hợp cửa sổ có trạng thái, không phải truy vấn SQL chạy theo lịch. Với mốc đánh giá $T$ theo giờ UTC, các đặc trưng được tính như Hình~\ref{fig:windows}.
+\textbf{Sliding window theo event time.} Spark Structured Streaming đọc \code{br45.activity.v1}, dùng watermark 21 ngày và \code{dropDuplicatesWithinWatermark(event_id)}, rồi tổng hợp bằng \code{window(event_time, '7 days', slide)} với slide mặc định 1 giờ. Đây là stateful window aggregation, không phải một truy vấn SQL chạy theo lịch. Với evaluation time $T$ theo giờ UTC, các feature được tính như Hình~\ref{fig:windows}.
 
 \begin{figure}[H]
 \centering
@@ -149,17 +149,17 @@ Kết quả lưu trong ba mart của PostgreSQL (\code{mart_question_pass_statis
   \draw[decorate, decoration={brace, amplitude=5pt}, muted] (0.05,1.0) -- (13.95,1.0) node[midway, above=5pt, font=\scriptsize\color{ink}]{14-day count = recent + previous};
   \draw[stcrit, dashed] (14.6,-0.1) -- (14.6,0.9) node[above, font=\scriptsize]{giờ đang mở};
 \end{tikzpicture}
-\caption{Các cửa sổ đặc trưng tại mốc đánh giá $T$ (BR5)}
+\caption{Các window feature tại evaluation time $T$ (BR5)}
 \label{fig:windows}
 \end{figure}
 
-Cập nhật một hoạt động sẽ rút phần đóng góp cũ khỏi các cửa sổ rồi cộng phần mới; xoá thì rút phần đóng góp. Sự kiện ``đồng hồ'' trọng số 0 tạo cửa sổ rỗng để ghi nhận tình trạng không hoạt động. Mỗi micro-batch upsert tổng tuyệt đối của cửa sổ trong một giao dịch. Điểm rủi ro chỉ được chấm khi offset Spark đã commit phủ hết outbox, tránh cảnh báo trên đặc trưng chưa đầy đủ.
+Khi một hoạt động được cập nhật, phần đóng góp cũ được rút khỏi các window rồi phần mới được cộng vào; khi bị xoá, phần đóng góp bị rút ra. Sự kiện ``clock'' có trọng số 0 tạo một window rỗng để ghi nhận tình trạng không hoạt động. Mỗi micro-batch ghi đè tổng tuyệt đối của window trong một transaction. Điểm rủi ro chỉ được chấm khi offset Spark đã commit phủ hết outbox, nhờ đó tránh cảnh báo trên feature chưa đầy đủ.
 
-\textbf{Điều kiện xét.} Học viên phải có ghi danh hiệu lực ít nhất 7 ngày. Bài tập bắt buộc chỉ tính khi hạn nộp nằm trong 14 ngày gần nhất và sau ngày ghi danh; hạn tương lai không bị phạt. Thiếu telemetry không bị coi là không hoạt động: tín hiệu này chỉ hợp lệ khi từng quan sát thấy hoạt động thật.
+\textbf{Điều kiện xét.} Người học phải có ghi danh hiệu lực ít nhất 7 ngày. Bài tập bắt buộc chỉ được tính khi deadline nằm trong 14 ngày gần nhất và sau ngày ghi danh; deadline trong tương lai không bị phạt. Thiếu telemetry không bị coi là không hoạt động: tín hiệu này chỉ hợp lệ khi đã từng quan sát được hoạt động thật.
 
 \begin{table}[H]
 \centering\small
-\caption{Các tín hiệu rủi ro và điểm (BR5)}\label{tab:br5-signals}
+\caption{Các tín hiệu rủi ro và điểm số (BR5)}\label{tab:br5-signals}
 \begin{tabularx}{\textwidth}{@{}L{3.2cm}YL{1.3cm}@{}}
 \toprule
 \textbf{Tín hiệu} & \textbf{Điều kiện} & \textbf{Điểm} \\
@@ -167,36 +167,36 @@ Cập nhật một hoạt động sẽ rút phần đóng góp cũ khỏi các c
 Không hoạt động & Ít nhất 7 ngày kể từ hoạt động có ý nghĩa gần nhất & 35 \\
 Trễ hạn & Ít nhất một bài tập bắt buộc đã đến hạn mà chưa nộp & 30 \\
 Tỷ lệ nộp thấp & Tỷ lệ nộp các bài đã đến hạn dưới 50\% & 20 \\
-Hoạt động giảm & Hoạt động giảm ít nhất 50\%, với ít nhất 3 quan sát ở cửa sổ trước & 15 \\
+Hoạt động giảm & Hoạt động giảm ít nhất 50\%, với ít nhất 3 quan sát ở window trước & 15 \\
 \bottomrule
 \end{tabularx}
 \end{table}
 
-Điểm tối đa là 100, chia mức LOW 0--29, MEDIUM 30--59, HIGH 60--79 và CRITICAL 80--100. Mọi kết quả kèm đặc trưng, giải thích, điều kiện xét, thời điểm đánh giá và chính sách. \textbf{Điểm không phải xác suất bỏ học}; đây là công cụ giúp cố vấn ưu tiên.
+Điểm tối đa là 100, chia thành các mức LOW 0--29, MEDIUM 30--59, HIGH 60--79 và CRITICAL 80--100. Mọi kết quả đều kèm feature, giải thích, điều kiện xét, evaluation time và policy. \textbf{Điểm số không phải xác suất dropout}; đây là công cụ giúp cố vấn ưu tiên can thiệp.
 
-\textbf{Vòng đời cảnh báo.} Mỗi cặp học viên × khoá học chỉ có một cảnh báo mở. Vượt 60 điểm sinh cảnh báo mới; thời gian chờ mặc định 72 giờ. Cảnh báo đang mở được cập nhật mức độ và lý do. Cố vấn có thể xác nhận (acknowledge) hoặc giải quyết (resolve); hệ thống lưu thời điểm và người thực hiện. Khi điểm xuống dưới ngưỡng, cảnh báo tự động giải quyết. Lịch sử mọi lần đánh giá và sửa đổi được giữ để kiểm toán.
+\textbf{Alert lifecycle.} Mỗi cặp người học × khoá học chỉ có một alert đang mở. Vượt 60 điểm sẽ sinh alert mới; cooldown mặc định 72 giờ. Alert đang mở được cập nhật mức độ và lý do. Cố vấn có thể acknowledge hoặc resolve; hệ thống lưu thời điểm và người thực hiện. Khi điểm xuống dưới threshold, alert tự động được resolve. Lịch sử mọi lần đánh giá và sửa đổi được giữ lại để kiểm toán.
 
 % =====================================================================
 \subsection{BR6 --- Tiến độ kỹ năng theo tổ chức}
 
-BR6 là ví dụ đầy đủ nhất của pipeline medallion. Telemetry và CDC đi qua silver (chuyển schema, khử định danh), lên gold (\code{fct_enrollment}, \code{fct_lesson_progress}, \code{fct_submission}) và tổng hợp thành \code{mart.org_progress} theo tổ chức × khoá học. Tỷ lệ hoàn thành là trung bình tỷ lệ bài học đã xong của khoá; mức thành thạo là tỷ lệ đạt test trung bình của các bài nộp đã chấm, học viên chưa có bài chấm tính là 0.
+BR6 là ví dụ đầy đủ nhất của pipeline medallion. Telemetry và CDC đi qua silver (migrate schema, pseudonymisation), lên gold (\code{fct_enrollment}, \code{fct_lesson_progress}, \code{fct_submission}) và được tổng hợp thành \code{mart.org_progress} theo tổ chức × khoá học. Tỷ lệ hoàn thành là trung bình tỷ lệ bài học đã hoàn thành của khoá; mức thành thạo là average pass rate của các bài nộp đã chấm, trong đó người học chưa có bài chấm được tính là 0.
 
-\textbf{k-anonymity được bảo vệ ở ba lớp.} (1) Mart chỉ công bố quy mô cho nhóm dưới $k = 5$ người; các tỷ lệ để trống. (2) Cổng chất lượng mức \code{error} \code{mart_org_progress_k_anonymity} làm hỏng lần build nếu vi phạm. (3) Bộ đọc API xoá tỷ lệ của dòng bị ẩn, kể cả khi mart lỗi vẫn mang giá trị. Quản trị viên chỉ đọc được tổ chức trong phạm vi tài khoản của mình; truy cập ngoài phạm vi trả 403.
+\textbf{k-anonymity được bảo vệ ở ba lớp.} (1) Mart chỉ công bố quy mô cho nhóm dưới $k = 5$ người, các tỷ lệ để trống. (2) Quality gate mức \code{error} \code{mart_org_progress_k_anonymity} làm hỏng lần build nếu vi phạm. (3) Bộ đọc API xoá tỷ lệ của các dòng bị ẩn, ngay cả khi mart vẫn còn sót giá trị do lỗi. Quản trị viên chỉ đọc được tổ chức trong phạm vi tài khoản của mình; truy cập ngoài phạm vi trả 403.
 
 % =====================================================================
 \subsection{BR7 --- Heatmap tương tác video}
 
-\textbf{Theo phiên bản.} Sự kiện được quy về phiên bản nội dung có hiệu lực tại thời điểm xảy ra (\code{gold.dim_content} là SCD2). Video quay lại có heatmap riêng cho mỗi phiên bản; API mặc định chọn phiên bản mới nhất. Bảng \code{gold.fct_video_second_activity} có grain phiên bản × giây × ngày, đếm play, pause, seek và số người học phân biệt. \code{mart.video_heatmap} tạo lưới dày từng giây trong 28 ngày, với số người học phân biệt chính xác và cường độ chuẩn hoá 0--1. Vị trí vượt độ dài video được kẹp về giây cuối.
+\textbf{Theo phiên bản.} Sự kiện được quy về phiên bản nội dung có hiệu lực tại thời điểm xảy ra (\code{gold.dim_content} là SCD2). Video quay lại có heatmap riêng cho từng phiên bản; API mặc định chọn phiên bản mới nhất. Bảng \code{gold.fct_video_second_activity} có grain phiên bản × giây × ngày, đếm play, pause, seek và số người học phân biệt. \code{mart.video_heatmap} tạo lưới dày theo từng giây trong 28 ngày, với số người học phân biệt chính xác và cường độ chuẩn hoá 0--1. Vị trí vượt quá độ dài video được kẹp về giây cuối.
 
-\textbf{Lớp phủ hôm nay} (ADR 0014). \code{telemetry-live} chạy ba truy vấn Spark có checkpoint. Truy vấn thứ nhất chuẩn hoá telemetry thô bằng \code{normalize_rows} của silver; hai truy vấn còn lại tổng hợp theo giây video (BR7) và điểm tương tác theo ngày (BR8), dùng watermark 5 phút và khử trùng lặp theo \code{event_id}. Kết quả ghi vào Redis dưới dạng giá trị tuyệt đối, nên replay ghi đè thay vì cộng thêm. API chỉ ghép lớp phủ cho ngày sau ảnh chụp mart và cho phiên bản mới nhất; nếu Redis lỗi, API trả dữ liệu mart.
+\textbf{Overlay hôm nay} (ADR 0014). \code{telemetry-live} chạy ba truy vấn Spark có checkpoint. Truy vấn thứ nhất chuẩn hoá telemetry thô bằng \code{normalize_rows} của silver; hai truy vấn còn lại tổng hợp theo giây video (BR7) và điểm tương tác theo ngày (BR8), dùng watermark 5 phút và dedup theo \code{event_id}. Kết quả được ghi vào Redis dưới dạng giá trị tuyệt đối, nên replay ghi đè thay vì cộng thêm. API chỉ ghép overlay cho ngày sau snapshot mart và cho phiên bản mới nhất; nếu Redis lỗi, API trả dữ liệu mart.
 
 % =====================================================================
 \subsection{BR8 --- Đồng bộ nội dung và xu hướng tương tác}
 
-\subsubsection{Đồng bộ cache và chỉ mục tìm kiếm}
+\subsubsection{Đồng bộ cache và search index}
 \label{sec:br8-sync}
 
-Một phiên bản nội dung mới tương ứng lần cập nhật dòng \code{public.course_content}, trỏ tới đối tượng bất biến mới trong MinIO (\code{courses/<course>/<content>/v<n>.<ext>}). API giảng viên chỉ ghi đối tượng và dòng dữ liệu dưới khoá dòng, tránh hai người xuất bản cùng lúc; việc đồng bộ do \code{content-sync} đảm nhận. Debezium bắt thay đổi; dịch vụ \code{content-sync} chạy use case \code{SyncContentChange} (Hình~\ref{fig:sync}).
+Một phiên bản nội dung mới tương ứng với lần cập nhật dòng \code{public.course_content}, trỏ tới một đối tượng bất biến mới trong MinIO (\code{courses/<course>/<content>/v<n>.<ext>}). API giảng viên chỉ ghi đối tượng và dòng dữ liệu dưới row lock, tránh hai người xuất bản cùng lúc; việc đồng bộ do \code{content-sync} đảm nhận. Debezium bắt thay đổi; dịch vụ \code{content-sync} chạy use case \code{SyncContentChange} (Hình~\ref{fig:sync}).
 
 \begin{figure}[H]
 \centering
@@ -207,27 +207,27 @@ Một phiên bản nội dung mới tương ứng lần cập nhật dòng \code
   \node[hl, right=of cdc, text width=2.8cm] (cs) {content-sync\\\scriptsize \texttt{SyncContentChange}};
   \node[box, right=of cs, text width=2.5cm] (out) {Redis cache\\OpenSearch\\\scriptsize \texttt{content.*} events};
   \draw[arr] (gv) -- (api); \draw[arr] (api) -- (cdc); \draw[arr] (cdc) -- (cs); \draw[arr] (cs) -- (out);
-  \node[anchor=north, text width=13cm, align=center, font=\scriptsize] (steps) at ($(gv.west |- out.south)!0.5!(out.east |- out.south) + (0,-3mm)$) {\textit{Các bước trong content-sync:}\\1.~Lấy đối tượng \quad 2.~Vô hiệu hoá cache Redis \quad 3.~Chia đoạn + nhúng vector \quad 4.~Dọn phiên bản khác\\5.~Làm mới mục tìm kiếm \quad 6.~Làm ấm cache \quad 7.~Phát sự kiện};
+  \node[anchor=north, text width=13cm, align=center, font=\scriptsize] (steps) at ($(gv.west |- out.south)!0.5!(out.east |- out.south) + (0,-3mm)$) {\textit{Các bước trong content-sync:}\\1.~Lấy đối tượng \quad 2.~Vô hiệu hoá Redis cache \quad 3.~Chunk + nhúng vector \quad 4.~Dọn phiên bản khác\\5.~Làm mới search index \quad 6.~Làm ấm cache \quad 7.~Phát sự kiện};
 \end{tikzpicture}
 \caption{Đồng bộ nội dung BR8 dựa trên CDC}
 \label{fig:sync}
 \end{figure}
 
-\textbf{Idempotent theo trạng thái chỉ mục, không theo thứ tự đến.} \code{sync_policy} chỉ áp dụng phiên bản mới hơn phiên bản đã chỉ mục; bằng nhau là trùng lặp, cũ hơn là lỗi thời. Vì vậy replay CDC, khởi động lại hay backfill đều an toàn. Tìm kiếm chỉ trả đoạn thuộc phiên bản hiện hành, nên dọn dẹp chậm không làm lộ văn bản cũ.
+\textbf{Idempotent theo trạng thái index, không theo thứ tự đến.} \code{sync_policy} chỉ áp dụng phiên bản mới hơn phiên bản đã index; phiên bản bằng nhau là trùng lặp, cũ hơn là stale. Vì vậy replay CDC, khởi động lại hay backfill đều an toàn. Tìm kiếm chỉ trả các chunk thuộc phiên bản hiện hành, nên việc dọn dẹp chậm không làm lộ văn bản cũ.
 
-\textbf{Tìm kiếm lai.} OpenSearch lưu đoạn văn bản với chỉ mục BM25 và vector \code{knn_vector} (HNSW~\cite{malkov2018hnsw}); kết quả hai phía được hợp nhất bằng reciprocal rank fusion~\cite{cormack2009rrf} ở client. Vector hiện do bộ nhúng băm tất định sinh (không cần mô hình hay GPU), nằm sau cổng \code{Embedder}; thay bằng sentence-embedding chỉ cần adapter mới và một lần reindex. Job Spark \code{edu batch content-reindex} phân phối \emph{cùng} use case theo nhóm nội dung để backfill và ghi \code{silver.content_chunks}.
+\textbf{Tìm kiếm lai.} OpenSearch lưu chunk văn bản với chỉ mục BM25 và vector \code{knn_vector} (HNSW~\cite{malkov2018hnsw}); kết quả của hai phía được hợp nhất bằng reciprocal rank fusion~\cite{cormack2009rrf} ở client. Vector hiện do một bộ nhúng băm tất định sinh ra (không cần model hay GPU), nằm sau port \code{Embedder}; thay bằng sentence-embedding chỉ cần một adapter mới và một lần reindex. Job Spark \code{edu batch content-reindex} phân phối \emph{cùng} use case theo nhóm nội dung để backfill và ghi \code{silver.content_chunks}.
 
 \subsubsection{Xu hướng tương tác}
 \label{sec:br8-trend}
 
-Điểm tương tác của mỗi học viên trong một cửa sổ là tổng có trọng số các hoạt động (Bảng~\ref{tab:weights}). Mart \code{mart.engagement_trend} tính bốn cửa sổ tuần (thứ Hai đến Chủ nhật) cho mỗi cặp học viên × khoá học.
+Điểm tương tác của mỗi người học trong một window là tổng có trọng số của các hoạt động (Bảng~\ref{tab:weights}). Mart \code{mart.engagement_trend} tính bốn window tuần (thứ Hai đến Chủ nhật) cho mỗi cặp người học × khoá học.
 
 \begin{table}[H]
 \centering\small
-\caption{Trọng số hoạt động trong điểm tương tác (\texttt{EngagementWeights})}\label{tab:weights}
+\caption{Trọng số hoạt động trong engagement score (\texttt{EngagementWeights})}\label{tab:weights}
 \begin{tabular}{@{}lll@{}}
 \toprule
-\textbf{Nhóm} & \textbf{Động từ (verb)} & \textbf{Trọng số} \\
+\textbf{Nhóm} & \textbf{Verb} & \textbf{Trọng số} \\
 \midrule
 Đăng nhập & \code{logged_in} & 1,0 \\
 Xem bài & \code{viewed}, \code{played}, \code{completed} & 1,0 \\
@@ -237,11 +237,11 @@ Thảo luận & \code{posted} & 1,5 \\
 \end{tabular}
 \end{table}
 
-Gọi $a, b, c$ là điểm của ba cửa sổ gần nhất theo thứ tự thời gian, và $r = 0{,}30$ là tỷ lệ giảm. Học viên được đánh dấu \emph{đang giảm} khi
+Gọi $a, b, c$ là điểm của ba window gần nhất theo thứ tự thời gian và $r = 0{,}30$ là tỷ lệ giảm. Người học được đánh dấu \emph{đang giảm} khi
 \[
   a > 0 \;\wedge\; b \le a\,(1 - r) \;\wedge\; c \le b\,(1 - r),
 \]
-tức là điểm giảm ít nhất 30\% trong \emph{mỗi} cửa sổ của hai tuần liên tiếp. Lớp phủ ``hôm nay'' dùng cùng trọng số, nên giá trị trong ngày khớp với giá trị kho dữ liệu tính vào hôm sau.
+tức là điểm giảm ít nhất 30\% trong \emph{mỗi} window của hai tuần liên tiếp. Overlay ``hôm nay'' dùng cùng bộ trọng số, nhờ đó giá trị trong ngày khớp với giá trị mà data warehouse tính vào hôm sau.
 
 Pipeline chỉ có giá trị khi kết quả đến được người dùng. Mục~\ref{chap:ui} trình bày ứng dụng web cho năm nhóm: người học, giảng viên, cố vấn học tập, quản trị viên tổ chức và đội vận hành nền tảng dữ liệu.
 
@@ -252,12 +252,12 @@ Pipeline chỉ có giá trị khi kết quả đến được người dùng. M�
 
 Giao diện trải qua ba vòng thiết kế:
 \begin{enumerate}
-  \item \textbf{Bảng điều khiển hướng nhà phát triển}: nút giả lập sự kiện, mã định danh thô và ô nhập token nằm lẫn với kết quả. Bản này chứng minh được API nhưng khó dùng với người dùng cuối.
-  \item \textbf{Mockup HTML tương tác và bản React đầu tiên}: mockup dùng dữ liệu mẫu nhưng tuân theo quy tắc nghiệp vụ thật (điểm rủi ro 35/30/20/15, ngưỡng 30/60/80, $k = 5$, tỷ lệ giảm 30\%), nhờ đó thống nhất bố cục trước khi viết mã. Khi xem lại, nhóm nhận thấy bản này mang dáng một dashboard chung chung (thẻ bo tròn lớn, nền chuyển màu, nhãn in hoa) hơn là một hệ thống quản lý học tập.
-  \item \textbf{Thiết kế lại theo quy ước LMS}: dựa trên Canvas và Moodle~\cite{canvas,moodle}, dùng thanh điều hướng toàn cục bên trái, menu theo khu vực, breadcrumb, thẻ khoá học có dải màu và trang bài tập có dòng thông tin chi tiết; chế độ sáng tông xanh da trời là mặc định. Mockup dùng chung stylesheet với ứng dụng nên hai bản luôn khớp nhau (Hình~\ref{fig:mock-learner}).
+  \item \textbf{Dashboard hướng nhà phát triển}: nút giả lập sự kiện, mã định danh thô và ô nhập token nằm lẫn với kết quả. Bản này chứng minh API hoạt động nhưng khó dùng với người dùng cuối.
+  \item \textbf{Mockup HTML tương tác và bản React đầu tiên}: mockup dùng dữ liệu mẫu nhưng tuân theo rule nghiệp vụ thật (điểm rủi ro 35/30/20/15, threshold 30/60/80, $k = 5$, tỷ lệ giảm 30\%), nhờ đó nhóm thống nhất được bố cục trước khi viết mã. Khi xem lại, nhóm nhận thấy bản này mang dáng dấp của một dashboard chung chung (thẻ bo tròn lớn, nền chuyển màu, nhãn in hoa) hơn là một hệ thống quản lý học tập.
+  \item \textbf{Thiết kế lại theo quy ước LMS}: dựa trên Canvas và Moodle~\cite{canvas,moodle}, dùng thanh điều hướng toàn cục bên trái, menu theo khu vực, breadcrumb, thẻ khoá học có dải màu và trang bài tập có dòng thông tin chi tiết; chế độ sáng tông xanh da trời là mặc định. Mockup dùng cùng bộ design token với ứng dụng (CSS được sao chép và giữ đồng bộ), nên hai bản thống nhất về ngôn ngữ thị giác (Hình~\ref{fig:mock-learner}).
 \end{enumerate}
 
-Ứng dụng viết bằng React 18 + TypeScript trên Vite, không thêm thư viện giao diện hay biểu đồ; mọi màn hình đọc API thật. Phần mockup không có API tương ứng (độ tươi báo cáo, kết quả kiểm tra chất lượng, ghi chú can thiệp) được bỏ thay vì dùng dữ liệu giả.
+Ứng dụng được viết bằng React 18 + TypeScript trên Vite, không thêm thư viện UI hay chart; mọi màn hình đọc API thật. Những phần của mockup không có API tương ứng (độ tươi của báo cáo, kết quả kiểm tra chất lượng, ghi chú can thiệp) được bỏ thay vì dùng dữ liệu giả.
 
 \begin{figure}[H]
 \centering
@@ -269,11 +269,11 @@ Giao diện trải qua ba vòng thiết kế:
 \subsection{Đáp ứng yêu cầu về giao diện}
 \label{sec:ui-criteria}
 
-Đề bài yêu cầu kết quả của mỗi BR hiển thị phù hợp với ngữ cảnh miền ứng dụng, với đặc điểm và thói quen của nhóm người dùng đích, đồng thời hài hoà trong trình bày lẫn tương tác.
+Đề bài yêu cầu kết quả của mỗi BR được hiển thị phù hợp với ngữ cảnh miền ứng dụng, với đặc điểm và thói quen của nhóm người dùng đích, đồng thời hài hoà cả về trình bày lẫn tương tác.
 
-\textbf{Ngữ cảnh miền ứng dụng.} Người học và giảng viên đã quen với các LMS như Canvas và Moodle, nên ứng dụng dùng lại bố cục và từ vựng của chúng thay vì đặt ra một kiểu điều hướng mới. Cụ thể: thanh điều hướng toàn cục màu xanh da trời ở cạnh trái, mỗi mục gồm biểu tượng và nhãn (Account, Dashboard, Assignments, Teaching, Advising, Reports, Platform); menu chữ theo khu vực, ẩn hoặc hiện bằng nút ba gạch; breadcrumb cho biết vị trí hiện tại, ví dụ ``Teaching › Assessment health''. Dashboard của người học đặt thẻ khoá học có dải màu, mã khoá và tiến độ; khoá đề xuất (BR2) hiện thành thẻ có nhãn ``Recommended for you'' và dòng ``Why'' giải thích lý do; cột phải chứa Notifications (BR1) và Recent feedback (BR3), tương tự khối To Do và Recent Feedback của Canvas. Trang bài tập (BR3) theo mẫu trang Assignment: tên khoá học, tên bài, dòng ``Language · Tests · Attempts · Submitting'', phần Instructions, khung phản hồi và Submission history. Nhãn BR1--BR8 phục vụ truy vết khi trình bày nhưng không có trong LMS thật, nên mặc định tắt và bật lại được ở Account › Preferences.
+\textbf{Ngữ cảnh miền ứng dụng.} Người học và giảng viên đã quen với các LMS như Canvas và Moodle, nên ứng dụng dùng lại bố cục và từ vựng của chúng thay vì đặt ra một kiểu điều hướng mới. Cụ thể: thanh điều hướng toàn cục màu xanh da trời ở cạnh trái, mỗi mục gồm biểu tượng và nhãn (Account, Dashboard, Assignments, Teaching, Advising, Reports, Platform); menu chữ theo khu vực, ẩn hoặc hiện bằng nút ba gạch; breadcrumb cho biết vị trí hiện tại, ví dụ ``Teaching › Assessment health''. Dashboard của người học đặt thẻ khoá học có dải màu, mã khoá và tiến độ; khoá đề xuất (BR2) hiện thành thẻ có nhãn ``Recommended for you'' và dòng ``Why'' giải thích lý do; cột phải chứa Notifications (BR1) và Recent feedback (BR3), tương tự khối To Do và Recent Feedback của Canvas. Trang bài tập (BR3) theo mẫu trang Assignment: tên khoá học, tên bài, dòng ``Language · Tests · Attempts · Submitting'', phần Instructions, khung phản hồi và Submission history. Các nhãn BR1--BR8 phục vụ truy vết khi trình bày nhưng không có trong LMS thật, nên mặc định tắt và có thể bật lại ở Account › Preferences.
 
-\textbf{Đặc điểm người dùng đích.} Mỗi nhóm có thiết bị, nhịp làm việc và câu hỏi riêng; Bảng~\ref{tab:ui-users} ánh xạ các đặc điểm đó vào lựa chọn thiết kế cụ thể.
+\textbf{Đặc điểm người dùng đích.} Mỗi nhóm có thiết bị, nhịp làm việc và câu hỏi riêng; Bảng~\ref{tab:ui-users} ánh xạ những đặc điểm đó vào các lựa chọn thiết kế cụ thể.
 
 {\small
 \begin{longtable}{@{}L{2.0cm}L{5.4cm}L{7.4cm}@{}}
@@ -286,58 +286,58 @@ Giao diện trải qua ba vòng thiết kế:
 \textbf{Nhóm} & \textbf{Đặc điểm, thói quen} & \textbf{Lựa chọn thiết kế} \\
 \midrule
 \endhead
-Người học & Học trên cả điện thoại lẫn máy tính, phiên ngắn; cần biết ngay việc tiếp theo và lý do của mỗi gợi ý & Thẻ khoá học, hạn nộp và thông báo trên cùng một trang; gợi ý luôn kèm lý do; bố cục co về 390 px, thanh bên thành dải ngang; trang bài tập tách rõ đề bài, mã và phản hồi từng test \\
+Người học & Học trên cả điện thoại lẫn máy tính, session ngắn; cần biết ngay việc tiếp theo và lý do của mỗi gợi ý & Thẻ khoá học, deadline và thông báo trên cùng một trang; gợi ý luôn kèm lý do; bố cục co về 390 px, thanh bên thành dải ngang; trang bài tập tách rõ đề bài, mã và phản hồi từng test \\
 Giảng viên & Làm việc trên máy tính, quản lý nhiều khoá; xem phân tích theo từng khoá và từng bài & Trang phân tích nằm trong khu Teaching có menu riêng; bộ lọc khoá học ở đầu trang; bảng có hàng chọn được để xem chi tiết; heatmap đánh dấu A, B, C các thời điểm cần xem lại \\
-Cố vấn & Xử lý hàng đợi theo mức ưu tiên; cần biết vì sao một người học bị gắn cờ trước khi liên hệ & Hàng đợi xếp theo điểm rủi ro; điểm phân rã thành 35 + 30 + 20 + 15 kèm câu giải thích; nút Acknowledge và Resolve theo vòng đời cảnh báo \\
-Quản trị tổ chức & Đọc báo cáo định kỳ, chuyển tiếp cho cấp trên; quan tâm quyền riêng tư & Ô tổng hợp, bảng theo khoá học và nút Export CSV; nhóm dưới 5 người bị ẩn kèm thông báo giải thích, không hiện tỷ lệ hay quy mô chính xác \\
-Đội nền tảng & Theo dõi sức khoẻ pipeline trong lúc vận hành & Bộ đếm từng chặng ingest $\rightarrow$ bronze $\rightarrow$ silver $\rightarrow$ đầu ra, hàng đợi dead-letter và luồng sự kiện trực tiếp \\
+Cố vấn & Xử lý queue theo mức ưu tiên; cần biết vì sao một người học bị gắn cờ trước khi liên hệ & Queue xếp theo điểm rủi ro; điểm phân rã thành 35 + 30 + 20 + 15 kèm câu giải thích; nút Acknowledge và Resolve theo alert lifecycle \\
+Quản trị tổ chức & Đọc báo cáo định kỳ, chuyển tiếp cho cấp trên; quan tâm quyền riêng tư & Ô số liệu tổng hợp, bảng theo khoá học và nút Export CSV; nhóm dưới 5 người bị ẩn kèm thông báo giải thích, không hiện tỷ lệ hay quy mô chính xác \\
+Đội nền tảng & Theo dõi sức khoẻ pipeline trong lúc vận hành & Bộ đếm từng chặng ingest $\rightarrow$ bronze $\rightarrow$ silver $\rightarrow$ đầu ra, dead-letter queue và luồng sự kiện trực tiếp \\
 \bottomrule
 \end{longtable}}
 
 \textbf{Hài hoà trong trình bày và tương tác.} Một màu nhấn duy nhất là xanh da trời \texttt{\#0277BD}, dùng cho thanh điều hướng, liên kết, nút chính và mục đang chọn; dải màu tuần tự của heatmap và chuỗi dữ liệu thứ nhất của biểu đồ cũng thuộc họ xanh dương, nên biểu đồ và khung giao diện cùng tông. Chế độ sáng là mặc định, kể cả khi hệ điều hành đang để chế độ tối, vì người dùng LMS thường đọc lâu và học vào ban ngày; chế độ tối là tuỳ chọn trong Account › Preferences, dùng nền xanh navy với cùng màu nhấn. Phong cách phẳng và nhất quán: font Lato, góc bo 4--6 px, khối nội dung viền mảnh, không bóng đổ, không nền chuyển màu.
 
-Màu trạng thái (tốt, cảnh báo, nghiêm trọng, nguy hiểm) chỉ dùng cho trạng thái và luôn kèm biểu tượng cùng nhãn chữ; bảng màu biểu đồ đã kiểm định khả năng phân biệt với người mù màu trên cả nền sáng lẫn nền tối; các cặp chữ và nền chính đạt tương phản tối thiểu 4,5:1 theo WCAG 2.1 AA~\cite{wcag21}, kể cả chữ trắng trên dải màu của thẻ khoá học. Tương tác theo một mẫu chung ở mọi trang: bộ lọc ở đầu trang, các ô tổng hợp, danh sách hoặc bảng, rồi chi tiết của hàng đang chọn; hàng được chọn có nền nhạt và vạch màu nhấn bên trái, mọi điều khiển có viền focus khi dùng bàn phím.
+Màu trạng thái (tốt, cảnh báo, nghiêm trọng, nguy hiểm) chỉ dùng cho trạng thái và luôn kèm biểu tượng cùng nhãn chữ; bảng màu biểu đồ đã được kiểm định khả năng phân biệt với người mù màu trên cả nền sáng lẫn nền tối; các cặp chữ và nền chính đạt tương phản tối thiểu 4,5:1 theo WCAG 2.1 AA~\cite{wcag21}, kể cả chữ trắng trên dải màu của thẻ khoá học. Tương tác theo một mẫu chung ở mọi trang: bộ lọc ở đầu trang, các ô số liệu tổng hợp, danh sách hoặc bảng, rồi chi tiết của hàng đang chọn; hàng được chọn có nền nhạt và vạch màu nhấn bên trái, mọi điều khiển có viền focus khi dùng bàn phím.
 
-\subsection{Hệ thống thiết kế}
+\subsection{Design system}
 
 \begin{itemize}
-  \item \textbf{Token thiết kế} cho màu, khoảng cách, bo góc và bóng đổ, có bộ giá trị riêng cho chế độ sáng và tối; chế độ sáng là mặc định, chế độ tối chuyển ở Account › Preferences.
+  \item \textbf{Design token} cho màu, khoảng cách, bo góc và bóng đổ, có bộ giá trị riêng cho chế độ sáng và tối; chế độ sáng là mặc định, chế độ tối chuyển ở Account › Preferences.
   \item \textbf{Khả năng tiếp cận}: mọi biểu đồ có tooltip và bảng ``Xem dạng bảng'' thay thế; nút có nhãn cho trình đọc màn hình; bố cục co giãn tới điện thoại mà không cuộn ngang.
-  \item \textbf{Nhãn yêu cầu}: mỗi trang và khối được gắn nhãn BR, mặc định tắt và bật lại được ở Account › Preferences để truy vết giao diện về yêu cầu khi trình bày.
+  \item \textbf{Nhãn yêu cầu}: mỗi trang và khối được gắn nhãn BR, mặc định tắt và có thể bật lại ở Account › Preferences để truy vết giao diện về yêu cầu khi trình bày.
 \end{itemize}
 
 \subsection{Kiến trúc frontend}
 
-Ứng dụng tổ chức theo \emph{workspace}, mỗi nhóm người dùng một workspace chọn ở thanh bên (Bảng~\ref{tab:routes}). Thanh trên cùng có chỉ báo sự kiện trực tiếp (Server-Sent Events), thông báo người học và trạng thái đăng nhập; mục Account mở khay cho biết vai trò đang đăng nhập và chứa tuỳ chọn chế độ tối cùng nhãn yêu cầu.
+Ứng dụng được tổ chức theo \emph{workspace}, mỗi nhóm người dùng một workspace chọn ở thanh bên (Bảng~\ref{tab:routes}). Thanh trên cùng có chỉ báo sự kiện trực tiếp (Server-Sent Events), thông báo người học và trạng thái đăng nhập; mục Account mở menu cho biết vai trò đang đăng nhập và chứa tuỳ chọn chế độ tối cùng nhãn yêu cầu.
 
 {\small
 \begin{longtable}{@{}L{2.4cm}L{4.4cm}L{6.4cm}L{1.4cm}@{}}
-\caption{Workspace, đường dẫn và trang}\label{tab:routes}\\
+\caption{Workspace, route và trang}\label{tab:routes}\\
 \toprule
-\textbf{Workspace} & \textbf{Đường dẫn} & \textbf{Nội dung} & \textbf{BR} \\
+\textbf{Workspace} & \textbf{Route} & \textbf{Nội dung} & \textbf{BR} \\
 \midrule
 \endfirsthead
 \toprule
-\textbf{Workspace} & \textbf{Đường dẫn} & \textbf{Nội dung} & \textbf{BR} \\
+\textbf{Workspace} & \textbf{Route} & \textbf{Nội dung} & \textbf{BR} \\
 \midrule
 \endhead
 Learner & \code{/learner} & Khoá học, gợi ý, phản hồi gần đây, thông báo & 1, 2 \\
 Learner & \code{/learner/code-lab} & Trình soạn mã, phản hồi từng test, các lần nộp & 3 \\
 Instructor & \code{/instructor/assessments} & Câu hỏi và chi tiết test case & 4 \\
-Instructor & \code{/instructor/videos} & Heatmap theo phiên bản, lớp phủ hôm nay, thời điểm cần xem lại & 7 \\
-Instructor & \code{/instructor/engagement} & Trung bình khoá học, học viên đang giảm & 8 \\
+Instructor & \code{/instructor/videos} & Heatmap theo phiên bản, overlay hôm nay, thời điểm cần xem lại & 7 \\
+Instructor & \code{/instructor/engagement} & Trung bình khoá học, người học đang giảm & 8 \\
 Instructor & \code{/instructor/content} & Xuất bản phiên bản, theo dõi đồng bộ, xem trước tìm kiếm & 8 \\
-Advisor & \code{/advisor} & Hàng đợi rủi ro, phân rã điểm, lịch sử, cảnh báo & 5 \\
+Advisor & \code{/advisor} & Queue rủi ro, phân rã điểm, lịch sử, cảnh báo & 5 \\
 Org admin & \code{/admin} & Tiến độ tổ chức có ẩn nhóm nhỏ, xuất CSV & 6 \\
-Data platform & \code{/pipeline} & Bộ đếm luồng, thông lượng, topic, DLQ, silver & -- \\
+Data platform & \code{/pipeline} & Bộ đếm luồng, throughput, topic, DLQ, silver & -- \\
 \bottomrule
 \end{longtable}}
 
-Workspace Instructor, Advisor và Org admin được bảo vệ bằng thẻ đăng nhập bằng tên người dùng và mật khẩu, mỗi workspace một phiên riêng. Máy chủ đối chiếu mật khẩu với mã băm Argon2id của các tài khoản cấu hình sẵn (\code{EDU_STAFF_ACCOUNTS}) rồi cấp cookie phiên HttpOnly theo vai trò, có hạn tám giờ; các yêu cầu sau đó gửi cookie này kèm header \code{X-Staff-Role}. Danh tính, vai trò và phạm vi khoá học/tổ chức lấy từ tài khoản phía máy chủ, giao diện không tự khai báo quyền. Các điều khiển thử nghiệm (giả lập sự kiện LMS, bộ sinh telemetry) được tách vào khối ``Demo controls'' viền nét đứt. Biểu đồ vẽ bằng SVG thuần theo chiều rộng thật của phần tử, nên chữ không bị co giãn.
+Workspace Instructor, Advisor và Org admin được bảo vệ bằng thẻ đăng nhập bằng tên người dùng và mật khẩu, mỗi workspace một session riêng. Máy chủ đối chiếu mật khẩu với hash Argon2id của các tài khoản cấu hình sẵn (\code{EDU_STAFF_ACCOUNTS}) rồi cấp cookie session HttpOnly theo vai trò, có hạn tám giờ; các request sau đó gửi cookie này kèm header \code{X-Staff-Role}. Danh tính, vai trò và phạm vi khoá học/tổ chức được lấy từ tài khoản phía máy chủ, giao diện không tự khai báo quyền. Các điều khiển thử nghiệm (giả lập sự kiện LMS, bộ sinh telemetry) được tách vào khối ``Demo controls'' viền nét đứt. Biểu đồ được vẽ bằng SVG thuần theo chiều rộng thật của phần tử, nên chữ không bị co giãn.
 
 \subsection{Các màn hình chính}
 
-Ảnh trong mục này chụp từ ứng dụng thật trên dữ liệu hệ thống, ở chế độ sáng mặc định, trừ khi ghi là mockup.
+Các ảnh trong mục này được chụp từ ứng dụng thật trên dữ liệu hệ thống, ở chế độ sáng mặc định, trừ khi được ghi rõ là mockup.
 
 \begin{figure}[H]
 \centering
@@ -363,7 +363,7 @@ Workspace Instructor, Advisor và Org admin được bảo vệ bằng thẻ đ�
 \begin{figure}[H]
 \centering
 \includegraphics[width=\textwidth]{figures/ui/advisor.jpg}
-\caption{Learners to support (BR5): hàng đợi rủi ro và phân rã 100 điểm thành 35 + 30 + 20 + 15}
+\caption{Learners to support (BR5): queue rủi ro và phân rã 100 điểm thành 35 + 30 + 20 + 15}
 \label{fig:ui-br5}
 \end{figure}
 
@@ -408,5 +408,5 @@ Giao diện được kiểm chứng theo ba cách:
 \begin{itemize}
   \item \textbf{Biên dịch nghiêm ngặt}: TypeScript \code{strict}; bản build production thành công.
   \item \textbf{Kiểm tra thủ công trên trình duyệt} với dữ liệu thật ở chế độ sáng/tối, desktop và điện thoại: một bài nộp đi qua sandbox sinh thông báo mới; các trang BR6--BR8 đọc mart thật từ Trino.
-  \item \textbf{Kiểm thử chấp nhận bằng Playwright} trên stack thật, gồm 12 test trong năm tệp spec: 2 test BR1--BR3, 3 test BR4/BR5, 4 test BR6--BR8, 2 test cho hai chế độ classroom và replay của BR4/BR5 và 1 test phiên đăng nhập nhân sự. Chín test của ba bộ đầu đã đạt ở các lần chạy trước khi gộp nhánh BR4/BR5; kết quả JSON và ảnh chụp được lưu kèm. Trên mã đã gộp, các test này đăng nhập bằng tài khoản nhân sự và cả bộ 12 test chưa được chạy lại.
+  \item \textbf{Acceptance test bằng Playwright} trên stack thật, gồm 12 test trong năm tệp spec: 2 test BR1--BR3, 3 test BR4/BR5, 4 test BR6--BR8, 2 test cho hai chế độ classroom và replay của BR4/BR5 và 1 test session đăng nhập nhân sự. Chín test của ba bộ đầu đã đạt ở các lần chạy trước khi gộp nhánh BR4/BR5; kết quả JSON và ảnh chụp được lưu kèm. Trên mã đã gộp, các test này đăng nhập bằng tài khoản nhân sự và cả bộ 12 test chưa được chạy lại.
 \end{itemize}

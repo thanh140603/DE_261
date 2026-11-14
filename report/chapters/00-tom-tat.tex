@@ -1,20 +1,20 @@
 \chapter*{Tóm tắt}
 \addcontentsline{toc}{chapter}{Tóm tắt}
 
-Báo cáo trình bày thiết kế và hiện thực \textbf{Project}, nền tảng kỹ thuật dữ liệu cho hệ thống giáo dục trực tuyến quy mô lớn. Nền tảng tiếp nhận bốn nguồn dữ liệu rời rạc --- telemetry clickstream từ web và mobile, CDC từ PostgreSQL, kho học liệu phi cấu trúc và nhật ký sandbox --- rồi chuyển hoá thành kho dữ liệu phục vụ tám yêu cầu nghiệp vụ (BR1--BR8) của bốn nhóm người dùng: người học, giảng viên, cố vấn học tập và quản trị viên tổ chức.
+Báo cáo trình bày thiết kế và hiện thực \textbf{Project}, một nền tảng data engineering cho hệ thống giáo dục trực tuyến quy mô lớn. Nền tảng tiếp nhận bốn nguồn dữ liệu vốn rời rạc --- telemetry clickstream từ web và mobile, CDC từ PostgreSQL, kho học liệu phi cấu trúc và log của sandbox chấm bài --- rồi chuyển hoá chúng thành một data warehouse đáp ứng tám yêu cầu nghiệp vụ (BR1--BR8) của bốn nhóm người dùng: người học, giảng viên, cố vấn học tập và quản trị viên tổ chức.
 
-Kiến trúc dùng Kafka và Debezium làm tầng tiếp nhận và event bus; Spark (batch và Structured Streaming) là engine xử lý chính; Delta Lake trên MinIO tổ chức theo mô hình medallion bronze--silver--gold, với lớp gold là kho dữ liệu hình sao Kimball; Hive Metastore lập danh mục và Trino phục vụ SQL; Redis đảm nhận phục vụ độ trễ thấp, OpenSearch tìm kiếm lai. Mã nguồn tổ chức thành bảy \en{bounded context} theo DDD và kiến trúc lục giác, cho phép cùng một use case chạy trên nhiều engine và kiểm thử độc lập với engine. Mười sáu ADR ghi lại các quyết định, gồm những điều chỉnh so với kiến trúc tham chiếu. BR1--BR3 chạy end-to-end trên Kafka, Redis, PostgreSQL và Delta; BR4--BR8 chạy trên hạ tầng lakehouse.
+Về kiến trúc, Kafka và Debezium đảm nhận tầng ingestion, trong đó Kafka là event bus; Spark (batch và Structured Streaming) là engine xử lý chính; Delta Lake trên MinIO tổ chức dữ liệu theo mô hình medallion bronze--silver--gold, trong đó lớp gold là data warehouse theo star schema Kimball; Hive Metastore làm catalog và Trino phục vụ SQL; Redis đảm bảo serving latency thấp, OpenSearch cung cấp tìm kiếm lai. Mã nguồn được chia thành bảy bounded context theo DDD và kiến trúc hexagonal, nhờ đó cùng một use case có thể chạy trên nhiều engine mà vẫn kiểm thử được độc lập với engine. Mười sáu ADR ghi lại các quyết định thiết kế, kể cả những điều chỉnh so với kiến trúc tham chiếu. BR1--BR3 chạy end-to-end trên Kafka, Redis, PostgreSQL và Delta; BR4--BR8 chạy trên hạ tầng lakehouse.
 
-Về kết quả đo trên máy cá nhân với dữ liệu tổng hợp:
+Kết quả đo trên máy cá nhân với dữ liệu tổng hợp được tóm tắt như sau:
 \begin{itemize}
-  \item \textbf{BR1--BR3}: trung vị 12{,}4 ms từ sự kiện đến thông báo, 2{,}2 ms cho API gợi ý, 14{,}2 ms để nhận 202 và 71{,}0 ms từ nộp bài đến khi chấm xong.
-  \item \textbf{BR5}: từ thay đổi CDC đến cảnh báo bỏ học mất khoảng 10{,}2 giây (kịch bản chấp nhận, không đo lại).
-  \item \textbf{BR8}: nội dung xuất bản được lập chỉ mục sau trung vị 501 ms.
-  \item \textbf{BR7--BR8}: lớp phủ hiển thị sau khoảng 6 giây, ổn định khi tải tăng 15 lần.
-  \item \textbf{BR6--BR8}: mart qua Trino 81--172 ms; qua API có cache 2{,}6--6{,}0 ms.
-  \item \textbf{Kho dữ liệu}: 43 model xây trong khoảng 2 phút (121--130 giây), đạt mọi cổng chất lượng.
+  \item \textbf{BR1--BR3}: median 12{,}4 ms từ lúc phát sự kiện đến khi thông báo đọc được, 2{,}2 ms cho API gợi ý, 14{,}2 ms để nhận 202 và 71{,}0 ms từ lúc nộp bài đến khi chấm xong.
+  \item \textbf{BR5}: từ thay đổi CDC đến cảnh báo dropout mất khoảng 10{,}2 giây (kịch bản chấp nhận, không đo lại).
+  \item \textbf{BR8}: nội dung xuất bản được index sau median 501 ms.
+  \item \textbf{BR7--BR8}: overlay hiển thị sau khoảng 6 giây và giữ ổn định khi tải tăng 15 lần.
+  \item \textbf{BR6--BR8}: mart truy vấn qua Trino mất 81--172 ms; qua API có cache còn 2{,}6--6{,}0 ms.
+  \item \textbf{Data warehouse}: 43 model được build trong khoảng 2 phút (121--130 giây) và đạt toàn bộ quality gate.
 \end{itemize}
-Hệ thống có 379 test đơn vị, 1 test tích hợp end-to-end, 12 test trình duyệt cùng các kịch bản chấp nhận; báo cáo cũng trình bày giao diện web, các giới hạn còn lại và hướng phát triển.
+Hệ thống có 379 unit test, 1 integration test end-to-end, 12 browser test cùng các kịch bản kiểm chứng nghiệp vụ. Báo cáo cũng trình bày giao diện web, những hạn chế còn lại và hướng phát triển.
 
 \vspace{3pt}
-{\small\textbf{Từ khoá:} kỹ thuật dữ liệu, lakehouse, Delta Lake, Kafka, Debezium, CDC, Spark Structured Streaming, learning analytics.}
+{\small\textbf{Từ khoá:} data engineering, lakehouse, Delta Lake, Kafka, Debezium, CDC, Spark Structured Streaming, learning analytics.}

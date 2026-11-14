@@ -1,9 +1,9 @@
-\chapter{Lakehouse và kho dữ liệu}
+\chapter{Lakehouse và data warehouse}
 \label{chap:lakehouse}
 
 \section{Tổng quan lakehouse}
 
-Chương này trình bày lakehouse~\cite{armbrust2021lakehouse} Delta Lake, tổ chức theo medallion~\cite{databricksMedallion}, với kho dữ liệu chính là lớp gold. Nền tảng không có cơ sở dữ liệu phân tích thứ hai: Spark ghi bảng Delta, Hive Metastore lập danh mục, Trino phục vụ SQL và Redis xử lý tra cứu mili-giây. Toàn bộ DDL, model, cổng chất lượng và cấu hình nằm dưới dạng mã.
+Chương này trình bày lakehouse~\cite{armbrust2021lakehouse} Delta Lake, được tổ chức theo mô hình medallion~\cite{databricksMedallion} với data warehouse chính là lớp gold. Nền tảng không có cơ sở dữ liệu phân tích thứ hai: Spark ghi bảng Delta, Hive Metastore làm catalog, Trino phục vụ SQL và Redis xử lý các tra cứu mili-giây. Toàn bộ DDL, model, quality gate và cấu hình đều được quản lý dưới dạng mã.
 
 \subsection{Kiến trúc medallion}
 
@@ -12,7 +12,7 @@ Chương này trình bày lakehouse~\cite{armbrust2021lakehouse} Delta Lake, t�
 \begin{tikzpicture}[font=\footnotesize, node distance=10mm]
   \node[box, text width=1.8cm, minimum height=18mm] (src) {\textbf{Kafka}\\\scriptsize telemetry, CDC, sự kiện miền};
   \node[box, right=of src, text width=2.05cm, minimum height=18mm, draw=bronze, fill=bronze!10] (b) {\textbf{BRONZE}\\\scriptsize 4 bảng\\thô, append-only\\còn PII};
-  \node[box, right=of b, text width=2.05cm, minimum height=18mm, draw=silver, fill=silver!12] (s) {\textbf{SILVER}\\\scriptsize 20 bảng\\sạch, khử trùng lặp\\bút danh, CDF};
+  \node[box, right=of b, text width=2.05cm, minimum height=18mm, draw=silver, fill=silver!12] (s) {\textbf{SILVER}\\\scriptsize 20 bảng\\sạch, dedup\\pseudonym, CDF};
   \node[box, right=of s, text width=2.05cm, minimum height=18mm, draw=gold!80!black, fill=gold!10] (g) {\textbf{GOLD}\\\scriptsize 9 chiều + 11 sự kiện\\hình sao Kimball};
   \node[box, right=of g, text width=2.05cm, minimum height=18mm, draw=brand, fill=brandsoft] (m) {\textbf{MART}\\\textbf{FEATURES}\\\scriptsize 4 mart + 1 bảng\\theo BR, $k = 5$};
   \draw[arr] (src) -- node[above, font=\scriptsize]{1 phút} (b);
@@ -29,45 +29,45 @@ Chương này trình bày lakehouse~\cite{armbrust2021lakehouse} Delta Lake, t�
 \end{figure}
 
 {\small
-\begin{longtable}{@{}L{1.7cm}L{1.4cm}L{3.2cm}L{8.2cm}@{}}
-\caption{Hợp đồng dữ liệu của từng lớp}\label{tab:layers-contract}\\
+\begin{longtable}{@{}L{2.1cm}L{1.2cm}L{3.0cm}L{8.2cm}@{}}
+\caption{Data contract của từng lớp}\label{tab:layers-contract}\\
 \toprule
-\textbf{Schema} & \textbf{Số bảng} & \textbf{Bên ghi} & \textbf{Hợp đồng} \\
+\textbf{Schema} & \textbf{Số bảng} & \textbf{Writer} & \textbf{Contract} \\
 \midrule
 \endfirsthead
 \toprule
-\textbf{Schema} & \textbf{Số bảng} & \textbf{Bên ghi} & \textbf{Hợp đồng} \\
+\textbf{Schema} & \textbf{Số bảng} & \textbf{Writer} & \textbf{Contract} \\
 \midrule
 \endhead
-\code{bronze} & 4 & Stream landing & Mỗi bản ghi Kafka một dòng, giữ nguyên như nhận được. Chỉ append, còn PII, chỉ vai trò \code{pii_steward} đọc được. Giữ 30 ngày (telemetry) hoặc 90 ngày (CDC, sự kiện). Phát lại bronze dựng lại được mọi lớp sau. \\
-\code{silver} & 19 & Stream silver + batch đối soát & Có kiểu, đã kiểm tra hợp lệ, khử trùng lặp, đúng schema hiện hành, đã khử định danh bằng HMAC; bỏ định danh trực tiếp. CDC áp dụng theo thứ tự LSN, xoá mềm. Bật Change Data Feed. \\
-\code{gold} & 9 + 11 & \code{edu warehouse run} & Lược đồ hình sao Kimball (ADR 0012): bảng chiều dùng chung, khoá thay thế tất định, bảng sự kiện có grain rõ ràng. \\
-\code{mart} & 4 & \code{--layer mart} & Mỗi BR một bảng, theo nhu cầu người đọc; ngưỡng lấy từ policy của domain. \code{mart.org_progress} là bảng duy nhất quản trị viên B2B được đọc. \\
-\code{features} & 1 & \code{--layer features} & Kho đặc trưng ngoại tuyến cho BR2, mỗi \code{as_of_date} một phân vùng để huấn luyện đúng thời điểm (point-in-time). \\
-\code{ops} & 2 & Runner & \code{pipeline_runs} (mỗi lần build: cửa sổ, số dòng, phiên bản Delta) và \code{dq_results} (kết quả kiểm tra chất lượng). \\
+\code{bronze} & 4 & Stream landing & Mỗi bản ghi Kafka tương ứng một dòng, giữ nguyên như khi nhận. Chỉ append, còn PII, chỉ vai trò \code{pii_steward} được đọc. Lưu 30 ngày (telemetry) hoặc 90 ngày (CDC, sự kiện). Replay bronze có thể rebuild mọi lớp phía sau. \\
+\code{silver} & 19 & Stream silver + batch đối soát & Có kiểu dữ liệu, đã kiểm tra hợp lệ, dedup, đúng schema hiện hành, đã pseudonymise bằng HMAC; định danh trực tiếp bị loại bỏ. CDC áp dụng theo thứ tự LSN, xoá mềm. Change Data Feed được bật. \\
+\code{gold} & 9 + 11 & \code{edu warehouse run} & Star schema Kimball (ADR 0012): dimension dùng chung, surrogate key tất định, fact table có grain rõ ràng. \\
+\code{mart} & 4 & \code{--layer mart} & Mỗi BR một bảng, thiết kế theo nhu cầu người đọc; ngưỡng lấy từ policy của domain. \code{mart.org_progress} là bảng duy nhất mà quản trị viên B2B được đọc. \\
+\code{features} & 1 & \code{--layer} \code{features} & Offline feature store cho BR2, mỗi \code{as_of_date} là một partition để huấn luyện đúng thời điểm (point-in-time). \\
+\code{ops} & 2 & Runner & \code{pipeline_runs} (mỗi lần build: window, số dòng, phiên bản Delta) và \code{dq_results} (kết quả kiểm tra chất lượng). \\
 \bottomrule
 \end{longtable}}
 
-\subsection{Chuẩn hoá telemetry và tiến hoá schema}
+\subsection{Chuẩn hoá telemetry và schema evolution}
 
 Telemetry đi qua use case \code{NormalizeEvents}, dùng chung cho job silver và job thời gian thực:
 \begin{enumerate}
-  \item \textbf{Kiểm tra hợp lệ} theo hợp đồng schema: thiếu trường bắt buộc, verb ngoài từ vựng hoặc payload hỏng bị đưa vào DLQ kèm lý do.
-  \item \textbf{Chuyển schema}: \code{SchemaMigrator} nâng phiên bản 1.0 lên 1.1; phiên bản không nhận diện bị từ chối.
-  \item \textbf{Khử định danh}: thay định danh người học bằng bút danh; loại bỏ email, họ tên, IP và mã thiết bị.
-  \item \textbf{Thời gian}: tính độ trễ so với lúc tiếp nhận, gắn cờ \code{late} và ghim sự kiện có đồng hồ chạy trước.
-  \item \textbf{Khử trùng lặp}: MERGE theo \code{event_id} (chỉ chèn) loại lần gửi lại từ thiết bị offline.
+  \item \textbf{Kiểm tra hợp lệ} theo schema contract: thiếu trường bắt buộc, verb nằm ngoài từ vựng hoặc payload hỏng đều bị đưa vào DLQ kèm lý do.
+  \item \textbf{Migrate schema}: \code{SchemaMigrator} nâng phiên bản 1.0 lên 1.1; phiên bản không nhận diện được bị từ chối.
+  \item \textbf{Pseudonymisation}: thay định danh người học bằng pseudonym; loại bỏ email, họ tên, IP và mã thiết bị.
+  \item \textbf{Xử lý thời gian}: tính độ trễ so với thời điểm tiếp nhận, gắn cờ \code{late} và ghim các sự kiện có đồng hồ chạy trước.
+  \item \textbf{Dedup}: MERGE theo \code{event_id} (chỉ insert) nhằm loại các lần gửi lại từ thiết bị offline.
 \end{enumerate}
 
-\subsection{Khử định danh và phân quyền}
+\subsection{Pseudonymisation và phân quyền}
 
-Định danh thật chỉ tồn tại ở bronze (ADR 0007); từ silver trở đi, người học được biểu diễn bằng bút danh \code{k<version>_<24 hex>} sinh từ HMAC-SHA256 với khoá có phiên bản. Hàm SQL \code{pseudonymize()} dùng cùng thuật toán và khoá với \code{HmacPseudonymizer} của context telemetry, nên telemetry, CDC và sự kiện miền vẫn nối được. Cổng \code{silver_no_raw_identifiers} chặn định danh thô lọt qua bronze.
+Định danh thật chỉ tồn tại ở bronze (ADR 0007); từ silver trở đi, người học được biểu diễn bằng pseudonym \code{k<version>_<24 hex>} sinh từ HMAC-SHA256 với key có phiên bản. Hàm SQL \code{pseudonymize()} dùng cùng thuật toán và key với \code{HmacPseudonymizer} của context telemetry, nhờ đó telemetry, CDC và sự kiện miền vẫn join được với nhau. Quality gate \code{silver_no_raw_identifiers} chặn định danh thô lọt qua bronze.
 
 Trino áp dụng phân quyền chỉ đọc theo schema (Bảng~\ref{tab:trino-roles}). Quản trị viên B2B chỉ thấy đúng một bảng đã áp dụng k-anonymity.
 
 \begin{table}[H]
 \centering\small
-\caption{Phân quyền truy cập kho dữ liệu qua Trino}\label{tab:trino-roles}
+\caption{Phân quyền truy cập data warehouse qua Trino}\label{tab:trino-roles}
 \begin{tabular}{@{}lccccc@{}}
 \toprule
 \textbf{Người dùng} & \textbf{bronze} & \textbf{silver} & \textbf{gold} & \textbf{mart} & \textbf{features / ops} \\
@@ -80,17 +80,17 @@ Trino áp dụng phân quyền chỉ đọc theo schema (Bảng~\ref{tab:trino-r
 \end{tabular}
 \end{table}
 
-\subsection{Mô hình chiều Kimball ở lớp gold}
+\subsection{Star schema Kimball ở lớp gold}
 
-Tám yêu cầu cùng đọc các sự kiện chồng lấn (học tập, bài nộp, ghi danh, rủi ro) theo những thực thể chung (người học, khoá học, nội dung, bài tập, tổ chức). Thiếu bảng chiều dùng chung, mỗi mart tự suy ra thực thể và dần lệch nhau; vì vậy lớp gold được mô hình hoá thành lược đồ hình sao Kimball~\cite{kimball2013} (ADR 0012). Bảng~\ref{tab:bus} là ma trận bus cho biết mỗi bảng sự kiện dùng chiều nào.
+Tám yêu cầu cùng đọc những sự kiện chồng lấn (học tập, bài nộp, ghi danh, rủi ro) theo các thực thể chung (người học, khoá học, nội dung, bài tập, tổ chức). Nếu thiếu dimension dùng chung, mỗi mart sẽ tự suy ra thực thể theo cách riêng và dần lệch nhau; vì vậy lớp gold được mô hình hoá thành star schema Kimball~\cite{kimball2013} (ADR 0012). Bảng~\ref{tab:bus} là bus matrix cho biết mỗi fact table sử dụng những dimension nào.
 
 \begin{table}[H]
 \centering\footnotesize
 \setlength{\tabcolsep}{3.5pt}
-\caption{Ma trận bus của lớp gold (D: vai trò ngày, $\bullet$: khoá chiều)}\label{tab:bus}
+\caption{Bus matrix của lớp gold (D: vai trò ngày, $\bullet$: khoá dimension)}\label{tab:bus}
 \begin{tabular}{@{}L{4.6cm}cccccccccc@{}}
 \toprule
-\textbf{Bảng sự kiện (grain)} & \rotatebox{70}{date} & \rotatebox{70}{learner} & \rotatebox{70}{course} & \rotatebox{70}{content} & \rotatebox{70}{activity} & \rotatebox{70}{lesson} & \rotatebox{70}{assignment} & \rotatebox{70}{test case} & \rotatebox{70}{org} & \textbf{BR} \\
+\textbf{Fact table (grain)} & \rotatebox{70}{date} & \rotatebox{70}{learner} & \rotatebox{70}{course} & \rotatebox{70}{content} & \rotatebox{70}{activity} & \rotatebox{70}{lesson} & \rotatebox{70}{assignment} & \rotatebox{70}{test case} & \rotatebox{70}{org} & \textbf{BR} \\
 \midrule
 \code{fct_learning_event} (một sự kiện) & D & $\bullet$ & $\bullet$ & $\bullet$ & $\bullet$ & & & & & 6,7,8 \\
 \code{fct_learner_daily_activity} (người học × khoá × ngày) & D & $\bullet$ & $\bullet$ & & & & & & & 2,8 \\
@@ -107,24 +107,24 @@ Tám yêu cầu cùng đọc các sự kiện chồng lấn (học tập, bài n
 \end{tabular}
 \end{table}
 
-\paragraph{Bảng chiều và khoá thay thế}
+\paragraph{Dimension và surrogate key}
 
 \begin{itemize}
-  \item \textbf{SCD loại 2} cho \code{dim_learner} và \code{dim_content}. Với \code{dim_learner}, báo cáo B2B phải quy hoạt động về tổ chức tại thời điểm xảy ra. Với \code{dim_content}, mỗi phiên bản video có một dòng riêng; video quay lại có độ dài khác nên giây thứ $n$ của hai phiên bản không cùng nghĩa (BR7). Các chiều còn lại dùng SCD loại 1.
-  \item \textbf{Khoá thay thế tất định}: \code{xxhash64(natural key)} với SCD1 và \code{xxhash64(natural key, valid_from)} với SCD2. Dựng lại một bảng chiều sẽ tạo lại đúng các khoá cũ, nên bảng chiều và bảng sự kiện build độc lập, không cần dịch vụ sinh số tuần tự.
-  \item \textbf{Thành viên suy luận} (inferred member) cho chiều đến muộn: telemetry của một người học mà dòng CDC chưa đến sẽ tạo một dòng \code{is_inferred = true}, mang đúng khoá mà dòng thật sẽ có. Khi dòng thật đến, nó ghi đè tại chỗ nên không bảng sự kiện nào phải đổi khoá. Đã kiểm chứng: người học \code{l-131} có sự kiện hai ngày trước dòng CDC vẫn giữ nguyên khoá qua quá trình chuyển đổi.
-  \item Khoá \code{-1} biểu diễn ``không áp dụng'', ví dụ nội dung của một sự kiện đăng nhập.
+  \item \textbf{SCD type 2} cho \code{dim_learner} và \code{dim_content}. Với \code{dim_learner}, báo cáo B2B phải quy hoạt động về tổ chức tại đúng thời điểm xảy ra. Với \code{dim_content}, mỗi phiên bản video có một dòng riêng vì video quay lại có độ dài khác nhau, khiến giây thứ $n$ của hai phiên bản không còn ứng với cùng một đoạn video (BR7). Các dimension còn lại dùng SCD type 1.
+  \item \textbf{Surrogate key tất định}: \code{xxhash64(natural key)} với SCD1 và \code{xxhash64(natural key, valid_from)} với SCD2. Rebuild một dimension sẽ tạo lại đúng các key cũ, nên dimension và fact table có thể build độc lập mà không cần dịch vụ sinh số tuần tự.
+  \item \textbf{Inferred member} cho dimension đến muộn: telemetry của một người học khi dòng CDC chưa đến sẽ tạo một dòng \code{is_inferred = true} mang đúng key mà dòng thật sẽ có. Khi dòng thật đến, nó ghi đè tại chỗ nên không fact table nào phải đổi key. Điều này đã được kiểm chứng: người học \code{l-131} có sự kiện trước dòng CDC hai ngày vẫn giữ nguyên key qua toàn bộ quá trình chuyển đổi.
+  \item Key \code{-1} biểu diễn ``không áp dụng'', ví dụ nội dung của một sự kiện đăng nhập.
 \end{itemize}
 
-Một số quy tắc dùng chung: bài học hoàn thành khi CDC báo \code{percent_done = 100} \emph{hoặc} telemetry có sự kiện \code{completed}, tuỳ sự kiện nào đến trước; vị trí video vượt độ dài phiên bản bị kẹp về giây cuối; lần chạy sandbox mới nhất thay thế các lần trước.
+Một số quy tắc dùng chung: bài học được coi là hoàn thành khi CDC báo \code{percent_done = 100} \emph{hoặc} telemetry có sự kiện \code{completed}, tuỳ sự kiện nào đến trước; vị trí video vượt quá độ dài của phiên bản bị kẹp về giây cuối; lần chạy sandbox mới nhất thay thế các lần trước.
 
 \subsection{Data mart theo yêu cầu nghiệp vụ}
 
-Mỗi mart hiện thực một use case phân tích bằng SQL tập hợp. Ngưỡng được truyền từ value object của domain (\code{policy_params}), ghi trên từng dòng và có test đơn vị đối chiếu domain.
+Mỗi mart hiện thực một use case phân tích bằng SQL tổng hợp. Các ngưỡng được truyền từ value object của domain (\code{policy_params}), ghi trên từng dòng và có unit test đối chiếu với domain.
 
 {\small
 \begin{longtable}{@{}L{3.6cm}L{2.0cm}L{6.0cm}L{2.9cm}@{}}
-\caption{Các data mart và kho đặc trưng}\label{tab:marts}\\
+\caption{Các data mart và feature store}\label{tab:marts}\\
 \toprule
 \textbf{Bảng} & \textbf{BR / người đọc} & \textbf{Ngữ nghĩa} & \textbf{Policy} \\
 \midrule
@@ -133,55 +133,55 @@ Mỗi mart hiện thực một use case phân tích bằng SQL tập hợp. Ngư
 \textbf{Bảng} & \textbf{BR / người đọc} & \textbf{Ngữ nghĩa} & \textbf{Policy} \\
 \midrule
 \endhead
-\code{mart.assessment_item_stats} & BR4, giảng viên & Tỷ lệ đạt theo (bài tập, test case) trong 28 ngày; bất thường khi có $\ge 30$ lượt, tỷ lệ đạt $\le 0{,}35$ và thấp hơn trung vị của bài tập ít nhất $0{,}30$ & \code{AnomalyThreshold} \\
+\code{mart.assessment_item_stats} & BR4, giảng viên & Tỷ lệ đạt theo (bài tập, test case) trong 28 ngày; bất thường khi có $\ge 30$ lượt, tỷ lệ đạt $\le 0{,}35$ và thấp hơn median của bài tập ít nhất $0{,}30$ & \code{AnomalyThreshold} \\
 \code{mart.org_progress} & BR6, quản trị B2B & Theo tổ chức × khoá học: quy mô nhóm, tỷ lệ hoàn thành, mức thành thạo trung bình; \textbf{nhóm dưới $k$ người chỉ công bố quy mô}~\cite{sweeney2002} & \code{MinCohortPolicy(k=5)} \\
 \code{mart.video_heatmap} & BR7, giảng viên & Lưới dày theo từng giây cho mỗi phiên bản video trong 28 ngày; số người học phân biệt chính xác; cường độ 0--1 & -- \\
-\code{mart.engagement_trend} & BR8, giảng viên & 4 cửa sổ tuần cho mỗi người học × khoá; ``giảm'' khi điểm giảm $\ge 30\%$ trong mỗi cửa sổ của hai tuần gần nhất & \code{EngagementWeights}, tỷ lệ 0,30 \\
-\code{features.learner_longterm} & BR2, gợi ý & \code{ComputeBatchFeatures} trong 30 ngày, theo \code{as_of_date} & registry đặc trưng v1 \\
+\code{mart.engagement_trend} & BR8, giảng viên & 4 window tuần cho mỗi người học × khoá; ``giảm'' khi điểm giảm $\ge 30\%$ trong mỗi window của hai tuần gần nhất & \code{EngagementWeights}, tỷ lệ 0,30 \\
+\code{features.learner_longterm} & BR2, gợi ý & \code{ComputeBatchFeatures} trong 30 ngày, theo \code{as_of_date} & registry feature v1 \\
 \bottomrule
 \end{longtable}}
 
-BR1, BR3 và BR5 được phục vụ thời gian thực qua dịch vụ thông báo, dịch vụ chấm bài và runtime BR4--BR5 (ADR 0009). Kho dữ liệu lưu lịch sử phân tích bên cạnh: \code{fct_risk_score_daily} và \code{fct_dropout_alert} có nhãn \code{dropped_within_30d} để đánh giá độ chính xác cảnh báo; \code{fct_notification} và \code{fct_submission} phục vụ BR1 và BR3.
+BR1, BR3 và BR5 được phục vụ thời gian thực qua dịch vụ thông báo, dịch vụ chấm bài và runtime BR4--BR5 (ADR 0009). Song song với đó, data warehouse lưu lịch sử phân tích: \code{fct_risk_score_daily} và \code{fct_dropout_alert} có nhãn \code{dropped_within_30d} để đánh giá độ chính xác của cảnh báo; \code{fct_notification} và \code{fct_submission} phục vụ BR1 và BR3.
 
 \subsection{Thiết kế vật lý}
 
 \begin{itemize}
-  \item \textbf{Tính năng Delta}: ACID MERGE, \code{INSERT ... REPLACE WHERE} cho cửa sổ ngày, ghi đè phân vùng động, Change Data Feed ở silver, time travel (\code{FOR VERSION AS OF}) trong phạm vi VACUUM 7 ngày.
-  \item \textbf{Phân vùng} chỉ theo cột ngày mà truy vấn lọc (ngày sự kiện, ngày hoạt động, ngày nộp, \code{as_of_date}); bảng nhỏ không phân vùng; bronze phân vùng theo \code{ingest_date}.
-  \item \textbf{Gom cụm}: thuộc tính bảng \code{edu.zorder} được job bảo trì hằng ngày áp dụng bằng \code{OPTIMIZE ... ZORDER BY}. Cùng job này gộp các file nhỏ do writer streaming sinh ra.
-  \item \textbf{Chính sách là thuộc tính bảng}: \code{edu.pii}, \code{edu.owner}, \code{edu.retention_days}, \code{edu.zorder} hiển thị cho mọi engine (\code{SHOW TBLPROPERTIES}, bảng \code{$properties} của Trino).
-  \item \textbf{Tiến hoá schema tường minh}: tắt \code{autoMerge}; đổi DDL kèm câu lệnh migration.
+  \item \textbf{Tính năng Delta}: ACID MERGE, \code{INSERT ... REPLACE WHERE} cho window ngày, ghi đè partition động, Change Data Feed ở silver, time travel (\code{FOR VERSION AS OF}) trong phạm vi VACUUM 7 ngày.
+  \item \textbf{Partition} chỉ theo cột ngày mà truy vấn có lọc (ngày sự kiện, ngày hoạt động, ngày nộp, \code{as_of_date}); bảng nhỏ không partition; bronze partition theo \code{ingest_date}.
+  \item \textbf{Clustering}: thuộc tính bảng \code{edu.zorder} được job bảo trì hằng ngày áp dụng bằng \code{OPTIMIZE ... ZORDER BY}. Cùng job này gộp các small file do writer streaming sinh ra.
+  \item \textbf{Policy là thuộc tính bảng}: \code{edu.pii}, \code{edu.owner}, \code{edu.retention_days}, \code{edu.zorder} hiển thị cho mọi engine (\code{SHOW TBLPROPERTIES}, bảng \code{$properties} của Trino).
+  \item \textbf{Schema evolution tường minh}: tắt \code{autoMerge}; mỗi thay đổi DDL đi kèm câu lệnh migration.
 \end{itemize}
 
-\subsection{Cổng kiểm tra chất lượng dữ liệu}
+\subsection{Quality gate}
 
-Sau mỗi lớp, runner chạy bộ truy vấn kiểm tra chất lượng, ghi kết quả vào \code{ops.dq_results}; cổng mức \code{error} dừng lần chạy.
+Sau mỗi lớp, runner chạy bộ truy vấn kiểm tra chất lượng và ghi kết quả vào \code{ops.dq_results}; quality gate mức \code{error} sẽ dừng lần chạy.
 
 \begin{table}[H]
 \centering\small
-\caption{Các cổng kiểm tra chất lượng}\label{tab:dq}
+\caption{Các quality gate}\label{tab:dq}
 \begin{tabularx}{\textwidth}{@{}L{5.6cm}L{1.6cm}Y@{}}
 \toprule
-\textbf{Cổng} & \textbf{Mức} & \textbf{Bảo vệ điều gì} \\
+\textbf{Gate} & \textbf{Mức} & \textbf{Điều gì được bảo vệ} \\
 \midrule
-\code{silver_event_id_unique} & error & Khử trùng lặp các lần gửi lại từ mobile \\
-\code{silver_no_raw_identifiers} & error & Ranh giới PII: chỉ bút danh sau bronze \\
+\code{silver_event_id_unique} & error & Dedup các lần gửi lại từ mobile \\
+\code{silver_no_raw_identifiers} & error & Ranh giới PII: chỉ còn pseudonym sau bronze \\
 \code{bronze_dlq_rate} & warn & Hơn 5\% telemetry bị từ chối \\
 \code{gold_dim_learner_scd2} & error & Mỗi người học đúng một phiên bản hiện hành, không chồng lấn hiệu lực \\
-\code{gold_orphan_keys} & error & Mọi khoá trong bảng sự kiện tồn tại trong bảng chiều \\
+\code{gold_orphan_keys} & error & Mọi key trong fact table đều tồn tại trong dimension \\
 \code{gold_unresolved_learners} & warn & Sự kiện bị quy về thành viên ``không rõ'' \\
 \code{mart_org_progress_k_anonymity} & error & Không công bố tỷ lệ cho nhóm dưới $k$ người \\
 \code{mart_rates_in_range} & error & Các tỷ lệ nằm trong $[0, 1]$ \\
 \code{mart_org_progress_unresolved_dims} & warn & Dòng báo cáo thiếu khoá học hoặc kỹ năng \\
-\code{mart_video_heatmap_unversioned} & warn & Ô heatmap không gắn phiên bản video \\
+\code{mart_video_heatmap_unversioned} & warn & Ô heatmap không gắn với phiên bản video \\
 \bottomrule
 \end{tabularx}
 \end{table}
 
-\subsection{Điều phối, dữ liệu trễ và chạy lại}
+\subsection{Điều phối, late data và rerun}
 \label{sec:late}
 
-Job streaming và dịch vụ chạy liên tục; job lô do Airflow điều phối (Bảng~\ref{tab:dags}). Mọi lệnh lô idempotent theo \code{--run-date}, nên retry và backfill an toàn; \code{--start-date} dựng lại được bất kỳ khoảng thời gian nào.
+Job streaming và các dịch vụ chạy liên tục; job batch do Airflow điều phối (Bảng~\ref{tab:dags}). Mọi lệnh batch đều idempotent theo \code{--run-date}, nên retry và backfill an toàn; \code{--start-date} cho phép rebuild bất kỳ khoảng thời gian nào.
 
 \begin{table}[H]
 \centering\small
@@ -194,15 +194,15 @@ Job streaming và dịch vụ chạy liên tục; job lô do Airflow điều ph�
 \code{analytics_marts_daily} & 02:00 hằng ngày & làm mới gold, mart BR4 / BR6 / BR7 cho ngày đã đóng \\
 \code{engagement_weekly} & thứ Hai 02:00 & \code{mart.engagement_trend} \\
 \code{features_daily} & khi gold cập nhật & \code{features.learner_longterm} \\
-\code{content_embedding} & 6 giờ một lần & chia đoạn, nhúng học liệu \\
-\code{lakehouse_maintenance} & 04:00 hằng ngày & xoá theo thời hạn lưu, OPTIMIZE / Z-order, VACUUM \\
+\code{content_embedding} & 6 giờ một lần & chunk và nhúng học liệu \\
+\code{lakehouse_maintenance} & 04:00 hằng ngày & xoá theo retention, OPTIMIZE / Z-order, VACUUM \\
 \bottomrule
 \end{tabularx}
 \end{table}
 
 {\small
 \begin{longtable}{@{}L{4.4cm}L{1.6cm}L{8.6cm}@{}}
-\caption{Cơ chế xử lý dữ liệu trễ, trùng lặp và sai thứ tự}\label{tab:late}\\
+\caption{Cơ chế xử lý late data, dữ liệu trùng lặp và out-of-order}\label{tab:late}\\
 \toprule
 \textbf{Tình huống} & \textbf{Lớp} & \textbf{Cơ chế} \\
 \midrule
@@ -211,15 +211,15 @@ Job streaming và dịch vụ chạy liên tục; job lô do Airflow điều ph�
 \textbf{Tình huống} & \textbf{Lớp} & \textbf{Cơ chế} \\
 \midrule
 \endhead
-Kafka gửi lại, job chạy lại & bronze & Checkpoint Structured Streaming + sink Delta (đúng một lần) \\
-Client gửi lại (mobile offline) & silver & MERGE theo \code{event_id}; cổng \code{silver_event_id_unique} \\
-CDC sai thứ tự hoặc bị phát lại & silver & Lấy thay đổi mới nhất theo \code{lsn}; chỉ MERGE khi \code{lsn} mới hơn; phát lại không tạo commit Delta \\
-Xoá ở OLTP & silver & Debezium chế độ \code{rewrite}: \code{is_deleted = true} (xoá mềm) \\
-Sự kiện trễ (mobile đồng bộ sau vài ngày) & gold & Model theo cửa sổ khai báo \code{late_data}; cửa sổ tự lùi về ngày sự kiện cũ nhất mà silver nhận kể từ lần build trước (đã kiểm chứng: lần chạy 06--14/10 tự mở rộng về 04/10) \\
-Sự kiện đến trước chiều & gold & Thành viên suy luận với khoá cuối cùng (ADR 0012) \\
-Xoá theo thời hạn lưu ở bronze & silver & \code{skipChangeCommits} để thao tác xoá không làm dừng stream \\
-Tiến hoá schema của client & silver & Chuỗi \code{SchemaMigrator} 1.0 $\rightarrow$ 1.1; không biết thì vào DLQ \\
+Kafka gửi lại, job rerun & bronze & Checkpoint Structured Streaming + sink Delta (exactly-once) \\
+Client gửi lại (mobile offline) & silver & MERGE theo \code{event_id}; quality gate \code{silver_event_id_unique} \\
+CDC out-of-order hoặc bị replay & silver & Lấy thay đổi mới nhất theo \code{lsn}; chỉ MERGE khi \code{lsn} mới hơn; replay không tạo commit Delta \\
+Delete ở OLTP & silver & Debezium ở chế độ \code{rewrite}: \code{is_deleted = true} (xoá mềm) \\
+Late data (mobile đồng bộ sau vài ngày) & gold & Model theo window khai báo \code{late_data}; window tự lùi về ngày của sự kiện cũ nhất mà silver nhận được kể từ lần build trước (đã kiểm chứng: lần chạy 06--14/10 tự mở rộng về 04/10) \\
+Sự kiện đến trước dimension & gold & Inferred member với key cuối cùng (ADR 0012) \\
+Xoá theo retention ở bronze & silver & \code{skipChangeCommits} để thao tác xoá không làm dừng stream \\
+Schema evolution phía client & silver & Chuỗi \code{SchemaMigrator} 1.0 $\rightarrow$ 1.1; không nhận diện được thì vào DLQ \\
 \bottomrule
 \end{longtable}}
 
-Khi có sự cố, bronze đóng vai nhật ký phát lại: sửa SQL rồi chạy lại \code{edu warehouse run --start-date} cho lớp bị ảnh hưởng; khi cần trạng thái cũ, dùng time travel của Delta với phiên bản lưu trong \code{ops.pipeline_runs}.
+Khi có sự cố, bronze đóng vai trò replay log: sửa SQL rồi chạy lại \code{edu warehouse run --start-date} cho lớp bị ảnh hưởng; khi cần trạng thái cũ, dùng time travel của Delta với phiên bản được lưu trong \code{ops.pipeline_runs}.
