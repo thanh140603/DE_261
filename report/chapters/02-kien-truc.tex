@@ -5,7 +5,7 @@
 
 \subsection{Sáu tầng của kiến trúc}
 
-Hình~\ref{fig:arch} mô tả kiến trúc end-to-end gồm sáu tầng. Tầng nguồn tiếp nhận dữ liệu từ bốn nguồn; tầng ingestion sử dụng Kafka làm event bus duy nhất, với Debezium đọc các thay đổi từ WAL của PostgreSQL. Ở tầng xử lý, Spark đảm nhiệm cả streaming lẫn batch, cùng với các dịch vụ tiêu thụ sự kiện. Tầng lưu trữ gồm Delta Lake, PostgreSQL cho mart thời gian thực BR4--BR5, Redis và OpenSearch. Tầng serving sử dụng Trino cho truy vấn SQL và FastAPI để cung cấp API; phía trên là ứng dụng web dành cho năm nhóm người dùng.
+Hình~\ref{fig:arch} mô tả kiến trúc end-to-end gồm sáu tầng. Tầng nguồn tiếp nhận dữ liệu từ bốn nguồn; tầng ingestion sử dụng Kafka làm event bus duy nhất, với Debezium đọc các thay đổi từ WAL của PostgreSQL. Ở tầng xử lý, Spark đảm nhiệm cả streaming lẫn batch, cùng với các dịch vụ tiêu thụ sự kiện. Tầng lưu trữ gồm Delta Lake, PostgreSQL cho mart thời gian thực BR4--BR5, Redis và OpenSearch. Tầng serving sử dụng Trino cho truy vấn SQL và FastAPI để cung cấp API; phía trên là ứng dụng web dành cho năm nhóm người dùng. Trên sơ đồ, BR1 và BR3 nằm ở khối dịch vụ sự kiện, BR2 ở nhánh feature của Spark batch và telemetry-live; BR4--BR8 dùng lakehouse, mart và overlay.
 
 \begin{figure}[H]
 \centering
@@ -20,8 +20,8 @@ Hình~\ref{fig:arch} mô tả kiến trúc end-to-end gồm sáu tầng. Tầng 
   \coordinate (kc) at ($(cli.west)!0.5!(sb.east)$);
   \node[hl, anchor=north, text width=12.9cm] (kafka) at (kc |- {$(dbz.south)+(0,-0.45)$}) {\textbf{Apache Kafka} --- event bus, 26 topic: telemetry, \texttt{cdc.lms.*}, \texttt{lms.*}, \texttt{grading.*}, \texttt{risk.*}, \texttt{content.*}, \texttt{notification.*}};
   % ---- tầng xử lý ----
-  \node[stage, anchor=north west, text width=4.0cm, minimum height=17mm] (sss) at ($(kafka.south west)+(0,-0.55)$) {\textbf{Spark Structured}\\\textbf{Streaming}\\\scriptsize landing bronze/silver (1--5 phút)\\ telemetry-live, overlay BR7/BR8\\ window rủi ro BR5};
-  \node[stage, right=3mm of sss, text width=4.0cm, minimum height=17mm] (batch) {\textbf{Spark batch + Airflow}\\\scriptsize gold, mart, features\\ bảo trì OPTIMIZE / VACUUM\\ reindex học liệu};
+  \node[stage, anchor=north west, text width=4.0cm, minimum height=17mm] (sss) at ($(kafka.south west)+(0,-0.55)$) {\textbf{Spark Structured}\\\textbf{Streaming}\\\scriptsize landing bronze/silver (1--5 phút)\\ telemetry-live: session BR2, overlay BR7/BR8\\ window rủi ro BR5};
+  \node[stage, right=3mm of sss, text width=4.0cm, minimum height=17mm] (batch) {\textbf{Spark batch + Airflow}\\\scriptsize gold/mart BR4, BR6--BR8\\ features BR2\\ bảo trì OPTIMIZE/VACUUM\\ reindex học liệu};
   \node[stage, right=3mm of batch, text width=4.0cm, minimum height=17mm] (svc) {\textbf{Dịch vụ sự kiện}\\\scriptsize notification (BR1), grading (BR3)\\ content-sync (BR8)\\ br45 CDC worker (BR4/BR5)};
   % ---- tầng lưu trữ ----
   \node[box, anchor=north west, text width=5.5cm, minimum height=14mm, draw=gold!80!black, fill=gold!8] (delta) at ($(sss.south west)+(0,-0.55)$) {\textbf{Delta Lake trên MinIO + Hive Metastore}\\\scriptsize bronze $\rightarrow$ silver $\rightarrow$ gold (Kimball) $\rightarrow$ mart / features};
@@ -165,10 +165,9 @@ Mỗi quyết định kiến trúc quan trọng được ghi lại thành ADR~\c
 \subsection{Điều chỉnh so với kiến trúc tham chiếu}
 \label{sec:deviations}
 
-Nhóm giữ nguyên các vai trò trong kiến trúc tham chiếu, đồng thời điều chỉnh ba điểm sau:
+Nhóm giữ nguyên các vai trò trong kiến trúc tham chiếu, đồng thời điều chỉnh hai điểm sau:
 
 \begin{enumerate}
   \item \textbf{Dùng Spark Structured Streaming thay Flink cho BR5 và overlay BR7--BR8} (ADR 0009, 0014). Kiến trúc tham chiếu sử dụng Flink~\cite{carbone2015flink} cho stateful stream processing. Khi bắt đầu hiện thực, job Flink mới chỉ là skeleton, trong khi Spark Structured Streaming đã được dùng cho landing lakehouse. Việc thống nhất một engine giúp giảm hạ tầng vận hành và tái sử dụng code chuẩn hoá silver. Đổi lại, latency của overlay khoảng 6 giây và của cảnh báo BR5 khoảng 10 giây (số liệu BR5 chưa được đo lại), cao hơn mức dưới một giây của Flink; tuy vậy, các mức này vẫn phù hợp với cảnh báo dành cho cố vấn và overlay trên mart theo ngày. Sau đó, nhóm bổ sung một job Flink tính cùng các window rủi ro (\code{infra/br45/flink/RiskWindows.java}) để so sánh engine cho BR5. Job này chạy trong stack benchmark riêng (\code{docker-compose.br45-benchmark.yml}), chỉ ghi vào bảng benchmark và không phát sinh cảnh báo; pipeline production vẫn sử dụng Spark Structured Streaming. Cụm Flink vẫn được giữ trong Compose chính nhưng chưa chạy job nào, để sẵn sàng chuyển đổi khi cần.
   \item \textbf{Bổ sung Trino + Hive Metastore làm catalog và SQL warehouse} (ADR 0010). Delta Lake chỉ cung cấp định dạng bảng, nên data warehouse cần thêm catalog và engine truy vấn. Hive Metastore và Trino đảm nhiệm hai vai trò này trực tiếp trên các bảng Delta, không tạo thêm bản sao dữ liệu và vẫn có thể vận hành cục bộ.
-  \item \textbf{BR2 sử dụng feature store hai nhánh.} BR2 yêu cầu một pipeline feature gồm hai nhánh đi qua feature store. Nhóm hiện thực cả hai: nhánh batch ghi vào bảng \code{features.learner_longterm}, còn nhánh streaming lưu session state trong Redis. Các feature này được dùng làm ngữ cảnh cho gợi ý, vốn được xếp hạng bằng rule nghiệp vụ (Mục~\ref{sec:br2}).
 \end{enumerate}
