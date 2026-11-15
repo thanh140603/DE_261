@@ -120,9 +120,11 @@ def merge_batch(spark: Any, root: str, batch: Any) -> tuple[int, int] | None:
             .whenNotMatchedInsertAll()
             .execute()
         )
-        sequence = batch.agg(f.max("sequence")).first()[0]
-        version = DeltaTable.forPath(spark, current_path).history(1).select("version").first()[0]
-        return int(sequence), int(version)
+        sequence_row = batch.agg(f.max("sequence")).first()
+        version_row = DeltaTable.forPath(spark, current_path).history(1).select("version").first()
+        if sequence_row is None or version_row is None:
+            raise RuntimeError("CDC apply produced no sequence/version row")
+        return int(sequence_row[0]), int(version_row[0])
     finally:
         batch.unpersist()
 
