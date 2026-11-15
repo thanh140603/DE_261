@@ -63,11 +63,11 @@ Ba kịch bản BR1--BR3 được chạy trên stack Docker Compose gồm Kafka,
 \section{Môi trường đo}
 \label{sec:env}
 
-Tất cả phép đo được tiến hành ngày 13/11/2026 trên cùng một máy Apple M1 Pro (10 nhân CPU: 8 nhân hiệu năng và 2 nhân tiết kiệm điện), RAM 32 GB, chạy macOS 26.6.2. Docker Desktop (Docker Engine 29.7.2) được cấp 10 CPU, 8 GB RAM (máy ảo báo 7,75 GiB) và 1 GiB swap. Container Hive Metastore sử dụng image amd64 nên phải chạy giả lập trên ARM. Stack Docker Compose đầy đủ (\code{docker-compose.yml} và \code{docker-compose.br13.yml} với các profile \code{br45}, \code{br678}, \code{airflow}, \code{pipelines}) gồm 30 container hoạt động thường trực: Kafka, Kafka UI, Schema Registry, Debezium, PostgreSQL, Redis, MinIO, Hive Metastore và cơ sở dữ liệu đi kèm, Trino, Flink (jobmanager, taskmanager), Spark (master, worker), OpenSearch, Airflow (webserver, scheduler, metadata database), API, các dịch vụ notification, grading (ingest, worker, normalizer), push-sink, Mailpit, content-sync, telemetry-live, lakehouse-streaming, br45-cdc và br45-stream.
+Tất cả phép đo được tiến hành trên cùng một máy Apple M1 Pro (10 nhân CPU: 8 nhân hiệu năng và 2 nhân tiết kiệm điện), RAM 32 GB, chạy macOS 26.6.2. Docker Desktop (Docker Engine 29.7.2) được cấp 10 CPU, 8 GB RAM (máy ảo báo 7,75 GiB) và 1 GiB swap. Container Hive Metastore sử dụng image amd64 nên phải chạy giả lập trên ARM. Stack Docker Compose đầy đủ (\code{docker-compose.yml} và \code{docker-compose.br13.yml} với các profile \code{br45}, \code{br678}, \code{airflow}, \code{pipelines}) gồm 30 container hoạt động thường trực: Kafka, Kafka UI, Schema Registry, Debezium, PostgreSQL, Redis, MinIO, Hive Metastore và cơ sở dữ liệu đi kèm, Trino, Flink (jobmanager, taskmanager), Spark (master, worker), OpenSearch, Airflow (webserver, scheduler, metadata database), API, các dịch vụ notification, grading (ingest, worker, normalizer), push-sink, Mailpit, content-sync, telemetry-live, lakehouse-streaming, br45-cdc và br45-stream.
 
-Các phép đo được tiến hành thành hai đợt trong cùng ngày, trên cùng một máy và cùng cấu hình Docker. Đợt đầu bao gồm toàn bộ BR1--BR8 và phép so sánh Debezium với polling trên mã trước khi gộp nhánh BR4/BR5 (commit \code{4d70703}). Sau đó, nhánh \code{Benchmark_BR45} được gộp vào \code{main} (commit \code{05bb5af}). Vì lần gộp này thay đổi chính các luồng được đo ở BR4 và BR5, nhóm đã chạy lại hai phép đo trên mã mới: BR4 từ 21:17:33 đến 21:18:13 và BR5 từ 21:19:23 đến 21:20:42 ngày 13/11/2026 (giờ Việt Nam, UTC+7). Mọi số liệu của hai thí nghiệm quy mô BR4 và BR5 trong chương này đều lấy từ lần đo lại. Các phép đo còn lại (BR1--BR3, BR6--BR8, warehouse build, Debezium và polling) vẫn sử dụng kết quả của đợt đầu trên commit \code{4d70703} và chưa được đo lại trên mã đã gộp.
+Các phép đo được tiến hành thành ba đợt, trên cùng một máy và cùng cấu hình Docker. Đợt đầu (13/11/2026) bao gồm toàn bộ BR1--BR8 và phép so sánh Debezium với polling trên mã trước khi gộp nhánh BR4/BR5 (commit \code{4d70703}). Sau đó, nhánh \code{Benchmark_BR45} được gộp vào \code{main} (commit \code{05bb5af}). Vì lần gộp này thay đổi chính các luồng được đo ở BR4 và BR5, nhóm đã chạy lại hai phép đo trên mã mới: BR4 từ 21:17:33 đến 21:18:13 và BR5 từ 21:19:23 đến 21:20:42 ngày 13/11/2026 (giờ Việt Nam, UTC+7). Mọi số liệu của hai thí nghiệm quy mô BR4 và BR5 trong chương này đều lấy từ lần đo lại. Đợt thứ ba (15/11/2026) đo BR1 và BR3 trên mã ứng dụng ở commit \code{07296b8}, với image \code{de261/demo} được build từ chính commit này: năm lượt BR1/BR3 chạy từ 19:00:24 đến 19:00:40, thí nghiệm độ nhạy của BR1 theo độ dài inbox chạy từ 19:01:14 đến 19:01:45 (giờ Việt Nam). Các phép đo còn lại (BR2, BR6--BR8, warehouse build, Debezium và polling) vẫn sử dụng kết quả của đợt đầu trên commit \code{4d70703}.
 
-Với giới hạn 8 GB RAM, stack đầy đủ không chạy ổn định. Trong 25 phút đầu của đợt đo đầu, khi thử các cấu hình gồm 24--27 container, bộ nhớ khả dụng của máy ảo nhiều lần giảm gần về 0; Trino cũng dừng đột ngột và tự khởi động lại 14 lần, dấu hiệu phù hợp với OOM-kill. Vì vậy, mỗi phép đo được chạy trên một cấu hình rút gọn và chỉ được giữ lại nếu cấu hình duy trì ổn định trong suốt measurement window. Các dịch vụ được tạm dừng theo thứ tự: trước tiên là những job streaming không cần cho phép đo (lakehouse-streaming, br45-cdc, br45-stream, telemetry-live); nếu vẫn thiếu bộ nhớ, nhóm tạm dừng các dịch vụ nhàn rỗi, không thuộc luồng đo (cụm Flink chưa có job, Kafka UI), rồi đến Airflow (mọi DAG đều tạm dừng). Riêng warehouse build còn cần tạm dừng OpenSearch và content-sync. Bảng~\ref{tab:env-services} trình bày cấu hình của từng phép đo; hàng BR4/BR5 mô tả lần đo lại trên commit \code{05bb5af}, còn các hàng khác thuộc đợt đầu trên commit \code{4d70703}.
+Với giới hạn 8 GB RAM, stack đầy đủ không chạy ổn định. Trong 25 phút đầu của đợt đo đầu, khi thử các cấu hình gồm 24--27 container, bộ nhớ khả dụng của máy ảo nhiều lần giảm gần về 0; Trino cũng dừng đột ngột và tự khởi động lại 14 lần, dấu hiệu phù hợp với OOM-kill. Vì vậy, mỗi phép đo được chạy trên một cấu hình rút gọn và chỉ được giữ lại nếu cấu hình duy trì ổn định trong suốt measurement window. Các dịch vụ được tạm dừng theo thứ tự: trước tiên là những job streaming không cần cho phép đo (lakehouse-streaming, br45-cdc, br45-stream, telemetry-live); nếu vẫn thiếu bộ nhớ, nhóm tạm dừng các dịch vụ nhàn rỗi, không thuộc luồng đo (cụm Flink chưa có job, Kafka UI), rồi đến Airflow (mọi DAG đều tạm dừng). Riêng warehouse build còn cần tạm dừng OpenSearch và content-sync. Bảng~\ref{tab:env-services} trình bày cấu hình của từng phép đo; hàng BR4/BR5 mô tả lần đo lại trên commit \code{05bb5af}, hàng BR1/BR3 thuộc đợt thứ ba trên commit \code{07296b8}, còn các hàng khác thuộc đợt đầu trên commit \code{4d70703}.
 
 Trạng thái của tất cả container được ghi nhận ngay trước và sau mỗi phép đo. Chỉ giữ lại một lần đo nếu danh sách container đang chạy, số lần restart và thời điểm khởi động của từng container không thay đổi trong suốt measurement window; mọi lần đo có container dừng giữa chừng đều bị loại (xem cột ghi chú trong Bảng~\ref{tab:env-services}). Bảng~\ref{tab:env} tóm tắt môi trường đo cho BR1--BR8.
 
@@ -78,7 +78,8 @@ Trạng thái của tất cả container được ghi nhận ngay trước và s
 \toprule
 \textbf{Phép đo} & \textbf{Chạy} & \textbf{Tạm dừng trong lúc đo} & \textbf{Ghi chú} \\
 \midrule
-BR1--BR3; BR6--BR8 serving mart; BR8 xuất bản; Debezium và polling & 26 & lakehouse-streaming, br45-cdc, br45-stream, telemetry-live & Chỉ tạm dừng các job streaming mà phép đo không dùng \\
+BR1, BR3 và độ nhạy inbox của BR1 (15/11/2026, commit \code{07296b8}) & 15 & Debezium, Kafka UI, Trino, Flink (jobmanager, taskmanager), Spark (master, worker), OpenSearch, Airflow (webserver, scheduler), content-sync, telemetry-live, lakehouse-streaming, br45-cdc, br45-stream & Chỉ chạy các dịch vụ trên đường đo BR1/BR3 (Kafka, Schema Registry, Redis, PostgreSQL, API, notification, grading, Mailpit, push-sink) cùng MinIO, Hive Metastore và hai cơ sở dữ liệu nhàn rỗi. Một lượt thử khi Mailpit và push-sink chưa chạy bị loại: consumer notification xử lý tuần tự nên phải chờ retry gửi email/push của sự kiện trước, khiến BR1 lên khoảng 0,6 giây \\
+BR2; BR6--BR8 serving mart; BR8 xuất bản; Debezium và polling & 26 & lakehouse-streaming, br45-cdc, br45-stream, telemetry-live & Chỉ tạm dừng các job streaming mà phép đo không dùng \\
 BR4; BR5 (đo lại trên commit \code{05bb5af}) & 23 & lakehouse-streaming, telemetry-live, Flink (jobmanager, taskmanager), Kafka UI, Airflow (scheduler, webserver) & Cùng tập container như lần đo BR4/BR5 của đợt đầu (khi đó Airflow chạy cùng br45-stream chỉ để lại khoảng 560 MiB bộ nhớ khả dụng nên được tạm dừng). Ở lần đo lại, bộ nhớ khả dụng lúc bắt đầu đo là khoảng 740 MiB (BR4) và 590 MiB (BR5), swap 1 GiB đã đầy \\
 BR7/BR8 overlay & 23 & lakehouse-streaming, br45-cdc, br45-stream, Flink (jobmanager, taskmanager), Airflow (scheduler, webserver) & Hai lần đo khi Airflow còn chạy (27 và 24 container) bị loại vì Trino khởi động lại giữa chừng \\
 Warehouse build & 19 & như overlay, thêm Kafka UI, OpenSearch, content-sync, telemetry-live & Hai lần thử với 24 và 22 container bị loại vì tiến trình Spark bị dừng giữa chừng (dấu hiệu của OOM-kill) \\
@@ -91,11 +92,11 @@ Warehouse build & 19 & như overlay, thêm Kafka UI, OpenSearch, content-sync, t
 \caption{Môi trường đo hiệu năng}\label{tab:env}
 \begin{tabularx}{\textwidth}{@{}L{2cm}YYY@{}}
 \toprule
-& \textbf{BR1--BR3 (13/11/2026, commit \code{4d70703})} & \textbf{BR4 / BR5 (13/11/2026, đo lại trên commit \code{05bb5af})} & \textbf{BR6--BR8 (13/11/2026, commit \code{4d70703})} \\
+& \textbf{BR1--BR3 (BR1, BR3: 15/11/2026, commit \code{07296b8}; BR2: 13/11/2026, commit \code{4d70703})} & \textbf{BR4 / BR5 (13/11/2026, đo lại trên commit \code{05bb5af})} & \textbf{BR6--BR8 (13/11/2026, commit \code{4d70703})} \\
 \midrule
 Máy & Apple M1 Pro (10 nhân), 32 GB, macOS 26.6.2; Docker Desktop: 10 CPU, 8 GB (7,75 GiB) & Apple M1 Pro (10 nhân), 32 GB, macOS 26.6.2; Docker Desktop: 10 CPU, 8 GB (7,75 GiB) & Apple M1 Pro (10 nhân), 32 GB, macOS 26.6.2; Docker Desktop: 10 CPU, 8 GB (7,75 GiB) \\
 Engine & API, notification/grading; Kafka, Redis, PostgreSQL; Spark cho feature batch BR2 & Spark 3.5.5 và Delta 3.3.2 (image \code{de261/spark}), \code{local[2]}, driver 1 GiB, state store RocksDB, container giới hạn 2 CPU và 2.304 MiB; PostgreSQL 16.15; script đo, phép tổng hợp Python (BR4) và phép tính batch (BR5) chạy ngoài Docker bằng Python 3.13 & Spark 3.5.5, Delta 3.3.2 (warehouse build: \code{local[*]}, 10 luồng); Trino 478 (heap 1,2 GB); OpenSearch 2.17.1 (heap 512 MB) \\
-Lặp lại & 5 lượt; mỗi lượt BR1/BR3 có 20 mẫu, BR2 có 30 mẫu & 3 lần mỗi kích thước & 2--30 lần tuỳ thí nghiệm \\
+Lặp lại & 5 lượt; mỗi lượt BR1/BR3 có 20 mẫu, BR2 có 30 mẫu; độ nhạy inbox: 500 lần mỗi mức & 3 lần mỗi kích thước & 2--30 lần tuỳ thí nghiệm \\
 Dữ liệu & Tổng hợp & Tổng hợp & Tổng hợp \\
 \bottomrule
 \end{tabularx}
@@ -107,7 +108,7 @@ Trong lần đo lại BR4/BR5, hai image \code{de261/demo} và \code{de261/spark
 
 \subsection{BR1--BR3: end-to-end latency}
 
-Ba luồng BR1--BR3 được đo ngày 13/11/2026 trên stack nói trên (26/30 container; xem Bảng~\ref{tab:env-services}), sau khi loại các mẫu ghi nhận trong giai đoạn làm nóng hệ thống (warm-up period). Mỗi số liệu thể hiện latency của một chặng cụ thể, tính sau khi stack đã khởi chạy và các dịch vụ đã ổn định; thời gian khởi động stack không được tính. Cụ thể, BR1 đo khoảng thời gian từ lúc gửi sự kiện LMS đến khi thông báo có thể đọc qua API; BR2 đo thời gian phản hồi của API gợi ý khi sử dụng feature store trực tuyến; BR3 đo thời gian nhận phản hồi 202 và thời gian từ lúc nộp bài đến khi trạng thái chuyển thành \code{graded}. Mỗi lượt gồm 20 mẫu cho BR1 và BR3, và 30 mẫu cho BR2; mỗi phép đo được lặp lại trong năm lượt liên tiếp. Bảng tổng hợp cả năm lượt (n = 100 cho BR1/BR3 và n = 150 cho BR2). Trước mỗi mẫu BR1, dedup key và inbox của người học được xoá. Vì API trả toàn bộ inbox, dữ liệu tích luỹ có thể làm tăng latency và khiến phép đo không còn phản ánh đúng chặng cần đánh giá. Trạng thái chấm bài trong Redis cũng được xoá trước mỗi mẫu BR3, bởi số thứ tự lần nộp được tính bằng cách quét toàn bộ bài nộp của người học.
+BR2 được đo ngày 13/11/2026 trên stack nói trên (26/30 container), còn BR1 và BR3 được đo ngày 15/11/2026 với 15/30 container (xem Bảng~\ref{tab:env-services}); mọi phép đo đều bắt đầu sau khi loại các mẫu ghi nhận trong giai đoạn làm nóng hệ thống (warm-up period). Mỗi số liệu thể hiện latency của một chặng cụ thể, tính sau khi stack đã khởi chạy và các dịch vụ đã ổn định; thời gian khởi động stack không được tính. Cụ thể, BR1 đo khoảng thời gian từ lúc gửi sự kiện LMS đến khi thông báo có thể đọc qua API; BR2 đo thời gian phản hồi của API gợi ý khi sử dụng feature store trực tuyến; BR3 đo thời gian nhận phản hồi 202 và thời gian từ lúc nộp bài đến khi trạng thái chuyển thành \code{graded}. Mỗi lượt gồm 20 mẫu cho BR1 và BR3, và 30 mẫu cho BR2; mỗi phép đo được lặp lại trong năm lượt liên tiếp. Bảng~\ref{tab:br123-latency} tổng hợp cả năm lượt (n = 100 cho BR1/BR3 và n = 150 cho BR2). Trong lúc đo BR1, inbox của người học được làm trống và dedup key được xoá trước mỗi mẫu; sau khi thông báo đọc được qua API và dịch vụ notification đã gửi xong email/push, harness chỉ xoá thông báo do chính mẫu đó tạo, rồi khôi phục inbox ban đầu khi kết thúc lượt. Như vậy BR1 phản ánh chặng sự kiện $\rightarrow$ thông báo trên một inbox rỗng; chi phí đọc theo độ dài inbox được đo riêng ở Mục~\ref{sec:br1-inbox-scaling}. Với BR3, số thứ tự lần nộp lấy từ một bộ đếm theo cặp người học $\times$ bài tập; bộ đếm được đặt về 0 trước mỗi mẫu để mọi mẫu đều là lần nộp đầu tiên, và các submission do benchmark tạo được xoá khỏi Redis sau mỗi lượt.
 
 \begin{table}[H]
 \centering\small
@@ -116,15 +117,48 @@ Ba luồng BR1--BR3 được đo ngày 13/11/2026 trên stack nói trên (26/30 
 \toprule
 \textbf{Đường đo} & \textbf{n} & \textbf{Median} & \textbf{p90} & \textbf{Nhỏ nhất} & \textbf{Lớn nhất} \\
 \midrule
-BR1: sự kiện $\rightarrow$ thông báo đọc được qua API & 100 & 12,4 & 14,5 & 8,3 & 60,9 \\
+BR1: sự kiện $\rightarrow$ thông báo đọc được qua API & 100 & 13,6 & 16,4 & 9,0 & 19,6 \\
 BR2: API gợi ý có feature store & 150 & 2,2 & 4,2 & 1,4 & 12,2 \\
-BR3: nộp bài $\rightarrow$ 202 & 100 & 14,2 & 17,4 & 12,2 & 25,5 \\
-BR3: nộp bài $\rightarrow$ \code{graded} & 100 & 71,0 & 77,3 & 65,4 & 90,2 \\
+BR3: nộp bài $\rightarrow$ 202 & 100 & 14,5 & 18,7 & 12,2 & 83,3 \\
+BR3: nộp bài $\rightarrow$ \code{graded} & 100 & 74,3 & 83,9 & 67,1 & 148,1 \\
 \bottomrule
 \end{tabular}
 \end{table}
 
-BR1 có median khoảng 12 ms, đáp ứng yêu cầu thông báo gần thời gian thực. Với BR2, median là 2,2 ms và p90 là 4,2 ms; 148/150 request hoàn tất trong ngưỡng 10 ms, còn hai request mất 10,5 và 12,2 ms. BR3 trả về 202 sau khoảng 14 ms và hoàn tất chấm bài sau khoảng 0,07 giây. Trừ thời gian nhận 202, phần lớn thời gian còn lại thuộc về quá trình chạy sandbox và các chặng Kafka. Kết quả qua năm lượt không cho thấy xu hướng tăng hay giảm rõ rệt: median lần lượt nằm trong khoảng 12,1--13,6 ms với BR1, 1,8--4,1 ms với BR2, 13,7--14,4 ms với thời gian nhận 202 của BR3 và 70--72 ms với thời gian chấm hoàn tất. p90 chỉ cao hơn median 2--6 ms. Hai giá trị lớn nhất của BR1 (54,8 và 60,9 ms) là các mẫu đơn lẻ.
+BR1 có median 13,6 ms và p90 16,4 ms, đáp ứng yêu cầu thông báo gần thời gian thực. Với BR2, median là 2,2 ms và p90 là 4,2 ms; 148/150 request hoàn tất trong ngưỡng 10 ms, còn hai request mất 10,5 và 12,2 ms. BR3 trả về 202 sau khoảng 14,5 ms và hoàn tất chấm bài sau khoảng 74 ms. Trừ thời gian nhận 202, phần lớn thời gian còn lại thuộc về quá trình chạy sandbox và các chặng Kafka. Kết quả qua năm lượt không cho thấy xu hướng tăng hay giảm rõ rệt: median lần lượt nằm trong khoảng 13,3--14,9 ms với BR1, 1,8--4,1 ms với BR2, 14,3--14,9 ms với thời gian nhận 202 của BR3 và 72,7--77,0 ms với thời gian chấm hoàn tất. p90 cao hơn median khoảng 2--4 ms với BR1, BR2 và thời gian nhận 202, và khoảng 10 ms với thời gian chấm hoàn tất. Giá trị lớn nhất của BR3 đến từ hai mẫu liên tiếp ở lượt đầu (83,3 và 45,0 ms khi nhận 202; 148,1 và 108,2 ms khi chấm xong); ngoài hai mẫu này, không mẫu BR3 nào vượt 100 ms.
+
+\subsection{Độ nhạy của BR1 theo độ dài inbox}
+\label{sec:br1-inbox-scaling}
+
+Để lượng hoá chi phí đọc inbox, một thí nghiệm riêng được chạy trên cùng stack với BR1/BR3: seed trực tiếp vào Redis $n$ thông báo tổng hợp cho một người học thử (không dùng người học demo), rồi đo latency của hai đường đọc qua API --- toàn bộ inbox và trang đầu (\code{?limit=20}) --- với $n \in \{0, 10, 25, 50, 100, 150, 200\}$. Mỗi mức được đo lặp lại \textbf{500} lần sau năm request làm nóng; Hình~\ref{fig:br1-inbox-scaling} vẽ median, còn p90 dùng cho phần nhận xét. Dữ liệu thử được xoá sau mỗi mức.
+
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}
+\begin{axis}[
+  width=0.82\textwidth, height=6.4cm,
+  xlabel={Số thông báo trong inbox}, ylabel={Latency đọc (ms)},
+  xtick={0,10,25,50,100,150,200},
+  ymin=0,
+  ymajorgrids,
+  legend style={at={(0.5,-0.3)}, anchor=north, legend columns=2},
+  legend cell align=left, mark size=2.2pt, line width=1pt,
+]
+\addplot[color=sone, mark=*] coordinates {
+  (0,2.33) (10,3.29) (25,3.46) (50,4.14) (100,4.83) (150,5.22) (200,6.78)
+};
+\addlegendentry{Toàn bộ inbox}
+\addplot[color=stwo, mark=square*] coordinates {
+  (0,2.60) (10,3.40) (25,3.60) (50,3.79) (100,3.66) (150,3.30) (200,3.90)
+};
+\addlegendentry{Trang đầu (\code{?limit=20})}
+\end{axis}
+\end{tikzpicture}
+\caption{BR1: latency đọc inbox theo số thông báo (median; 500 lần mỗi mức)}
+\label{fig:br1-inbox-scaling}
+\end{figure}
+
+Kết quả cho thấy latency đọc toàn bộ inbox tăng gần tuyến tính theo số thông báo, nhưng tổng mức tăng từ 0 đến 200 thông báo chỉ khoảng \textbf{4,4 ms} (median 2,33 $\rightarrow$ 6,78 ms; p90 ở 200 thông báo là \textbf{9,6 ms}), trong khi đường đọc trang đầu gần như không đổi: median dao động trong khoảng 3,3--3,9 ms khi inbox có từ 10 thông báo trở lên, p90 không vượt 6,6 ms. Vì inbox được giới hạn ở 200 thông báo và giao diện chỉ tải trang mới nhất, chi phí đọc vẫn nằm trong ngưỡng phù hợp cho notification UI production; không cần thay đổi cấu trúc lưu trữ.
 
 \subsection{BR4: tổng hợp SQL so với Python}
 
@@ -326,7 +360,7 @@ Snapshot ban đầu của Debezium đọc 100.000 dòng nhưng không nằm tron
 
 Đây là smoke test với 100.000 dòng trên một máy, chưa phải phép đo ở quy mô 1--10 triệu dòng. Nhóm cũng chưa thực hiện failure injection cho connector. Latency của cả hai phương án chỉ được đo trong một đợt thay đổi, nên còn phụ thuộc vào thời điểm đợt đó rơi trong chu kỳ polling 0,5 giây; các số liệu này không dùng để xếp hạng tốc độ. Kết quả đủ để minh hoạ correctness, state và scale, nhưng chưa đủ cơ sở để đưa ra cam kết SLA production.
 
-Riêng BR1--BR3, phép đo được chạy trên cùng máy đang vận hành phần lớn stack (26/30 container), nên có thể chịu ảnh hưởng của tranh chấp CPU và bộ nhớ. Ba luồng này còn có hai đặc điểm tác động trực tiếp đến kết quả và cần được khắc phục. Thứ nhất, API inbox trả về toàn bộ danh sách; khi inbox có 152 thông báo, latency tăng lên khoảng 68 ms, so với 7,5 ms khi chỉ có 10 thông báo. Cần bổ sung phân trang. Thứ hai, số thứ tự submission được tính bằng cách quét toàn bộ bài nộp của người học, khiến thời gian nhận 202 tăng theo lịch sử: khoảng 167 ms với 398 bài nộp, so với 28 ms khi chưa có lịch sử. Vì vậy, mỗi mẫu BR1/BR3 được đo trên trạng thái rỗng. Hai cặp số chẩn đoán này lấy từ lần đo trước trên một máy khác và không được đo lại.
+Riêng BR1--BR3, các phép đo chạy trên cùng máy với stack: BR2 với 26/30 container, BR1 và BR3 với 15/30 container (chỉ các dịch vụ trên đường đo). Vì vậy, số liệu BR1/BR3 phản ánh điều kiện ít tranh chấp CPU và bộ nhớ hơn so với khi toàn bộ stack cùng chạy; mọi request cũng đi qua localhost nên chưa tính độ trễ mạng thật. Mỗi mẫu BR1 được đo trên inbox rỗng và mỗi mẫu BR3 là lần nộp đầu tiên. Hai trạng thái này có chi phí giới hạn trong hiện thực: API inbox nhận \code{?limit=} và có endpoint đếm chưa đọc \code{/notifications/unread?since=}, chi phí đọc toàn bộ inbox chỉ tăng khoảng 4,4 ms từ 0 đến 200 thông báo (Mục~\ref{sec:br1-inbox-scaling}); số thứ tự lần nộp lấy từ một bộ đếm O(1), không phụ thuộc số bài đã nộp. Tuy vậy, thời gian nhận 202 theo độ dài lịch sử nộp bài chưa được đo riêng như với inbox. Ngoài ra, consumer notification xử lý sự kiện tuần tự và retry gửi email/push ngay trong luồng xử lý, nên khi một kênh gửi không phản hồi, thông báo của các sự kiện kế tiếp cũng bị chậm theo (khoảng 0,6 giây mỗi sự kiện trong lượt thử bị loại ở Bảng~\ref{tab:env-services}).
 
 \section{Thảo luận}
 

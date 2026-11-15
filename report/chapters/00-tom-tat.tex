@@ -7,7 +7,7 @@ Về kiến trúc, Kafka và Debezium đảm nhận tầng ingestion, trong đó
 
 Kết quả đo trên máy cá nhân với dữ liệu tổng hợp được tóm tắt như sau:
 \begin{itemize}
-  \item \textbf{BR1--BR3}: median 12{,}4 ms từ lúc phát sự kiện đến khi thông báo đọc được, 2{,}2 ms cho API gợi ý, 14{,}2 ms để nhận 202 và 71{,}0 ms từ lúc nộp bài đến khi chấm xong.
+  \item \textbf{BR1--BR3}: median 13{,}6 ms từ lúc phát sự kiện đến khi thông báo đọc được, 2{,}2 ms cho API gợi ý, 14{,}5 ms để nhận 202 và 74{,}3 ms từ lúc nộp bài đến khi chấm xong; đọc toàn bộ inbox 200 thông báo chỉ chậm hơn inbox rỗng khoảng 4{,}4 ms.
   \item \textbf{BR5}: từ thay đổi CDC đến cảnh báo dropout mất khoảng 10{,}2 giây (kịch bản chấp nhận, không đo lại).
   \item \textbf{BR8}: nội dung xuất bản được index sau median 501 ms.
   \item \textbf{BR7--BR8}: overlay hiển thị sau khoảng 6 giây và giữ ổn định khi tải tăng 15 lần.
