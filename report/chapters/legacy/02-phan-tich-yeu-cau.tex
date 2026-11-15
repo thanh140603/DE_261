@@ -85,9 +85,9 @@ Bảng~\ref{tab:br-map} cho thấy mỗi BR được giao cho bounded context n�
 \textbf{BR} & \textbf{Context} & \textbf{Runtime xử lý} & \textbf{Lưu trữ / phục vụ} & \textbf{Mức hoàn thiện} \\
 \midrule
 \endhead
-1 & notification & Rule engine trên sự kiện Kafka & Redis (dedup, giới hạn tần suất) & Logic hoàn chỉnh; runtime demo \\
+1 & notification & Rule engine trên sự kiện Kafka & Redis (dedup, giới hạn tần suất) & Logic hoàn chỉnh; chạy end-to-end \\
 2 & recommendation & Luật tại thời điểm truy vấn; đặc trưng lô \code{features.learner_longterm} & Delta (ngoại tuyến), API & Rút gọn về rule-based \\
-3 & grading & Hàng đợi Kafka, sandbox, \code{FeedbackPolicy} & API & Logic hoàn chỉnh; runtime demo \\
+3 & grading & Hàng đợi Kafka, sandbox, \code{FeedbackPolicy} & API & Logic hoàn chỉnh; chạy end-to-end \\
 4 & analytics + br45 & CDC, SQL aggregation & PostgreSQL \code{analytics}; lịch sử ở \code{mart.assessment_item_stats} & Chạy thật \\
 5 & risk + br45 & CDC, Spark Structured Streaming (cửa sổ 7 ngày) & PostgreSQL; lịch sử ở \code{gold.fct_risk_score_daily} & Chạy thật \\
 6 & telemetry + analytics & Medallion Spark & Delta, Trino (\code{mart.org_progress}) & Chạy thật \\

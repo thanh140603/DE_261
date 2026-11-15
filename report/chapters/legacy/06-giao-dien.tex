@@ -7,7 +7,7 @@ Pipeline dữ liệu chỉ có giá trị khi kết quả của nó đến đư�
 
 Giao diện được thiết kế qua ba vòng:
 \begin{enumerate}
-  \item \textbf{Bảng điều khiển demo ban đầu} hướng tới nhà phát triển: các nút giả lập sự kiện, mã định danh thô và ô nhập token nằm lẫn với kết quả. Bản này chứng minh được API nhưng người dùng cuối khó dùng.
+  \item \textbf{Bảng điều khiển ban đầu} hướng tới nhà phát triển: các nút giả lập sự kiện, mã định danh thô và ô nhập token nằm lẫn với kết quả. Bản này chứng minh được API nhưng người dùng cuối khó dùng.
   \item \textbf{Mockup HTML tương tác} (\code{docs/ui-mockup/edu-platform-ui-mockup.html}) và bản hiện thực đầu tiên bằng React. Mockup dùng dữ liệu mẫu nhưng tuân theo đúng các quy tắc nghiệp vụ thật (điểm rủi ro 35/30/20/15, ngưỡng 30/60/80, $k = 5$, tỷ lệ giảm 30\%), giúp thống nhất bố cục và nội dung trước khi viết mã. Khi xem lại, nhóm nhận thấy bản này mang dáng một mẫu dashboard chung chung (thẻ bo tròn lớn, nền chuyển màu, nhãn chữ in hoa) hơn là một hệ thống quản lý học tập.
   \item \textbf{Thiết kế lại theo quy ước của các LMS phổ biến} như Canvas và Moodle~\cite{canvas,moodle}: thanh điều hướng toàn cục bên trái, menu theo khu vực giống menu của một khoá học, breadcrumb, thẻ khoá học có dải màu và trang bài tập có dòng thông tin chi tiết. Chế độ sáng tông xanh da trời được giữ làm mặc định. Mockup dùng chung stylesheet với ứng dụng, nên hai bản luôn khớp nhau (Hình~\ref{fig:mock-learner}).
 \end{enumerate}
@@ -99,7 +99,7 @@ Platform & Pipeline health & \code{/pipeline} & Bộ đếm luồng, thông lư�
 \bottomrule
 \end{longtable}}
 
-Các khu Teaching, Advising và Reports được bảo vệ bằng một khung đăng nhập nhận token của vai trò. Token được giữ trong phiên của tab trình duyệt và dùng chung cho mọi trang trong khu. Máy chủ tự ánh xạ token sang danh tính, vai trò và phạm vi khoá học hoặc tổ chức; giao diện không tự khai báo quyền. Mục Account mở một khay cho biết vai trò nào đang đăng nhập và chứa hai tuỳ chọn: chế độ tối và nhãn yêu cầu. Thanh trên cùng có chỉ báo sự kiện trực tiếp (Server-Sent Events) và chuông thông báo của người học. Các điều khiển chỉ dành cho demo (giả lập sự kiện LMS, bộ sinh telemetry) được tách vào các khối ``Demo controls'' viền nét đứt. Biểu đồ được vẽ bằng SVG thuần theo chiều rộng thật của phần tử, nên chữ không bị co giãn.
+Các khu Teaching, Advising và Reports được bảo vệ bằng một khung đăng nhập nhận token của vai trò. Token được giữ trong phiên của tab trình duyệt và dùng chung cho mọi trang trong khu. Máy chủ tự ánh xạ token sang danh tính, vai trò và phạm vi khoá học hoặc tổ chức; giao diện không tự khai báo quyền. Mục Account mở một khay cho biết vai trò nào đang đăng nhập và chứa hai tuỳ chọn: chế độ tối và nhãn yêu cầu. Thanh trên cùng có chỉ báo sự kiện trực tiếp (Server-Sent Events) và chuông thông báo của người học. Các điều khiển thử nghiệm (giả lập sự kiện LMS, bộ sinh telemetry) được tách vào một khối riêng viền nét đứt. Biểu đồ được vẽ bằng SVG thuần theo chiều rộng thật của phần tử, nên chữ không bị co giãn.
 
 \section{Các màn hình chính}
 

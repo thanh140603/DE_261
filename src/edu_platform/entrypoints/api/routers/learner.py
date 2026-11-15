@@ -1,10 +1,11 @@
 from __future__ import annotations
 
 import asyncio
+from datetime import UTC, datetime
 from typing import Any
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from pydantic import BaseModel
 
 from edu_platform.br45 import classroom as study
@@ -55,16 +56,36 @@ def _check_learner(request: Request, learner_id: str) -> None:
 async def notifications(
     learner_id: str,
     request: Request,
+    limit: int | None = Query(None, ge=1, le=200),
     p: DemoPlatform = Depends(platform),
     repo: Any = Depends(notification_repo),
 ) -> list[dict[str, Any]]:
+    """Newest-first notifications; ``limit`` keeps the read cost independent of history."""
     _check_learner(request, learner_id)
+    source = repo if repo is not None else p.notifications
     rows = (
-        repo.for_recipient(learner_id)
-        if repo is not None
-        else p.notifications.for_recipient(learner_id)
+        source.for_recipient(learner_id)
+        if limit is None
+        else source.for_recipient(learner_id, limit=limit)
     )
     return [notification_dict(n) for n in rows]
+
+
+@router.get("/learners/{learner_id}/notifications/unread")
+async def unread_notifications(
+    learner_id: str,
+    request: Request,
+    since: datetime | None = None,
+    p: DemoPlatform = Depends(platform),
+    repo: Any = Depends(notification_repo),
+) -> dict[str, int]:
+    """Count notifications created after the browser's last-seen mark."""
+    _check_learner(request, learner_id)
+    source = repo if repo is not None else p.notifications
+    mark = since or datetime(1970, 1, 1, tzinfo=UTC)
+    if mark.tzinfo is None:
+        mark = mark.replace(tzinfo=UTC)
+    return {"unread": source.count_since(learner_id, mark)}
 
 
 @router.get("/learners/{learner_id}/recommendations")
@@ -252,6 +273,7 @@ async def submission(
 async def learner_submissions(
     learner_id: str,
     request: Request,
+    limit: int | None = Query(None, ge=1, le=200),
     p: DemoPlatform = Depends(platform),
     cfg: Settings = Depends(settings),
 ) -> list[dict[str, Any]]:
@@ -263,12 +285,13 @@ async def learner_submissions(
         if client is None:
             raise HTTPException(503, "grading service is not configured")
         try:
-            return await asyncio.to_thread(client.learner_submissions, learner_id)
+            rows = (
+                await asyncio.to_thread(client.learner_submissions, learner_id)
+                if limit is None
+                else await asyncio.to_thread(client.learner_submissions, learner_id, limit)
+            )
         except GradingUnavailable as exc:
             raise HTTPException(503, str(exc)) from exc
-    rows = sorted(
-        p.submissions.for_learner(LearnerId(learner_id)),
-        key=lambda s: s.submitted_at,
-        reverse=True,
-    )
+        return rows  # type: ignore[no-any-return]
+    rows = p.submissions.for_learner(LearnerId(learner_id), limit=limit)
     return [submission_dict(s, include_stdout=False) for s in rows]

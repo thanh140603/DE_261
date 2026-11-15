@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from datetime import datetime
 from typing import Any, Protocol
 
 from edu_platform.contexts.notification.domain.model import (
@@ -48,7 +49,9 @@ class NotificationRepository(Protocol):
 
     def get(self, notification_id: str) -> Notification | None: ...
 
-    def for_recipient(self, recipient_id: str) -> list[Notification]: ...
+    def for_recipient(self, recipient_id: str, limit: int | None = None) -> list[Notification]: ...
+
+    def count_since(self, recipient_id: str, since: datetime) -> int: ...
 
     def for_source_event(self, event_id: str) -> list[Notification]: ...
 

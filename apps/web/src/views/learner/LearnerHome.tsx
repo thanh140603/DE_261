@@ -40,9 +40,9 @@ export function LearnerHome() {
   const learner = overview?.learners.find((l) => l.id === learnerId);
   const courseById = useMemo(() => new Map((overview?.courses ?? []).map((c) => [c.id, c])), [overview]);
   const recs = useFetch(learnerId ? () => api.learner.recommendations(learnerId) : null, [learnerId]);
-  const subs = useFetch(learnerId ? () => api.learner.submissions(learnerId) : null, [learnerId]);
+  const subs = useFetch(learnerId ? () => api.learner.submissions(learnerId, 20) : null, [learnerId]);
   useEffect(() => { if (learnerId) { void recs.reload(); void subs.reload(); } }, [lastEventAt]); // eslint-disable-line react-hooks/exhaustive-deps
-  const notes = useNotifications(learnerId);
+  const notes = useNotifications(learnerId, 20);
 
   return (
     <>
@@ -234,6 +234,11 @@ function Notifications({ notes }: { notes: ReturnType<typeof useNotifications> }
           {list.map((n) => <NotificationItem key={n.id} n={n} unread={notes.isUnread(n)} onOpen={(to) => navigate(to)} />)}
         </div>
       </Status>
+      {notes.hasMore && (
+        <div style={{ marginTop: 8 }}>
+          <Btn size="sm" variant="link" onClick={notes.loadMore}>Load older notifications</Btn>
+        </div>
+      )}
     </Card>
   );
 }

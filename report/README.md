@@ -48,4 +48,4 @@ Biểu đồ trong Chương 5 vẽ bằng pgfplots từ số đo trong `docs/BR4
 docker compose -f docker-compose.yml -f docker-compose.br13.yml up -d --build
 ```
 
-Chế độ `demo` vẫn là mặc định cho giao diện; overlay `br13` bật Kafka, Redis và PostgreSQL thật cho dịch vụ thông báo và dịch vụ chấm bài.
+Overlay `br13` bật Kafka, Redis và PostgreSQL cho dịch vụ thông báo và dịch vụ chấm bài.

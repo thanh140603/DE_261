@@ -23,8 +23,8 @@ from edu_platform.platform.config import Settings
 
 
 class FakeNotifications:
-    def for_recipient(self, recipient_id: str) -> list[Notification]:
-        return [
+    def for_recipient(self, recipient_id: str, limit: int | None = None) -> list[Notification]:
+        rows = [
             Notification(
                 id="n1",
                 recipient_id=recipient_id,
@@ -37,6 +37,10 @@ class FakeNotifications:
                 created_at=datetime(2026, 1, 1, tzinfo=UTC),
             )
         ]
+        return rows[:limit] if limit is not None else rows
+
+    def count_since(self, recipient_id: str, since: datetime) -> int:
+        return 1
 
     def count(self) -> int:
         return 1
@@ -59,8 +63,11 @@ class FakeGrading:
             "feedback": None,
         }
 
-    def learner_submissions(self, learner_id: str) -> list[dict[str, object]]:
-        return [self.submission("s1")]
+    def learner_submissions(
+        self, learner_id: str, limit: int | None = None
+    ) -> list[dict[str, object]]:
+        rows = [self.submission("s1")]
+        return rows[:limit] if limit is not None else rows
 
 
 def test_service_mode_reads_redis_model_and_proxies_grading() -> None:
@@ -74,6 +81,14 @@ def test_service_mode_reads_redis_model_and_proxies_grading() -> None:
         notes = client.get("/api/learners/l-002/notifications")
         assert notes.status_code == 200
         assert notes.json()[0]["id"] == "n1"
+
+        paged = client.get("/api/learners/l-002/notifications?limit=1")
+        assert paged.status_code == 200
+        assert len(paged.json()) == 1
+
+        unread = client.get("/api/learners/l-002/notifications/unread?since=2026-01-01T00:00:00Z")
+        assert unread.status_code == 200
+        assert unread.json() == {"unread": 1}
 
         submitted = client.post(
             "/api/submissions",
@@ -89,3 +104,7 @@ def test_service_mode_reads_redis_model_and_proxies_grading() -> None:
         rows = client.get("/api/learners/l-002/submissions")
         assert rows.status_code == 200
         assert rows.json()[0]["id"] == "s1"
+
+        paged_rows = client.get("/api/learners/l-002/submissions?limit=1")
+        assert paged_rows.status_code == 200
+        assert len(paged_rows.json()) == 1

@@ -43,9 +43,7 @@ class EnqueueSubmission:
     def execute(self, command: EnqueueSubmissionCommand) -> Submission:
         submission_id = SubmissionId(new_id())
         learner_id = LearnerId(command.learner_id)
-        attempt = 1 + sum(
-            s.assignment_id == command.assignment_id for s in self._repo.for_learner(learner_id)
-        )
+        attempt = self._repo.next_attempt(learner_id, command.assignment_id)
         code_ref = self._code_store.put(submission_id, command.code)
         submission = Submission.receive(
             submission_id=submission_id,

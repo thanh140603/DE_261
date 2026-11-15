@@ -18,8 +18,20 @@ class InMemorySubmissionRepository:
     def save(self, submission: Submission) -> None:
         self._rows[submission.id] = submission
 
-    def for_learner(self, learner_id: LearnerId) -> list[Submission]:
-        return [s for s in self._rows.values() if s.learner_id == learner_id]
+    def for_learner(self, learner_id: LearnerId, limit: int | None = None) -> list[Submission]:
+        rows = [s for s in self._rows.values() if s.learner_id == learner_id]
+        rows.sort(key=lambda s: s.submitted_at, reverse=True)
+        return rows[:limit] if limit is not None else rows
+
+    def next_attempt(self, learner_id: LearnerId, assignment_id: str) -> int:
+        return 1 + max(
+            (
+                s.attempt_number
+                for s in self._rows.values()
+                if s.learner_id == learner_id and s.assignment_id == assignment_id
+            ),
+            default=0,
+        )
 
     def all(self) -> list[Submission]:
         return list(self._rows.values())

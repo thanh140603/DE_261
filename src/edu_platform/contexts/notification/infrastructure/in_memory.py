@@ -55,9 +55,20 @@ class InMemoryNotificationRepository:
     def get(self, notification_id: str) -> Notification | None:
         return self._rows.get(notification_id)
 
-    def for_recipient(self, recipient_id: str) -> list[Notification]:
-        rows = [n for n in self._rows.values() if n.recipient_id == recipient_id]
-        return sorted(rows, key=lambda n: n.created_at, reverse=True)
+    def for_recipient(self, recipient_id: str, limit: int | None = None) -> list[Notification]:
+        rows = sorted(
+            (n for n in self._rows.values() if n.recipient_id == recipient_id),
+            key=lambda n: n.created_at,
+            reverse=True,
+        )
+        return rows[:limit] if limit is not None else rows
+
+    def count_since(self, recipient_id: str, since: datetime) -> int:
+        return sum(
+            1
+            for n in self._rows.values()
+            if n.recipient_id == recipient_id and n.created_at > since
+        )
 
     def for_source_event(self, event_id: str) -> list[Notification]:
         return [n for n in self._rows.values() if n.source_event_id == event_id]

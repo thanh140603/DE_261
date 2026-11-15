@@ -114,7 +114,7 @@ Toàn bộ mã nằm trong một gói Python \code{edu_platform} (monorepo, ADR 
 \end{tabularx}
 \end{table}
 
-Lợi ích lớn nhất của cách tổ chức này là \textbf{một logic, nhiều engine}. Ví dụ, use case \code{NormalizeEvents} (kiểm tra hợp lệ, chuyển schema, khử định danh, gắn cờ trễ) chạy trong job streaming thời gian thực, trong job silver của lakehouse, và trong runtime demo. Kết quả luôn giống nhau, kể cả bút danh và quyết định đưa vào DLQ. Các ngưỡng nghiệp vụ dùng trong SQL của mart cũng được lấy từ value object của domain, và có test đơn vị giữ hai phía đồng bộ.
+Lợi ích lớn nhất của cách tổ chức này là \textbf{một logic, nhiều engine}. Ví dụ, use case \code{NormalizeEvents} (kiểm tra hợp lệ, chuyển schema, khử định danh, gắn cờ trễ) chạy trong job streaming thời gian thực, trong job silver của lakehouse, và trong dịch vụ xử lý sự kiện. Kết quả luôn giống nhau, kể cả bút danh và quyết định đưa vào DLQ. Các ngưỡng nghiệp vụ dùng trong SQL của mart cũng được lấy từ value object của domain, và có test đơn vị giữ hai phía đồng bộ.
 
 \section{Ngữ nghĩa xử lý luồng}
 
@@ -148,7 +148,7 @@ Nhóm ghi mỗi quyết định quan trọng thành một ADR~\cite{nygard2011ad
 0005 & Lakehouse Delta Lake medallion & ACID upsert, time travel, ranh giới PII; cần job bảo trì chống file nhỏ \\
 0006 & Redis cho tầng phục vụ & Dưới mili-giây, TTL; Redis không phải nguồn sự thật \\
 0007 & Khử định danh ở ranh giới silver & HMAC-SHA256 có phiên bản khoá; báo cáo tổ chức áp dụng $k = 5$ \\
-0008 & Runtime demo trong tiến trình & Trình diễn đầu cuối trên laptop bằng adapter trong bộ nhớ, cùng các cổng như production \\
+0008 & Runtime ban đầu trong tiến trình & Chạy đầu cuối trên laptop bằng adapter trong bộ nhớ, cùng các cổng như production \\
 0009 & PostgreSQL mart + Spark Structured Streaming cho BR4/BR5 & Một driver Spark thay vì hoàn thiện cả hai engine; độ trễ CDC đến cảnh báo khoảng 10 giây \\
 0010 & Trino + Hive Metastore làm SQL warehouse & Đóng vai ``Databricks SQL + catalog'' trên chính các bảng Delta, không có bản sao thứ hai \\
 0011 & Spark là bên ghi duy nhất của Delta & Connector Flink cho Delta đã lỗi thời; tránh xung đột commit \\
