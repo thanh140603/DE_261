@@ -22,6 +22,7 @@ from __future__ import annotations
 
 import argparse
 import csv
+import json
 import statistics
 import time
 from pathlib import Path
@@ -37,8 +38,21 @@ INBOX_KEY = "edu:notif:inbox:l-002"
 ATTEMPT_KEY = "edu:grading:attempts:l-002:a-py-even"
 
 
+TIMELINE_KEY = "edu:notif:time:l-002"
+
+
 def _item_key(notification_id: str) -> str:
     return f"edu:notif:item:{notification_id}"
+
+
+def _forget(store: redis.Redis, notification_id: str) -> None:
+    """Remove one benchmark notification from the list, the timeline ZSET and the event index."""
+    raw = store.get(_item_key(notification_id))
+    store.lrem(INBOX_KEY, 0, notification_id)
+    store.zrem(TIMELINE_KEY, notification_id)
+    store.delete(_item_key(notification_id))
+    if raw is not None:
+        store.delete(f"edu:notif:event:{json.loads(raw)['source_event_id']}")
 
 
 def snapshot_notifications(store: redis.Redis) -> dict[str, Any]:
@@ -55,8 +69,10 @@ def restore_notifications(store: redis.Redis, snapshot: dict[str, Any]) -> None:
     original = set(snapshot["inbox"])
     for notification_id in store.lrange(INBOX_KEY, 0, -1):
         if notification_id not in original:
-            store.lrem(INBOX_KEY, 0, notification_id)
-            store.delete(_item_key(notification_id))
+            _forget(store, notification_id)
+    for notification_id in store.zrange(TIMELINE_KEY, 0, -1):
+        if notification_id not in original:
+            store.zrem(TIMELINE_KEY, notification_id)
     store.delete(INBOX_KEY)
     if original:
         store.rpush(INBOX_KEY, *snapshot["inbox"])
@@ -75,8 +91,29 @@ def drop_created_notifications(store: redis.Redis, baseline: set[str]) -> None:
     """Remove the notification produced by one sample, keeping the inbox at its baseline."""
     for notification_id in store.lrange(INBOX_KEY, 0, -1):
         if notification_id not in baseline:
-            store.lrem(INBOX_KEY, 0, notification_id)
-            store.delete(_item_key(notification_id))
+            _forget(store, notification_id)
+
+
+def wait_dispatched(store: redis.Redis, baseline: set[str], timeout: float = 2.0) -> None:
+    """Wait for the second save before deleting a sample's notification.
+
+    RouteEvent saves the notification (it is readable from then on, which is what BR1 times);
+    DispatchNotification saves it again after email/push with ``SET NX``. Deleting the item in
+    between would let that second save re-create it and push it back into the inbox, where the
+    next sample would count it as its own.
+    """
+    deadline = time.monotonic() + timeout
+    while time.monotonic() < deadline:
+        pending = False
+        for notification_id in store.lrange(INBOX_KEY, 0, -1):
+            raw = None if notification_id in baseline else store.get(_item_key(notification_id))
+            if raw is not None:
+                item = json.loads(raw)
+                pending = pending or bool(item["channels"] and not item["dispatched"])
+        if not pending:
+            return
+        time.sleep(0.005)
+    raise RuntimeError("BR1 notification was not dispatched in time; are mailpit and push-sink up?")
 
 
 def cleanup_submissions(store: redis.Redis, submission_ids: list[str]) -> None:
@@ -115,6 +152,7 @@ def measure_br1(client: httpx.Client, store: redis.Redis, samples: int) -> list[
     baseline = set(store.lrange(INBOX_KEY, 0, -1))  # empty: main emptied the inbox for the run
 
     def once() -> float:
+        drop_created_notifications(store, baseline)  # sweep strays before counting
         store.delete(DEDUP_KEY)
         before = len(client.get("/api/learners/l-002/notifications").json())
         started = time.perf_counter()
@@ -133,6 +171,7 @@ def measure_br1(client: httpx.Client, store: redis.Redis, samples: int) -> list[
             rows = client.get("/api/learners/l-002/notifications").json()
             if len(rows) > before:
                 elapsed = (time.perf_counter() - started) * 1000
+                wait_dispatched(store, baseline)
                 drop_created_notifications(store, baseline)
                 return elapsed
             time.sleep(0.002)

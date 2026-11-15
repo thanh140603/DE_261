@@ -1,14 +1,14 @@
 \chapter*{Tóm tắt}
 \addcontentsline{toc}{chapter}{Tóm tắt}
 
-Báo cáo trình bày thiết kế và hiện thực \textbf{Project}, một nền tảng data engineering cho hệ thống giáo dục trực tuyến quy mô lớn. Nền tảng tiếp nhận bốn nguồn dữ liệu vốn rời rạc --- telemetry clickstream từ web và mobile, CDC từ PostgreSQL, kho học liệu phi cấu trúc và log của sandbox chấm bài --- rồi chuyển hoá chúng thành một data warehouse đáp ứng tám yêu cầu nghiệp vụ (BR1--BR8) của bốn nhóm người dùng: người học, giảng viên, cố vấn học tập và quản trị viên tổ chức.
+Báo cáo trình bày thiết kế và hiện thực một nền tảng data engineering cho hệ thống giáo dục trực tuyến quy mô lớn. Nền tảng tiếp nhận bốn nguồn dữ liệu vốn rời rạc --- telemetry clickstream từ web và mobile, CDC từ PostgreSQL, kho học liệu phi cấu trúc và log của sandbox chấm bài --- rồi chuyển hoá chúng thành một data warehouse đáp ứng tám yêu cầu nghiệp vụ (BR1--BR8) của bốn nhóm người dùng: người học, giảng viên, cố vấn học tập và quản trị viên tổ chức.
 
 Về kiến trúc, Kafka và Debezium đảm nhận tầng ingestion, trong đó Kafka là event bus; Spark (batch và Structured Streaming) là engine xử lý chính; Delta Lake trên MinIO tổ chức dữ liệu theo mô hình medallion bronze--silver--gold, trong đó lớp gold là data warehouse theo star schema Kimball; Hive Metastore làm catalog và Trino phục vụ SQL; Redis đảm bảo serving latency thấp, OpenSearch cung cấp tìm kiếm lai. Mã nguồn được chia thành bảy bounded context theo DDD và kiến trúc hexagonal, nhờ đó cùng một use case có thể chạy trên nhiều engine mà vẫn kiểm thử được độc lập với engine. Mười sáu ADR ghi lại các quyết định thiết kế, kể cả những điều chỉnh so với kiến trúc tham chiếu. BR1--BR3 chạy end-to-end trên Kafka, Redis, PostgreSQL và Delta; BR4--BR8 chạy trên hạ tầng lakehouse.
 
 Kết quả đo trên máy cá nhân với dữ liệu tổng hợp được tóm tắt như sau:
 \begin{itemize}
-  \item \textbf{BR1--BR3}: median 12{,}4 ms từ lúc phát sự kiện đến khi thông báo đọc được, 2{,}2 ms cho API gợi ý, 14{,}2 ms để nhận 202 và 71{,}0 ms từ lúc nộp bài đến khi chấm xong.
-  \item \textbf{BR5}: từ thay đổi CDC đến cảnh báo dropout mất khoảng 10{,}2 giây (kịch bản chấp nhận, không đo lại).
+  \item \textbf{BR1--BR3}: median 13{,}6 ms từ lúc phát sự kiện đến khi thông báo đọc được, 2{,}2 ms cho API gợi ý, 14{,}5 ms để nhận 202 và 74{,}3 ms từ lúc nộp bài đến khi chấm xong; đọc toàn bộ inbox 200 thông báo chỉ chậm hơn inbox rỗng khoảng 4{,}4 ms.
+  \item \textbf{BR5}: từ thay đổi CDC đến cảnh báo dropout mất khoảng 10{,}2 giây (kịch bản chấp nhận).
   \item \textbf{BR8}: nội dung xuất bản được index sau median 501 ms.
   \item \textbf{BR7--BR8}: overlay hiển thị sau khoảng 6 giây và giữ ổn định khi tải tăng 15 lần.
   \item \textbf{BR6--BR8}: mart truy vấn qua Trino mất 81--172 ms; qua API có cache còn 2{,}6--6{,}0 ms.

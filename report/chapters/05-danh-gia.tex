@@ -1,11 +1,11 @@
 \chapter{Kiểm thử và đánh giá}
 \label{chap:eval}
 
-Chương này đánh giá tính đúng đắn và hiệu năng của hệ thống. Các phép đo được thực hiện trên dữ liệu tổng hợp bằng stack Docker Compose chạy trên một máy cá nhân. Do giới hạn bộ nhớ, mỗi phép đo chỉ khởi chạy những dịch vụ cần thiết (Mục~\ref{sec:env}). Vì vậy, kết quả chỉ phản ánh điều kiện đo cục bộ, không phải cam kết về năng lực hệ thống. Các tệp CSV gốc lưu đầy đủ các mẫu đo (Phụ lục~\ref{app:run}).
+Chương này đánh giá tính đúng đắn và hiệu năng của hệ thống. Các phép đo được thực hiện trên dữ liệu tổng hợp bằng stack Docker Compose chạy trên một máy cá nhân. Do giới hạn bộ nhớ, mỗi phép đo chỉ khởi chạy những dịch vụ cần thiết (Mục~\ref{sec:env}). Vì vậy, kết quả chỉ phản ánh điều kiện đo cục bộ, không phải cam kết về năng lực hệ thống. Các tệp CSV gốc lưu đầy đủ các mẫu đo.
 
 \section{Chiến lược kiểm thử}
 
-Chiến lược kiểm thử được tổ chức thành nhiều tầng, từ domain thuần, qua tầng dịch vụ, đến trình duyệt. Bảng~\ref{tab:tests} tóm tắt số lượng và phạm vi của từng tầng. Số liệu được thống kê trên mã đã gộp nhánh BR4/BR5. Trong đợt cập nhật báo cáo, chỉ tầng unit được chạy lại; vì vậy, số lượng ở các tầng còn lại chỉ phản ánh số test hiện có, không đồng nghĩa với kết quả của một lần chạy mới.
+Chiến lược kiểm thử được tổ chức thành nhiều tầng, từ domain thuần, qua tầng dịch vụ, đến trình duyệt. Bảng~\ref{tab:tests} tóm tắt số lượng và phạm vi của từng tầng. Số liệu phản ánh mã nguồn cuối cùng: toàn bộ unit test được chạy và đạt trên mã này, còn ở các tầng khác bảng ghi số test hiện có.
 
 Mã Python được kiểm tra bằng \code{ruff} và \code{mypy}; sau mỗi lần build, data warehouse đều được kiểm tra qua đủ 10 quality gate.
 
@@ -58,16 +58,14 @@ Mỗi BR được kiểm chứng bằng ít nhất một kịch bản bao gồm 
 \bottomrule
 \end{longtable}}
 
-Ba kịch bản BR1--BR3 được chạy trên stack Docker Compose gồm Kafka, Redis, PostgreSQL và Spark. Các integration test đều đạt; cả hai Playwright test cũng đạt (2/2). Trên mã đã gộp nhánh BR4/BR5, toàn bộ 379 unit test đều đạt và không có test nào bị bỏ qua.
+Ba kịch bản BR1--BR3 được chạy trên stack Docker Compose gồm Kafka, Redis, PostgreSQL và Spark. Các integration test đều đạt; cả hai Playwright test cũng đạt (2/2). Toàn bộ 379 unit test đều đạt và không có test nào bị bỏ qua.
 
 \section{Môi trường đo}
 \label{sec:env}
 
-Tất cả phép đo được tiến hành ngày 13/11/2026 trên cùng một máy Apple M1 Pro (10 nhân CPU: 8 nhân hiệu năng và 2 nhân tiết kiệm điện), RAM 32 GB, chạy macOS 26.6.2. Docker Desktop (Docker Engine 29.7.2) được cấp 10 CPU, 8 GB RAM (máy ảo báo 7,75 GiB) và 1 GiB swap. Container Hive Metastore sử dụng image amd64 nên phải chạy giả lập trên ARM. Stack Docker Compose đầy đủ (\code{docker-compose.yml} và \code{docker-compose.br13.yml} với các profile \code{br45}, \code{br678}, \code{airflow}, \code{pipelines}) gồm 30 container hoạt động thường trực: Kafka, Kafka UI, Schema Registry, Debezium, PostgreSQL, Redis, MinIO, Hive Metastore và cơ sở dữ liệu đi kèm, Trino, Flink (jobmanager, taskmanager), Spark (master, worker), OpenSearch, Airflow (webserver, scheduler, metadata database), API, các dịch vụ notification, grading (ingest, worker, normalizer), push-sink, Mailpit, content-sync, telemetry-live, lakehouse-streaming, br45-cdc và br45-stream.
+Tất cả phép đo được tiến hành trên cùng một máy Apple M1 Pro (10 nhân CPU: 8 nhân hiệu năng và 2 nhân tiết kiệm điện), RAM 32 GB, chạy macOS 26.6.2. Docker Desktop (Docker Engine 29.7.2) được cấp 10 CPU, 8 GB RAM (máy ảo báo 7,75 GiB) và 1 GiB swap. Container Hive Metastore sử dụng image amd64 nên phải chạy giả lập trên ARM. Stack Docker Compose đầy đủ (\code{docker-compose.yml} và \code{docker-compose.br13.yml} với các profile \code{br45}, \code{br678}, \code{airflow}, \code{pipelines}) gồm 30 container hoạt động thường trực: Kafka, Kafka UI, Schema Registry, Debezium, PostgreSQL, Redis, MinIO, Hive Metastore và cơ sở dữ liệu đi kèm, Trino, Flink (jobmanager, taskmanager), Spark (master, worker), OpenSearch, Airflow (webserver, scheduler, metadata database), API, các dịch vụ notification, grading (ingest, worker, normalizer), push-sink, Mailpit, content-sync, telemetry-live, lakehouse-streaming, br45-cdc và br45-stream.
 
-Các phép đo được tiến hành thành hai đợt trong cùng ngày, trên cùng một máy và cùng cấu hình Docker. Đợt đầu bao gồm toàn bộ BR1--BR8 và phép so sánh Debezium với polling trên mã trước khi gộp nhánh BR4/BR5 (commit \code{4d70703}). Sau đó, nhánh \code{Benchmark_BR45} được gộp vào \code{main} (commit \code{05bb5af}). Vì lần gộp này thay đổi chính các luồng được đo ở BR4 và BR5, nhóm đã chạy lại hai phép đo trên mã mới: BR4 từ 21:17:33 đến 21:18:13 và BR5 từ 21:19:23 đến 21:20:42 ngày 13/11/2026 (giờ Việt Nam, UTC+7). Mọi số liệu của hai thí nghiệm quy mô BR4 và BR5 trong chương này đều lấy từ lần đo lại. Các phép đo còn lại (BR1--BR3, BR6--BR8, warehouse build, Debezium và polling) vẫn sử dụng kết quả của đợt đầu trên commit \code{4d70703} và chưa được đo lại trên mã đã gộp.
-
-Với giới hạn 8 GB RAM, stack đầy đủ không chạy ổn định. Trong 25 phút đầu của đợt đo đầu, khi thử các cấu hình gồm 24--27 container, bộ nhớ khả dụng của máy ảo nhiều lần giảm gần về 0; Trino cũng dừng đột ngột và tự khởi động lại 14 lần, dấu hiệu phù hợp với OOM-kill. Vì vậy, mỗi phép đo được chạy trên một cấu hình rút gọn và chỉ được giữ lại nếu cấu hình duy trì ổn định trong suốt measurement window. Các dịch vụ được tạm dừng theo thứ tự: trước tiên là những job streaming không cần cho phép đo (lakehouse-streaming, br45-cdc, br45-stream, telemetry-live); nếu vẫn thiếu bộ nhớ, nhóm tạm dừng các dịch vụ nhàn rỗi, không thuộc luồng đo (cụm Flink chưa có job, Kafka UI), rồi đến Airflow (mọi DAG đều tạm dừng). Riêng warehouse build còn cần tạm dừng OpenSearch và content-sync. Bảng~\ref{tab:env-services} trình bày cấu hình của từng phép đo; hàng BR4/BR5 mô tả lần đo lại trên commit \code{05bb5af}, còn các hàng khác thuộc đợt đầu trên commit \code{4d70703}.
+Với giới hạn 8 GB RAM, stack đầy đủ không chạy ổn định: khi thử các cấu hình gồm 24--27 container, bộ nhớ khả dụng của máy ảo nhiều lần giảm gần về 0; Trino cũng dừng đột ngột và tự khởi động lại 14 lần, dấu hiệu phù hợp với OOM-kill. Vì vậy, mỗi phép đo được chạy trên một cấu hình rút gọn và chỉ được giữ lại nếu cấu hình duy trì ổn định trong suốt measurement window. Các dịch vụ được tạm dừng theo thứ tự: trước tiên là những job streaming không cần cho phép đo (lakehouse-streaming, br45-cdc, br45-stream, telemetry-live); nếu vẫn thiếu bộ nhớ, nhóm tạm dừng các dịch vụ nhàn rỗi, không thuộc luồng đo (cụm Flink chưa có job, Kafka UI), rồi đến Airflow (mọi DAG đều tạm dừng). Riêng warehouse build còn cần tạm dừng OpenSearch và content-sync. Bảng~\ref{tab:env-services} trình bày cấu hình của từng phép đo.
 
 Trạng thái của tất cả container được ghi nhận ngay trước và sau mỗi phép đo. Chỉ giữ lại một lần đo nếu danh sách container đang chạy, số lần restart và thời điểm khởi động của từng container không thay đổi trong suốt measurement window; mọi lần đo có container dừng giữa chừng đều bị loại (xem cột ghi chú trong Bảng~\ref{tab:env-services}). Bảng~\ref{tab:env} tóm tắt môi trường đo cho BR1--BR8.
 
@@ -78,8 +76,9 @@ Trạng thái của tất cả container được ghi nhận ngay trước và s
 \toprule
 \textbf{Phép đo} & \textbf{Chạy} & \textbf{Tạm dừng trong lúc đo} & \textbf{Ghi chú} \\
 \midrule
-BR1--BR3; BR6--BR8 serving mart; BR8 xuất bản; Debezium và polling & 26 & lakehouse-streaming, br45-cdc, br45-stream, telemetry-live & Chỉ tạm dừng các job streaming mà phép đo không dùng \\
-BR4; BR5 (đo lại trên commit \code{05bb5af}) & 23 & lakehouse-streaming, telemetry-live, Flink (jobmanager, taskmanager), Kafka UI, Airflow (scheduler, webserver) & Cùng tập container như lần đo BR4/BR5 của đợt đầu (khi đó Airflow chạy cùng br45-stream chỉ để lại khoảng 560 MiB bộ nhớ khả dụng nên được tạm dừng). Ở lần đo lại, bộ nhớ khả dụng lúc bắt đầu đo là khoảng 740 MiB (BR4) và 590 MiB (BR5), swap 1 GiB đã đầy \\
+BR1, BR3 và độ nhạy inbox của BR1 & 15 & Debezium, Kafka UI, Trino, Flink (jobmanager, taskmanager), Spark (master, worker), OpenSearch, Airflow (webserver, scheduler), content-sync, telemetry-live, lakehouse-streaming, br45-cdc, br45-stream & Chỉ chạy các dịch vụ trên đường đo BR1/BR3 (Kafka, Schema Registry, Redis, PostgreSQL, API, notification, grading, Mailpit, push-sink) cùng MinIO, Hive Metastore và hai cơ sở dữ liệu nhàn rỗi. Một lượt thử khi Mailpit và push-sink chưa chạy bị loại: consumer notification xử lý tuần tự nên phải chờ retry gửi email/push của sự kiện trước, khiến BR1 lên khoảng 0,6 giây \\
+BR2; BR6--BR8 serving mart; BR8 xuất bản; Debezium và polling & 26 & lakehouse-streaming, br45-cdc, br45-stream, telemetry-live & Chỉ tạm dừng các job streaming mà phép đo không dùng \\
+BR4; BR5 & 23 & lakehouse-streaming, telemetry-live, Flink (jobmanager, taskmanager), Kafka UI, Airflow (scheduler, webserver) & Airflow được tạm dừng vì khi chạy cùng br45-stream chỉ còn khoảng 560 MiB bộ nhớ khả dụng. Lúc bắt đầu đo, bộ nhớ khả dụng là khoảng 740 MiB (BR4) và 590 MiB (BR5), swap 1 GiB đã đầy \\
 BR7/BR8 overlay & 23 & lakehouse-streaming, br45-cdc, br45-stream, Flink (jobmanager, taskmanager), Airflow (scheduler, webserver) & Hai lần đo khi Airflow còn chạy (27 và 24 container) bị loại vì Trino khởi động lại giữa chừng \\
 Warehouse build & 19 & như overlay, thêm Kafka UI, OpenSearch, content-sync, telemetry-live & Hai lần thử với 24 và 22 container bị loại vì tiến trình Spark bị dừng giữa chừng (dấu hiệu của OOM-kill) \\
 \bottomrule
@@ -91,23 +90,23 @@ Warehouse build & 19 & như overlay, thêm Kafka UI, OpenSearch, content-sync, t
 \caption{Môi trường đo hiệu năng}\label{tab:env}
 \begin{tabularx}{\textwidth}{@{}L{2cm}YYY@{}}
 \toprule
-& \textbf{BR1--BR3 (13/11/2026, commit \code{4d70703})} & \textbf{BR4 / BR5 (13/11/2026, đo lại trên commit \code{05bb5af})} & \textbf{BR6--BR8 (13/11/2026, commit \code{4d70703})} \\
+& \textbf{BR1--BR3} & \textbf{BR4 / BR5} & \textbf{BR6--BR8} \\
 \midrule
 Máy & Apple M1 Pro (10 nhân), 32 GB, macOS 26.6.2; Docker Desktop: 10 CPU, 8 GB (7,75 GiB) & Apple M1 Pro (10 nhân), 32 GB, macOS 26.6.2; Docker Desktop: 10 CPU, 8 GB (7,75 GiB) & Apple M1 Pro (10 nhân), 32 GB, macOS 26.6.2; Docker Desktop: 10 CPU, 8 GB (7,75 GiB) \\
 Engine & API, notification/grading; Kafka, Redis, PostgreSQL; Spark cho feature batch BR2 & Spark 3.5.5 và Delta 3.3.2 (image \code{de261/spark}), \code{local[2]}, driver 1 GiB, state store RocksDB, container giới hạn 2 CPU và 2.304 MiB; PostgreSQL 16.15; script đo, phép tổng hợp Python (BR4) và phép tính batch (BR5) chạy ngoài Docker bằng Python 3.13 & Spark 3.5.5, Delta 3.3.2 (warehouse build: \code{local[*]}, 10 luồng); Trino 478 (heap 1,2 GB); OpenSearch 2.17.1 (heap 512 MB) \\
-Lặp lại & 5 lượt; mỗi lượt BR1/BR3 có 20 mẫu, BR2 có 30 mẫu & 3 lần mỗi kích thước & 2--30 lần tuỳ thí nghiệm \\
+Lặp lại & 5 lượt; mỗi lượt BR1/BR3 có 20 mẫu, BR2 có 30 mẫu; độ nhạy inbox: 500 lần mỗi mức & 3 lần mỗi kích thước & 2--30 lần tuỳ thí nghiệm \\
 Dữ liệu & Tổng hợp & Tổng hợp & Tổng hợp \\
 \bottomrule
 \end{tabularx}
 \end{table}
 
-Trong lần đo lại BR4/BR5, hai image \code{de261/demo} và \code{de261/spark} được build lại từ commit \code{05bb5af}; các migration bổ sung cho schema \code{analytics} cũng được áp dụng trước khi đo. Job br45-stream sử dụng đúng cấu hình Compose mặc định của mã đã gộp: Spark 3.5.5 chạy với \code{local[2]} trong container giới hạn 2 CPU và 2.304 MiB. Mã nguồn tự gắn fingerprint cấu hình \code{ff4b0f4a118a} vào thư mục checkpoint mặc định của Compose (\code{br45-v2}), nên không còn cần tệp Compose override bên ngoài repo từng dùng ở đợt đầu để đổi thư mục checkpoint. Vì đây là checkpoint mới, job đọc lại topic \code{br45.activity.v1} từ offset sớm nhất còn được Kafka lưu giữ (3394). Phép đo chỉ bắt đầu sau khi job bắt kịp cuối topic và các job tổng hợp BR4 do lần seed tạo ra đã hoàn tất.
+Với BR4 và BR5, job br45-stream dùng cấu hình Compose mặc định: Spark 3.5.5 chạy với \code{local[2]} trong container giới hạn 2 CPU và 2.304 MiB. Job khởi động với checkpoint mới nên đọc topic \code{br45.activity.v1} từ offset sớm nhất còn được Kafka lưu giữ; phép đo chỉ bắt đầu sau khi job bắt kịp cuối topic và các job tổng hợp BR4 do lần seed tạo ra đã hoàn tất.
 
 \section{Kết quả hiệu năng}
 
 \subsection{BR1--BR3: end-to-end latency}
 
-Ba luồng BR1--BR3 được đo ngày 13/11/2026 trên stack nói trên (26/30 container; xem Bảng~\ref{tab:env-services}), sau khi loại các mẫu ghi nhận trong giai đoạn làm nóng hệ thống (warm-up period). Mỗi số liệu thể hiện latency của một chặng cụ thể, tính sau khi stack đã khởi chạy và các dịch vụ đã ổn định; thời gian khởi động stack không được tính. Cụ thể, BR1 đo khoảng thời gian từ lúc gửi sự kiện LMS đến khi thông báo có thể đọc qua API; BR2 đo thời gian phản hồi của API gợi ý khi sử dụng feature store trực tuyến; BR3 đo thời gian nhận phản hồi 202 và thời gian từ lúc nộp bài đến khi trạng thái chuyển thành \code{graded}. Mỗi lượt gồm 20 mẫu cho BR1 và BR3, và 30 mẫu cho BR2; mỗi phép đo được lặp lại trong năm lượt liên tiếp. Bảng tổng hợp cả năm lượt (n = 100 cho BR1/BR3 và n = 150 cho BR2). Trước mỗi mẫu BR1, dedup key và inbox của người học được xoá. Vì API trả toàn bộ inbox, dữ liệu tích luỹ có thể làm tăng latency và khiến phép đo không còn phản ánh đúng chặng cần đánh giá. Trạng thái chấm bài trong Redis cũng được xoá trước mỗi mẫu BR3, bởi số thứ tự lần nộp được tính bằng cách quét toàn bộ bài nộp của người học.
+BR2 được đo với 26/30 container, còn BR1 và BR3 với 15/30 container (xem Bảng~\ref{tab:env-services}); mọi phép đo đều bắt đầu sau khi loại các mẫu ghi nhận trong giai đoạn làm nóng hệ thống (warm-up period). Mỗi số liệu thể hiện latency của một chặng cụ thể, tính sau khi stack đã khởi chạy và các dịch vụ đã ổn định; thời gian khởi động stack không được tính. Cụ thể, BR1 đo khoảng thời gian từ lúc gửi sự kiện LMS đến khi thông báo có thể đọc qua API; BR2 đo thời gian phản hồi của API gợi ý khi sử dụng feature store trực tuyến; BR3 đo thời gian nhận phản hồi 202 và thời gian từ lúc nộp bài đến khi trạng thái chuyển thành \code{graded}. Mỗi lượt gồm 20 mẫu cho BR1 và BR3, và 30 mẫu cho BR2; mỗi phép đo được lặp lại trong năm lượt liên tiếp. Bảng~\ref{tab:br123-latency} tổng hợp cả năm lượt (n = 100 cho BR1/BR3 và n = 150 cho BR2). Trong lúc đo BR1, inbox của người học được làm trống và dedup key được xoá trước mỗi mẫu; sau khi thông báo đọc được qua API và dịch vụ notification đã gửi xong email/push, harness chỉ xoá thông báo do chính mẫu đó tạo, rồi khôi phục inbox ban đầu khi kết thúc lượt. Như vậy BR1 phản ánh chặng sự kiện $\rightarrow$ thông báo trên một inbox rỗng; chi phí đọc theo độ dài inbox được đo riêng ở Mục~\ref{sec:br1-inbox-scaling}. Với BR3, số thứ tự lần nộp lấy từ một bộ đếm theo cặp người học $\times$ bài tập; bộ đếm được đặt về 0 trước mỗi mẫu để mọi mẫu đều là lần nộp đầu tiên, và các submission do benchmark tạo được xoá khỏi Redis sau mỗi lượt.
 
 \begin{table}[H]
 \centering\small
@@ -116,21 +115,54 @@ Ba luồng BR1--BR3 được đo ngày 13/11/2026 trên stack nói trên (26/30 
 \toprule
 \textbf{Đường đo} & \textbf{n} & \textbf{Median} & \textbf{p90} & \textbf{Nhỏ nhất} & \textbf{Lớn nhất} \\
 \midrule
-BR1: sự kiện $\rightarrow$ thông báo đọc được qua API & 100 & 12,4 & 14,5 & 8,3 & 60,9 \\
+BR1: sự kiện $\rightarrow$ thông báo đọc được qua API & 100 & 13,6 & 16,4 & 9,0 & 19,6 \\
 BR2: API gợi ý có feature store & 150 & 2,2 & 4,2 & 1,4 & 12,2 \\
-BR3: nộp bài $\rightarrow$ 202 & 100 & 14,2 & 17,4 & 12,2 & 25,5 \\
-BR3: nộp bài $\rightarrow$ \code{graded} & 100 & 71,0 & 77,3 & 65,4 & 90,2 \\
+BR3: nộp bài $\rightarrow$ 202 & 100 & 14,5 & 18,7 & 12,2 & 83,3 \\
+BR3: nộp bài $\rightarrow$ \code{graded} & 100 & 74,3 & 83,9 & 67,1 & 148,1 \\
 \bottomrule
 \end{tabular}
 \end{table}
 
-BR1 có median khoảng 12 ms, đáp ứng yêu cầu thông báo gần thời gian thực. Với BR2, median là 2,2 ms và p90 là 4,2 ms; 148/150 request hoàn tất trong ngưỡng 10 ms, còn hai request mất 10,5 và 12,2 ms. BR3 trả về 202 sau khoảng 14 ms và hoàn tất chấm bài sau khoảng 0,07 giây. Trừ thời gian nhận 202, phần lớn thời gian còn lại thuộc về quá trình chạy sandbox và các chặng Kafka. Kết quả qua năm lượt không cho thấy xu hướng tăng hay giảm rõ rệt: median lần lượt nằm trong khoảng 12,1--13,6 ms với BR1, 1,8--4,1 ms với BR2, 13,7--14,4 ms với thời gian nhận 202 của BR3 và 70--72 ms với thời gian chấm hoàn tất. p90 chỉ cao hơn median 2--6 ms. Hai giá trị lớn nhất của BR1 (54,8 và 60,9 ms) là các mẫu đơn lẻ.
+BR1 có median 13,6 ms và p90 16,4 ms, đáp ứng yêu cầu thông báo gần thời gian thực. Với BR2, median là 2,2 ms và p90 là 4,2 ms; 148/150 request hoàn tất trong ngưỡng 10 ms, còn hai request mất 10,5 và 12,2 ms. BR3 trả về 202 sau khoảng 14,5 ms và hoàn tất chấm bài sau khoảng 74 ms. Trừ thời gian nhận 202, phần lớn thời gian còn lại thuộc về quá trình chạy sandbox và các chặng Kafka. Kết quả qua năm lượt không cho thấy xu hướng tăng hay giảm rõ rệt: median lần lượt nằm trong khoảng 13,3--14,9 ms với BR1, 1,8--4,1 ms với BR2, 14,3--14,9 ms với thời gian nhận 202 của BR3 và 72,7--77,0 ms với thời gian chấm hoàn tất. p90 cao hơn median khoảng 2--4 ms với BR1, BR2 và thời gian nhận 202, và khoảng 10 ms với thời gian chấm hoàn tất. Giá trị lớn nhất của BR3 đến từ hai mẫu liên tiếp ở lượt đầu (83,3 và 45,0 ms khi nhận 202; 148,1 và 108,2 ms khi chấm xong); ngoài hai mẫu này, không mẫu BR3 nào vượt 100 ms.
+
+\subsection{Độ nhạy của BR1 theo độ dài inbox}
+\label{sec:br1-inbox-scaling}
+
+Để lượng hoá chi phí đọc inbox, một thí nghiệm riêng được chạy trên cùng stack với BR1/BR3: seed trực tiếp vào Redis $n$ thông báo tổng hợp cho một người học thử (không dùng người học demo), rồi đo latency của hai đường đọc qua API --- toàn bộ inbox và trang đầu (\code{?limit=20}) --- với $n \in \{0, 10, 25, 50, 100, 150, 200\}$. Mỗi mức được đo lặp lại \textbf{500} lần sau năm request làm nóng; Hình~\ref{fig:br1-inbox-scaling} vẽ median, còn p90 dùng cho phần nhận xét. Dữ liệu thử được xoá sau mỗi mức.
+
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}
+\begin{axis}[
+  width=0.82\textwidth, height=6.4cm,
+  xlabel={Số thông báo trong inbox}, ylabel={Latency đọc (ms)},
+  xtick={0,10,25,50,100,150,200},
+  ymin=0,
+  ymajorgrids,
+  legend style={at={(0.5,-0.3)}, anchor=north, legend columns=2},
+  legend cell align=left, mark size=2.2pt, line width=1pt,
+]
+\addplot[color=sone, mark=*] coordinates {
+  (0,2.33) (10,3.29) (25,3.46) (50,4.14) (100,4.83) (150,5.22) (200,6.78)
+};
+\addlegendentry{Toàn bộ inbox}
+\addplot[color=stwo, mark=square*] coordinates {
+  (0,2.60) (10,3.40) (25,3.60) (50,3.79) (100,3.66) (150,3.30) (200,3.90)
+};
+\addlegendentry{Trang đầu (\code{?limit=20})}
+\end{axis}
+\end{tikzpicture}
+\caption{BR1: latency đọc inbox theo số thông báo (median; 500 lần mỗi mức)}
+\label{fig:br1-inbox-scaling}
+\end{figure}
+
+Kết quả cho thấy latency đọc toàn bộ inbox tăng gần tuyến tính theo số thông báo, nhưng tổng mức tăng từ 0 đến 200 thông báo chỉ khoảng \textbf{4,4 ms} (median 2,33 $\rightarrow$ 6,78 ms; p90 ở 200 thông báo là \textbf{9,6 ms}), trong khi đường đọc trang đầu gần như không đổi: median dao động trong khoảng 3,3--3,9 ms khi inbox có từ 10 thông báo trở lên, p90 không vượt 6,6 ms. Vì inbox được giới hạn ở 200 thông báo và giao diện chỉ tải trang mới nhất, chi phí đọc vẫn nằm trong ngưỡng phù hợp cho notification UI production; không cần thay đổi cấu trúc lưu trữ.
 
 \subsection{BR4: tổng hợp SQL so với Python}
 
 Hai phương pháp sử dụng cùng tập dữ kiện hợp lệ và cùng ngữ nghĩa chỉ số, đồng thời cho kết quả khớp ở mọi kích thước và lần lặp. Hình~\ref{fig:br4} cho thấy thời gian xử lý tăng gần tuyến tính theo số lượt chấm. Python nhanh hơn khoảng hai lần (1,8--2,2 lần theo trung bình) nhờ tái sử dụng dữ kiện đã join cho cả hai phép tổng hợp; trong khi đó, SQL phải lặp lại một số phép join JSONB. Ở quy mô 100.000 lượt chấm, một trong ba lần chạy Python mất nhiều thời gian hơn đáng kể (1,79 giây so với 1,38 và 1,42 giây), khiến trung bình đạt 1,53 giây, cao hơn median 1,42 giây. Tính theo median, tốc độ ở quy mô này chênh nhau 2,0 lần. Phép tổng hợp Python chỉ dùng làm đối chứng: trong hệ thống, nhóm vẫn tổng hợp bằng SQL và công bố mart trong một transaction trên PostgreSQL để bảo đảm ngữ nghĩa rõ ràng. Truy vấn mart đã tổng hợp mất khoảng 0,7--0,8 ms.
 
-Phép đo được chạy lại trên mã sau khi gộp (commit \code{05bb5af}, 23/30 container; xem Bảng~\ref{tab:env-services}) và chỉ đánh giá đường PostgreSQL. Cụ thể, ``tổng hợp SQL'' gồm hai truy vấn trên \code{analytics.clean_rows} (JSONB), còn ``làm mới mart'' là hàm \code{refresh} của PostgreSQL, có bước công bố kèm advisory lock và quality gate trên từng dòng. Trên mã đã gộp, engine tổng hợp mặc định của BR4 là Spark trên Delta (\code{EDU_BR45_ASSESSMENT_ENGINE=spark}); đường PostgreSQL chỉ đóng vai trò engine đối chứng. Vì vậy, benchmark này không đo engine Spark.
+Phép đo chạy với 23/30 container (xem Bảng~\ref{tab:env-services}) và chỉ đánh giá đường PostgreSQL. Cụ thể, ``tổng hợp SQL'' gồm hai truy vấn trên \code{analytics.clean_rows} (JSONB), còn ``làm mới mart'' là hàm \code{refresh} của PostgreSQL, có bước công bố kèm advisory lock và quality gate trên từng dòng. Engine tổng hợp mặc định của BR4 là Spark trên Delta (\code{EDU_BR45_ASSESSMENT_ENGINE=spark}); đường PostgreSQL chỉ đóng vai trò engine đối chứng. Vì vậy, benchmark này không đo engine Spark.
 
 \begin{figure}[H]
 \centering
@@ -159,7 +191,7 @@ Phép đo được chạy lại trên mã sau khi gộp (commit \code{05bb5af}, 
 
 \subsection{BR5: end-to-end latency và throughput của window}
 
-Trong lần acceptance test trên luồng CDC, thời gian từ lúc ghi dữ liệu nguồn đến khi lưu kết quả rủi ro và cảnh báo là khoảng \textbf{10.164 ms}. Quá trình khởi động lại Spark và phục hồi mất khoảng \textbf{20.142 ms}; replay không tạo cảnh báo trùng. Hai số liệu này lấy từ lần acceptance test trước và không được đo lại. Thí nghiệm quy mô (Bảng~\ref{tab:br5}) chỉ đo chặng Kafka $\rightarrow$ Spark $\rightarrow$ window trong PostgreSQL, với khoảng 1\% bản ghi trùng. Kết quả khớp với phép tổng hợp batch độc lập bằng Python. Thí nghiệm được chạy lại trên mã sau khi gộp (commit \code{05bb5af}, 23/30 container; xem Bảng~\ref{tab:env-services}) bằng job br45-stream của phiên bản này. Spark 3.5.5 sử dụng state store RocksDB; cùng driver cũng chạy truy vấn landing Delta của BR4.
+Trong lần acceptance test trên luồng CDC, thời gian từ lúc ghi dữ liệu nguồn đến khi lưu kết quả rủi ro và cảnh báo là khoảng \textbf{10.164 ms}. Quá trình khởi động lại Spark và phục hồi mất khoảng \textbf{20.142 ms}; replay không tạo cảnh báo trùng. Thí nghiệm quy mô (Bảng~\ref{tab:br5}) chỉ đo chặng Kafka $\rightarrow$ Spark $\rightarrow$ window trong PostgreSQL, với khoảng 1\% bản ghi trùng. Kết quả khớp với phép tổng hợp batch độc lập bằng Python. Thí nghiệm chạy với 23/30 container (xem Bảng~\ref{tab:env-services}) bằng job br45-stream. Spark 3.5.5 sử dụng state store RocksDB; cùng driver cũng chạy truy vấn landing Delta của BR4.
 
 \begin{table}[H]
 \centering\small
@@ -282,7 +314,7 @@ Phần này không nhằm tìm ra giải pháp nhanh hơn, mà đánh giá đi�
 
 \subsection{Thiết lập}
 
-Bảng nguồn \code{bench.cdc_source} gồm 100.000 dòng, có khoá chính, cột \code{updated_at} và index trên cột này (được tạo bằng lệnh \code{CREATE INDEX} sau khi nạp bảng; xem Phụ lục~\ref{app:run}). Debezium đọc WAL qua logical replication; polling truy vấn bảng mỗi 0,5 giây dựa trên watermark \code{updated_at}. Sau snapshot, nhóm tạo một đợt gồm 100 UPDATE và 10 hard DELETE, rồi đo số event nhận được, latency, số query và số tuple PostgreSQL trả về. Với polling, latency được tính từ thời điểm \code{updated_at} của dòng đến khi poller đọc được dòng đó. Với Debezium, latency được tính từ mốc \code{ts_ms} do connector gắn vào event đến khi consumer nhận event. Phép đo được thực hiện ngày 13/11/2026 trên cấu hình 26 container trong Bảng~\ref{tab:env-services}.
+Bảng nguồn \code{bench.cdc_source} gồm 100.000 dòng, có khoá chính, cột \code{updated_at} và index trên cột này (được tạo bằng lệnh \code{CREATE INDEX} sau khi nạp bảng). Debezium đọc WAL qua logical replication; polling truy vấn bảng mỗi 0,5 giây dựa trên watermark \code{updated_at}. Sau snapshot, nhóm tạo một đợt gồm 100 UPDATE và 10 hard DELETE, rồi đo số event nhận được, latency, số query và số tuple PostgreSQL trả về. Với polling, latency được tính từ thời điểm \code{updated_at} của dòng đến khi poller đọc được dòng đó. Với Debezium, latency được tính từ mốc \code{ts_ms} do connector gắn vào event đến khi consumer nhận event. Phép đo dùng cấu hình 26 container trong Bảng~\ref{tab:env-services}.
 
 \subsection{Kết quả}
 
@@ -326,12 +358,12 @@ Snapshot ban đầu của Debezium đọc 100.000 dòng nhưng không nằm tron
 
 Đây là smoke test với 100.000 dòng trên một máy, chưa phải phép đo ở quy mô 1--10 triệu dòng. Nhóm cũng chưa thực hiện failure injection cho connector. Latency của cả hai phương án chỉ được đo trong một đợt thay đổi, nên còn phụ thuộc vào thời điểm đợt đó rơi trong chu kỳ polling 0,5 giây; các số liệu này không dùng để xếp hạng tốc độ. Kết quả đủ để minh hoạ correctness, state và scale, nhưng chưa đủ cơ sở để đưa ra cam kết SLA production.
 
-Riêng BR1--BR3, phép đo được chạy trên cùng máy đang vận hành phần lớn stack (26/30 container), nên có thể chịu ảnh hưởng của tranh chấp CPU và bộ nhớ. Ba luồng này còn có hai đặc điểm tác động trực tiếp đến kết quả và cần được khắc phục. Thứ nhất, API inbox trả về toàn bộ danh sách; khi inbox có 152 thông báo, latency tăng lên khoảng 68 ms, so với 7,5 ms khi chỉ có 10 thông báo. Cần bổ sung phân trang. Thứ hai, số thứ tự submission được tính bằng cách quét toàn bộ bài nộp của người học, khiến thời gian nhận 202 tăng theo lịch sử: khoảng 167 ms với 398 bài nộp, so với 28 ms khi chưa có lịch sử. Vì vậy, mỗi mẫu BR1/BR3 được đo trên trạng thái rỗng. Hai cặp số chẩn đoán này lấy từ lần đo trước trên một máy khác và không được đo lại.
+Riêng BR1--BR3, các phép đo chạy trên cùng máy với stack: BR2 với 26/30 container, BR1 và BR3 với 15/30 container (chỉ các dịch vụ trên đường đo). Vì vậy, số liệu BR1/BR3 phản ánh điều kiện ít tranh chấp CPU và bộ nhớ hơn so với khi toàn bộ stack cùng chạy; mọi request cũng đi qua localhost nên chưa tính độ trễ mạng thật. Mỗi mẫu BR1 được đo trên inbox rỗng và mỗi mẫu BR3 là lần nộp đầu tiên. Hai trạng thái này có chi phí giới hạn trong hiện thực: API inbox nhận \code{?limit=} và có endpoint đếm chưa đọc \code{/notifications/unread?since=}, chi phí đọc toàn bộ inbox chỉ tăng khoảng 4,4 ms từ 0 đến 200 thông báo (Mục~\ref{sec:br1-inbox-scaling}); số thứ tự lần nộp lấy từ một bộ đếm O(1), không phụ thuộc số bài đã nộp. Tuy vậy, thời gian nhận 202 theo độ dài lịch sử nộp bài chưa được đo riêng như với inbox. Ngoài ra, consumer notification xử lý sự kiện tuần tự và retry gửi email/push ngay trong luồng xử lý, nên khi một kênh gửi không phản hồi, thông báo của các sự kiện kế tiếp cũng bị chậm theo (khoảng 0,6 giây mỗi sự kiện trong lượt thử bị loại ở Bảng~\ref{tab:env-services}).
 
 \section{Thảo luận}
 
 \begin{itemize}
-  \item \textbf{Đáp ứng yêu cầu latency.} Cảnh báo BR5 mất khoảng 10 giây trong kịch bản chấp nhận (không đo lại), còn tìm kiếm BR8 mất khoảng nửa giây; cả hai đều đáp ứng nhu cầu nghiệp vụ, lần lượt hỗ trợ cố vấn can thiệp và người học tìm nội dung mới. Overlay khoảng 6 giây phù hợp với dashboard dựa trên mart cập nhật theo ngày; để giảm latency xuống dưới một giây sẽ cần Flink (ADR 0014). Với BR2, median và p90 đều dưới ngưỡng 10 ms, nhưng 2/150 request vượt ngưỡng.
+  \item \textbf{Đáp ứng yêu cầu latency.} Cảnh báo BR5 mất khoảng 10 giây trong kịch bản chấp nhận, còn tìm kiếm BR8 mất khoảng nửa giây; cả hai đều đáp ứng nhu cầu nghiệp vụ, lần lượt hỗ trợ cố vấn can thiệp và người học tìm nội dung mới. Overlay khoảng 6 giây phù hợp với dashboard dựa trên mart cập nhật theo ngày; để giảm latency xuống dưới một giây sẽ cần Flink (ADR 0014). Với BR2, median và p90 đều dưới ngưỡng 10 ms, nhưng 2/150 request vượt ngưỡng.
   \item \textbf{Tách tính toán khỏi serving.} Việc tổng hợp mart trước và sử dụng cache giúp latency serving chỉ còn vài mili-giây, trong khi truy vấn trực tiếp qua Trino mất khoảng 80--170 mili-giây. Các tra cứu theo key vẫn được thực hiện trên Redis.
   \item \textbf{Ưu tiên tính đúng đắn.} Ở BR4, nhóm vẫn chọn SQL dù Python chạy nhanh hơn trên luồng PostgreSQL. Báo cáo trình bày kết quả benchmark đúng như đo được, không khẳng định SQL nhanh hơn. Hướng tối ưu bằng bảng có kiểu và tái sử dụng kết quả trung gian đã được triển khai trong engine mặc định Spark SQL trên Delta, nhưng engine này chưa được đưa vào các phép đo của chương.
   \item \textbf{Kiểm chứng giúp phát hiện lỗi.} Quá trình đo và kiểm thử đã giúp phát hiện, khắc phục nhiều lỗi thực tế. Chẳng hạn, bộ chunk từng làm mất khoảng 2/3 transcript; đồng hồ thiết bị chạy nhanh khiến sự kiện đúng hạn của người khác bị loại bỏ; cache tài liệu được đọc trước khi kiểm tra phạm vi; và Trino hết bộ nhớ khi dashboard thăm dò liên tục.

@@ -18,7 +18,7 @@ Chương này giới thiệu lakehouse~\cite{armbrust2021lakehouse} xây dựng 
   \draw[arr] (src) -- node[above, font=\scriptsize]{1 phút} (b);
   \draw[arr] (b) -- node[above, font=\scriptsize]{5 phút} (s);
   \draw[arr] (s) -- node[above, font=\scriptsize]{hằng giờ} (g);
-  \draw[arr] (g) -- node[above, font=\scriptsize]{hằng ngày} (m);
+  \draw[arr] (g) -- node[above, font=\scriptsize, align=center]{hằng\\ngày} (m);
   \node[below=4mm of b, font=\scriptsize\color{muted}, text width=2.4cm, align=center] {Spark Structured Streaming (landing)};
   \node[below=4mm of s, font=\scriptsize\color{muted}, text width=2.6cm, align=center] {stream + batch đối soát};
   \node[below=4mm of g, font=\scriptsize\color{muted}, text width=2.6cm, align=center] {\texttt{edu warehouse run}};
