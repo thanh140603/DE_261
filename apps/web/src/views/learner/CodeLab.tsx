@@ -21,7 +21,7 @@ export function CodeLab() {
   const assignment = assignments.find((a) => a.id === assignmentId);
   useEffect(() => { if (!assignment && assignments.length) setAssignmentId(assignments[0].id); }, [assignment, assignments, setAssignmentId]);
 
-  const history = useFetch(learnerId ? () => api.learner.submissions(learnerId) : null, [learnerId]);
+  const history = useFetch(learnerId ? () => api.learner.submissions(learnerId, 50) : null, [learnerId]);
   const [current, setCurrent] = useState<Submission | null>(null);
   const [pollError, setPollError] = useState<string | null>(null);
 

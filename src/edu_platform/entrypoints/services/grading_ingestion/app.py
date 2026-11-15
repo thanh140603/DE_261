@@ -9,7 +9,7 @@ from __future__ import annotations
 from datetime import UTC, datetime
 from typing import Any
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Query
 from pydantic import BaseModel
 
 from edu_platform.contexts.grading.application.enqueue_submission import (
@@ -101,8 +101,10 @@ def build_app(settings: Settings) -> FastAPI:
         return submission_dict(submission)
 
     @app.get("/learners/{learner_id}/submissions")
-    def learner_submissions(learner_id: str) -> list[dict[str, Any]]:
-        rows = repo.for_learner(LearnerId(learner_id))
+    def learner_submissions(
+        learner_id: str, limit: int | None = Query(None, ge=1, le=200)
+    ) -> list[dict[str, Any]]:
+        rows = repo.for_learner(LearnerId(learner_id), limit=limit)
         return [submission_dict(s, include_stdout=False) for s in rows]
 
     return app

@@ -56,7 +56,8 @@ Live updates: `GET /api/events` is Server-Sent Events; each message is
   LearningEvent = `{event_id, learner_pseudonym, course_id, content_id, session_id, verb, platform, occurred_at, received_at, lateness_seconds, video_position_sec, schema_version, late:bool}`
 
 ## Learner (BR1 notifications, BR2 recommendations, BR3 feedback)
-- `GET /api/learners/{id}/notifications` -> `[{id, title, body, channels:[], priority, created_at, source_event_type, deep_link}]` newest first
+- `GET /api/learners/{id}/notifications?limit=20` -> `[{id, title, body, channels:[], priority, created_at, source_event_type, deep_link}]` newest first; omit `limit` for the full inbox (max 200), pass it to read only the newest page
+- `GET /api/learners/{id}/notifications/unread?since=2026-11-15T00:00:00Z` -> `{unread}` (count created after `since`; the UI sends the browser's last-seen mark)
 - `GET /api/learners/{id}/recommendations` ->
   ```
   { next_step:{course_id, title, difficulty, category, score, reason} | null,
@@ -75,7 +76,7 @@ Live updates: `GET /api/events` is Server-Sent Events; each message is
             tests:[{test_case_id, status, expected, actual, diff, duration_ms}]} | null,
     feedback:{summary, failed_tests:[...same as tests], stderr_excerpt, hints:[]} | null }
   ```
-- `GET /api/learners/{id}/submissions` -> `[Submission]` newest first (same shape, without stdout)
+- `GET /api/learners/{id}/submissions?limit=20` -> `[Submission]` newest first (same shape, without stdout)
 
 ## Instructor (BR4 anomalies, BR7 heatmap, BR8 content sync + engagement)
 

@@ -34,8 +34,11 @@ Runbook này **không chỉ BR1–BR3**. Mỗi BR có phép đo riêng, và mọ
 1. **Full stack**: đo khi toàn bộ stack của compose đang sống (gồm cả Airflow), không tắt bớt dịch
    vụ để "cho nhanh", trừ khi troubleshooting và phải ghi rõ trong báo cáo.
 2. **Không bịa số**: mọi con số trong báo cáo phải lấy từ CSV/JSON do các lệnh dưới sinh ra.
-3. **Cô lập trạng thái**: `benchmarks/br123_latency.py` xoá hộp thư + dedup trước mỗi mẫu BR1 và xoá
-   `edu:grading:*` trước mỗi mẫu BR3. Không được bỏ — nếu bỏ, BR1/BR3 sẽ trôi dần (xem mục 8).
+3. **Cô lập trạng thái**: `benchmarks/br123_latency.py` tự snapshot hộp thư + dedup của người học,
+   làm trống hộp thư trong lúc đo rồi khôi phục sau khi chạy (kể cả khi lỗi); mỗi mẫu chỉ xoá
+   thông báo do chính nó tạo. BR3 chỉ đặt lại bộ đếm attempt O(1), **không** xoá `edu:grading:*`,
+   nên lịch sử bài nộp của demo không bị mất. Không được bỏ cơ chế cô lập — nếu bỏ, BR1/BR3 sẽ trôi
+   dần (xem mục 9).
 4. **Ghi lại cách chạy**: số lượt, cờ đã dùng, phép đo nào fail và vì sao. Nếu không chạy lại được
    một phép đo, giữ số cũ và ghi chú "(không đo lại)".
 
@@ -449,8 +452,9 @@ tràn, nhãn số khớp bảng.
 | `ModuleNotFoundError: trino` khi chạy `edu benchmark serving` | môi trường Python thiếu client Trino | `uv pip install trino` (hoặc `pip install trino`) |
 | Container bị OOM-kill / restart khi full stack | nhiều JVM chạy cùng lúc | tạm dừng `lakehouse-streaming`, `br45-*` khi đo nhóm khác; bật lại sau; ghi rõ nếu số đo trên cấu hình thiếu |
 | `TimeoutError: condition not reached` ở `benchmark live` | `telemetry-live` tụt lại so với burst | dừng job streaming khác, đợi log hết "falling behind", chạy từng mức sessions |
-| BR1 tăng dần qua các lượt | hộp thư tích luỹ (API trả cả danh sách) | giữ nguyên dòng xoá `edu:notif:inbox:<learner>` mỗi mẫu trong `benchmarks/br123_latency.py` |
-| BR3 "nộp → 202" tăng dần | `attempt_number` quét toàn bộ bài nộp trong Redis | giữ nguyên dòng xoá `edu:grading:*` mỗi mẫu trong `benchmarks/br123_latency.py` |
+| BR1 tăng dần qua các lượt | hộp thư tích luỹ (API trả cả danh sách) | giữ nguyên cơ chế cô lập trong `benchmarks/br123_latency.py`: mỗi mẫu xoá dedup + thông báo do mẫu tạo ra |
+| BR3 "nộp → 202" tăng dần | `attempt_number` cấu hình sai (không dùng counter) hoặc counter bị xoá giữa chừng | kiểm tra key `edu:grading:attempts:<learner>:<assignment>`; script đặt lại counter mỗi mẫu, không xoá lịch sử |
+| Sau khi chạy benchmark, hộp thư demo trống | script bị kill trước khi `finally` khôi phục snapshot | chạy lại một lần để restore, hoặc dựng lại inbox từ `edu:notif:item:*` (item còn TTL 30 ngày) |
 | Số serving/BR4 chậm hơn nhiều so với lần đo trước | full stack đang tranh CPU/RAM hoặc cold cache | chấp nhận số full-stack và ghi rõ môi trường; không so trực tiếp với lần đo trên máy/stack khác |
 | Debezium không thấy event | connector chưa đăng ký hoặc snapshot chưa xong | kiểm tra `curl localhost:8083/connectors/bench-cdc/status`, đợi offset đủ 100k |
 

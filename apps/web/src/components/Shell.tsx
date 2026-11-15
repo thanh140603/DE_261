@@ -203,7 +203,7 @@ function usePopover() {
 }
 
 function Bell({ learnerId }: { learnerId: string }) {
-  const { q, unread, isUnread, markSeen } = useNotifications(learnerId);
+  const { q, unread, isUnread, markSeen } = useNotifications(learnerId, 6);
   const pop = usePopover();
   const navigate = useNavigate();
   return (

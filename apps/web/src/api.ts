@@ -77,13 +77,19 @@ export const api = {
   },
 
   learner: {
-    notifications: (id: string) => get<T.Notification[]>(`/learners/${id}/notifications`),
+    notifications: (id: string, limit?: number) =>
+      get<T.Notification[]>(`/learners/${id}/notifications${limit ? `?limit=${limit}` : ""}`),
+    unreadNotifications: (id: string, sinceMs: number) =>
+      get<{ unread: number }>(
+        `/learners/${id}/notifications/unread?since=${encodeURIComponent(new Date(sinceMs).toISOString())}`,
+      ),
     recommendations: (id: string) => get<T.Recommendations>(`/learners/${id}/recommendations`),
     enroll: (learner_id: string, course_id: string) =>
       post<{ enrolled: string[] }>(`/learners/${learner_id}/enroll`, { course_id }),
     completeCourse: (learner_id: string, course_id: string) =>
       post<{ completed: string[] }>(`/learners/${learner_id}/complete-course`, { course_id }),
-    submissions: (id: string) => get<T.Submission[]>(`/learners/${id}/submissions`),
+    submissions: (id: string, limit?: number) =>
+      get<T.Submission[]>(`/learners/${id}/submissions${limit ? `?limit=${limit}` : ""}`),
     submit: (learner_id: string, assignment_id: string, code: string, request_id?: string) =>
       post<{ submission_id: string; status: string }>("/submissions", { learner_id, assignment_id, code, request_id }),
     submission: (id: string) => get<T.Submission>(`/submissions/${id}`),

@@ -5,9 +5,17 @@ BR2: recommendation request with the online feature store.
 BR3: submission accepted (202) and submission -> graded.
 
 The stack must be up (``docker compose -f docker-compose.yml -f
-docker-compose.br13.yml up -d``). Each BR1 sample removes the dedup key and the learner inbox so
-the same deadline event produces a fresh notification without inflating the poll cost; each BR3
-sample clears the Redis grading state so the attempt count does not grow with the demo history.
+docker-compose.br13.yml up -d``).
+
+The reported BR1 number is measured on an *empty* inbox, because the API returns the whole list
+and a growing list would inflate the poll cost. The harness no longer deletes the learner's real
+inbox: it snapshots the inbox + dedup key before the run, empties the inbox for the measurement,
+and restores the snapshot afterwards (including on error). Each sample removes only the
+notification it created.
+
+BR3 no longer wipes ``edu:grading:*``: the attempt sequence is an O(1) counter, so each sample
+just resets that counter. The submissions created by the run are removed from Redis afterwards
+(their Postgres projection is the same as any other graded submission and is kept for analysis).
 """
 
 from __future__ import annotations
@@ -17,23 +25,75 @@ import csv
 import statistics
 import time
 from pathlib import Path
+from typing import Any
 
 import httpx
 import redis
 
 DEDUP_KEY = "edu:notif:dedup:l-002:lms.deadline_approaching.v1:a-py-even"
-# Each BR1 sample starts from an empty inbox: the API returns the whole inbox, so a growing
-# list would inflate the poll cost and make successive runs incomparable (see 05-danh-gia).
 INBOX_KEY = "edu:notif:inbox:l-002"
-# BR3's attempt_number is computed by scanning every submission of the learner, so the ack path
-# would grow with the demo history. Each sample starts from an empty grading state (see 05-danh-gia).
-GRADING_PATTERN = "edu:grading:*"
+# The counter now makes the attempt lookup O(1); resetting this one key preserves the demo
+# grading history while every sample still starts at attempt 1 (see 05-danh-gia).
+ATTEMPT_KEY = "edu:grading:attempts:l-002:a-py-even"
 
 
-def reset_grading(store: redis.Redis) -> None:
-    keys = list(store.scan_iter(GRADING_PATTERN))
-    if keys:
-        store.delete(*keys)
+def _item_key(notification_id: str) -> str:
+    return f"edu:notif:item:{notification_id}"
+
+
+def snapshot_notifications(store: redis.Redis) -> dict[str, Any]:
+    """Save the learner's real inbox + dedup state before the harness empties it."""
+    return {
+        "inbox": list(store.lrange(INBOX_KEY, 0, -1)),
+        "dedup": store.get(DEDUP_KEY),
+        "dedup_ttl_ms": store.pttl(DEDUP_KEY),
+    }
+
+
+def restore_notifications(store: redis.Redis, snapshot: dict[str, Any]) -> None:
+    """Drop everything the run created and put the original inbox back."""
+    original = set(snapshot["inbox"])
+    for notification_id in store.lrange(INBOX_KEY, 0, -1):
+        if notification_id not in original:
+            store.lrem(INBOX_KEY, 0, notification_id)
+            store.delete(_item_key(notification_id))
+    store.delete(INBOX_KEY)
+    if original:
+        store.rpush(INBOX_KEY, *snapshot["inbox"])
+    dedup = snapshot["dedup"]
+    if dedup is None:
+        store.delete(DEDUP_KEY)
+        return
+    ttl = int(snapshot["dedup_ttl_ms"])
+    if ttl > 0:
+        store.set(DEDUP_KEY, dedup, px=ttl)
+    else:
+        store.set(DEDUP_KEY, dedup)
+
+
+def drop_created_notifications(store: redis.Redis, baseline: set[str]) -> None:
+    """Remove the notification produced by one sample, keeping the inbox at its baseline."""
+    for notification_id in store.lrange(INBOX_KEY, 0, -1):
+        if notification_id not in baseline:
+            store.lrem(INBOX_KEY, 0, notification_id)
+            store.delete(_item_key(notification_id))
+
+
+def cleanup_submissions(store: redis.Redis, submission_ids: list[str]) -> None:
+    """Drop the benchmark's own submissions from the hot store; durable copies stay in Postgres."""
+    timeline = "edu:grading:timeline:l-002"
+    for submission_id in submission_ids:
+        store.delete(
+            f"edu:grading:submission:{submission_id}",
+            f"edu:grading:code:{submission_id}",
+            f"edu:grading:worker:{submission_id}",
+        )
+        store.zrem(timeline, submission_id)
+        store.srem("edu:grading:submissions", submission_id)
+        for result_key in store.scan_iter(match=f"edu:grading:result:{submission_id}:*"):
+            store.delete(result_key)
+
+
 CODE = "def sum_even(xs):\n    return sum(x for x in xs if x % 2 == 0)\n"
 
 
@@ -52,9 +112,10 @@ def summary(name: str, values: list[float]) -> str:
 
 def measure_br1(client: httpx.Client, store: redis.Redis, samples: int) -> list[float]:
     client.post("/api/learners/l-002/enroll", json={"course_id": "c-ml-301"}).raise_for_status()
+    baseline = set(store.lrange(INBOX_KEY, 0, -1))  # empty: main emptied the inbox for the run
 
     def once() -> float:
-        store.delete(DEDUP_KEY, INBOX_KEY)  # isolate the sample: no dedup, no growing inbox
+        store.delete(DEDUP_KEY)
         before = len(client.get("/api/learners/l-002/notifications").json())
         started = time.perf_counter()
         response = client.post(
@@ -71,7 +132,9 @@ def measure_br1(client: httpx.Client, store: redis.Redis, samples: int) -> list[
         for _ in range(1000):
             rows = client.get("/api/learners/l-002/notifications").json()
             if len(rows) > before:
-                return (time.perf_counter() - started) * 1000
+                elapsed = (time.perf_counter() - started) * 1000
+                drop_created_notifications(store, baseline)
+                return elapsed
             time.sleep(0.002)
         raise RuntimeError("BR1 notification did not appear")
 
@@ -90,9 +153,13 @@ def measure_br2(client: httpx.Client, samples: int) -> list[float]:
     return values
 
 
-def measure_br3(client: httpx.Client, store: redis.Redis, samples: int) -> tuple[list[float], list[float]]:
+def measure_br3(
+    client: httpx.Client, store: redis.Redis, samples: int
+) -> tuple[list[float], list[float], list[str]]:
+    created: list[str] = []
+
     def once() -> tuple[float, float]:
-        reset_grading(store)
+        store.set(ATTEMPT_KEY, 0)  # attempt 1 again; keeps the learner's history intact
         started = time.perf_counter()
         response = client.post(
             "/api/submissions",
@@ -101,6 +168,7 @@ def measure_br3(client: httpx.Client, store: redis.Redis, samples: int) -> tuple
         response.raise_for_status()
         accepted = (time.perf_counter() - started) * 1000
         submission_id = response.json()["submission_id"]
+        created.append(submission_id)
         for _ in range(4000):
             row = client.get(f"/api/submissions/{submission_id}").json()
             if row["status"] in {"graded", "failed"}:
@@ -115,7 +183,7 @@ def measure_br3(client: httpx.Client, store: redis.Redis, samples: int) -> tuple
         ack, total = once()
         acks.append(ack)
         totals.append(total)
-    return acks, totals
+    return acks, totals, created
 
 
 def main() -> None:
@@ -128,10 +196,22 @@ def main() -> None:
     args = parser.parse_args()
 
     store = redis.Redis.from_url(args.redis_url, decode_responses=True)
-    with httpx.Client(base_url=args.base_url, timeout=60) as client:
-        br1 = measure_br1(client, store, args.samples)
-        br2 = measure_br2(client, args.br2_samples)
-        br3_ack, br3_total = measure_br3(client, store, args.samples)
+    snapshot = snapshot_notifications(store)
+    attempt_before = store.get(ATTEMPT_KEY)
+    created_submissions: list[str] = []
+    try:
+        store.delete(INBOX_KEY)  # measurement conditions: an empty inbox, restored in finally
+        with httpx.Client(base_url=args.base_url, timeout=60) as client:
+            br1 = measure_br1(client, store, args.samples)
+            br2 = measure_br2(client, args.br2_samples)
+            br3_ack, br3_total, created_submissions = measure_br3(client, store, args.samples)
+    finally:
+        cleanup_submissions(store, created_submissions)
+        if attempt_before is None:
+            store.delete(ATTEMPT_KEY)
+        else:
+            store.set(ATTEMPT_KEY, attempt_before)
+        restore_notifications(store, snapshot)
 
     args.out.parent.mkdir(parents=True, exist_ok=True)
     with args.out.open("w", newline="", encoding="utf-8") as handle:

@@ -43,8 +43,13 @@ class GradingClient:
         data = self._request("GET", f"/submissions/{submission_id}")
         return data if isinstance(data, dict) else {}
 
-    def learner_submissions(self, learner_id: str) -> list[dict[str, Any]]:
-        data = self._request("GET", f"/learners/{learner_id}/submissions")
+    def learner_submissions(
+        self, learner_id: str, limit: int | None = None
+    ) -> list[dict[str, Any]]:
+        path = f"/learners/{learner_id}/submissions"
+        if limit is not None:
+            path = f"{path}?limit={limit}"
+        data = self._request("GET", path)
         return data if isinstance(data, list) else []
 
     def _request(self, method: str, path: str, body: dict[str, Any] | None = None) -> Any:
