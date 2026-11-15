@@ -416,5 +416,5 @@ Giao diện được kiểm chứng theo ba phương thức:
 \begin{itemize}
   \item \textbf{Biên dịch nghiêm ngặt}: TypeScript \code{strict}; bản build production thành công.
   \item \textbf{Kiểm tra thủ công trên trình duyệt} với dữ liệu thật ở chế độ sáng/tối, desktop và điện thoại: một bài nộp được đưa qua sandbox để xác nhận thông báo mới được tạo; các trang BR6--BR8 đọc dữ liệu mart thật từ Trino.
-  \item \textbf{Acceptance test bằng Playwright} trên stack Docker Compose, gồm 12 test trong năm tệp spec: 2 test BR1--BR3, 3 test BR4/BR5, 4 test BR6--BR8, 2 test cho hai chế độ classroom và replay của BR4/BR5 và 1 test session đăng nhập nhân sự. Chín test của ba bộ đầu đã đạt ở các lần chạy trước khi gộp nhánh BR4/BR5; kết quả JSON và ảnh chụp được lưu kèm. Trên mã sau khi gộp, các test này dùng tài khoản nhân sự để đăng nhập, nhưng toàn bộ 12 test chưa được chạy lại.
+  \item \textbf{Acceptance test bằng Playwright} trên stack Docker Compose, gồm 12 test trong năm tệp spec: 2 test BR1--BR3, 3 test BR4/BR5, 4 test BR6--BR8, 2 test cho hai chế độ classroom và replay của BR4/BR5 và 1 test session đăng nhập nhân sự. Chín test của ba bộ đầu đã đạt; kết quả JSON và ảnh chụp được lưu kèm. Các test đăng nhập bằng tài khoản nhân sự; chưa có lần chạy đủ cả 12 test với cơ chế đăng nhập này.
 \end{itemize}
